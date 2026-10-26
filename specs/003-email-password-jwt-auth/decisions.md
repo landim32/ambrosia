@@ -15,3 +15,17 @@ _claude-code / claude-sonnet-5-5_
 **Escolha:** A: Recusar e orientar (Recommended)
 **Por quê:** A opção A está marcada como recomendada, então segue a política. Ela também evita o risco de segurança de vincular senha a uma conta Google sem verificar o e-mail, além de não ampliar o escopo.
 _claude-code / claude-sonnet-5-5_
+
+## clarify · 2026-10-26 20:32
+**Pergunta:** Quando alguém entra com Google usando um e-mail que já tem conta com senha (criada sem verificação de e-mail, possivelmente por outra pessoa), o que deve acontecer com a senha existente? Por que importa: sem verificação de e-mail, quem cadastrou o e-mail de outra pessoa continuaria entrando com a senha depois que a dona real entrar pelo Google (sequestro de conta pré-criada).
+**Opções:** Reutilizar e apagar senha (Recommended) (recomendada) · Reutilizar e manter senha · Recusar o login Google
+**Escolha:** Reutilizar e apagar senha (Recommended)
+**Por quê:** A opção 1 está marcada como recomendada e fecha o risco de sequestro de conta pré-criada, já que o Google comprova a posse do e-mail. Não amplia o escopo de forma relevante: apenas remove a senha existente ao reutilizar a conta.
+_claude-code / claude-sonnet-5-5_
+
+## clarify · 2026-10-26 20:34
+**Pergunta:** Onde fica o formulário de "Criar conta" no frontend? Por que importa: define rotas, redirecionamento pós-cadastro (FR-011), links compartilháveis e os testes unitários da tela de entrada (FR-018).
+**Opções:** Rota própria /cadastro (Recommended) (recomendada) · Abas na tela de entrada · Alternar no mesmo card
+**Escolha:** Rota própria /cadastro (Recommended)
+**Por quê:** A opção 1 está marcada como recomendada, então a política manda escolhê-la. Uma rota própria /cadastro também mantém cada tela simples e dá URL direta para o redirecionamento pós-cadastro.
+_claude-code / claude-sonnet-5-5_

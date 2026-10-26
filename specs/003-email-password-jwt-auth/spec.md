@@ -20,12 +20,14 @@ Esta feature **substitui a entrada de desenvolvimento por um cadastro real**: a 
 
 - Q: O login com Google deve ser mantido ao lado do login com e-mail e senha? → A: Sim; a tela de entrada oferece o formulário de e-mail/senha e o botão Google.
 - Q: Criar conta com e-mail que já existe por conta Google (sem senha): o que fazer? → A: Recusar com "Este e-mail já está cadastrado" e orientar a entrar com Google; a conta Google continua sem senha.
+- Q: Quando alguém entra com Google usando um e-mail que já tem conta com senha, o que acontece com a senha existente? → A: A conta é reutilizada e a senha existente é removida (o Google comprova a posse do e-mail); a partir daí só o Google entra, até uma futura recuperação/troca de senha.
+- Q: Onde fica o formulário de "Criar conta" no frontend? → A: Em tela própria, na rota `/cadastro`, com link "Criar conta" na tela de entrada e link "Já tenho conta" de volta; a tela de origem é preservada para o redirecionamento pós-cadastro.
 
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Criar uma conta com e-mail e senha (Priority: P1)
 
-A vendedora que ainda não tem conta abre a tela de entrada, escolhe "Criar conta", informa nome, e-mail e senha (com confirmação) e já entra no sistema conectada, sem precisar de uma conta Google.
+A vendedora que ainda não tem conta abre a tela de entrada, segue o link "Criar conta" para a tela de cadastro (`/cadastro`), informa nome, e-mail e senha (com confirmação) e já entra no sistema conectada, sem precisar de uma conta Google.
 
 **Why this priority**: sem cadastro não existe usuário para entrar com senha; é o que torna a entrada de desenvolvimento dispensável e o pré-requisito de todas as demais histórias.
 
@@ -39,6 +41,7 @@ A vendedora que ainda não tem conta abre a tela de entrada, escolhe "Criar cont
 4. **Given** uma senha fora da política (menos de 8 caracteres) ou confirmação diferente, **When** tenta criar conta, **Then** vê a mensagem do campo inválido e o formulário não é enviado.
 5. **Given** um e-mail mal formado ou nome vazio, **When** tenta criar conta, **Then** vê a mensagem do campo inválido e nada é enviado.
 6. **Given** o mesmo e-mail digitado com maiúsculas ou espaços nas pontas, **When** cria a conta, **Then** o e-mail é tratado como o mesmo e-mail normalizado (não gera conta duplicada).
+7. **Given** a vendedora foi enviada à tela de entrada ao tentar abrir uma tela protegida, **When** segue "Criar conta" e conclui o cadastro, **Then** é levada à tela que tentou abrir originalmente; o link "Já tenho conta" a devolve à tela de entrada mantendo esse destino.
 
 ---
 
@@ -58,6 +61,7 @@ A vendedora com conta criada abre a tela de entrada, informa e-mail e senha e pa
 4. **Given** uma conta criada apenas por Google (sem senha), **When** tenta entrar com e-mail e senha, **Then** vê a mesma mensagem genérica "E-mail ou senha inválidos".
 5. **Given** uma sessão iniciada por senha, **When** o prazo expira ou a vendedora aciona "Sair", **Then** o comportamento é idêntico ao da sessão iniciada por Google (aviso de expiração, volta à tela de entrada, nada fica no navegador).
 6. **Given** a tela de entrada com a conta Google configurada, **When** a tela abre, **Then** o botão "Entrar com Google" continua disponível junto ao formulário de e-mail e senha, e entrar por Google funciona como antes.
+7. **Given** uma conta com senha, **When** alguém entra com Google usando o mesmo e-mail, **Then** a sessão é iniciada na conta existente (mesmos dados) e a senha da conta é removida; uma tentativa posterior de entrar com aquela senha recebe "E-mail ou senha inválidos".
 
 ---
 
@@ -104,7 +108,8 @@ Quem roda os testes de API do backend contra Development ou Homolog não precisa
 - **Tentativas repetidas de login com senha errada**: respondem sempre a mesma mensagem genérica e no mesmo tempo aproximado, sem revelar se o e-mail existe. Bloqueio por tentativas fica fora do escopo (ver Assumptions).
 - **Sessão antiga obtida por dev-login ainda dentro do prazo**: continua válida até expirar, pois a credencial em si não muda; nenhuma invalidação retroativa é exigida.
 - **Usuários antigos criados por dev-login** no banco de Homolog/Development: permanecem, sem senha; não conseguem entrar por senha nem criar conta com o mesmo e-mail (tratados como "já cadastrado"). São descartados ao reconstruir a homologação.
-- **Conta Google tenta criar conta com senha**: recusada com orientação para entrar com Google (US1 cenário 3). **Conta com senha tenta entrar com Google usando o mesmo e-mail**: o login Google reutiliza a conta existente, como já faz hoje, sem alterar a senha.
+- **Conta Google tenta criar conta com senha**: recusada com orientação para entrar com Google (US1 cenário 3). **Conta com senha e alguém entra com Google usando o mesmo e-mail**: o login Google reutiliza a conta existente e **remove a senha** (o Google comprova a posse do e-mail; evita que quem pré-cadastrou o e-mail de outra pessoa continue entrando). Sessões já emitidas por senha continuam válidas até expirar (sem invalidação retroativa).
+- **Vendedora já conectada abre `/cadastro`**: é levada à lista de clientes, como já acontece com a tela de entrada.
 - **Erro da API ou falha de rede durante cadastro/login**: aviso curto com a mensagem retornada ou "Não foi possível conectar", com possibilidade de tentar de novo; a senha digitada não é perdida do formulário.
 - **Ambiente sem conta Google configurada**: a tela de entrada funciona só com e-mail e senha, sem botão Google quebrado.
 
@@ -125,7 +130,7 @@ Quem roda os testes de API do backend contra Development ou Homolog não precisa
 
 - **FR-007**: O sistema DEVE permitir entrar com e-mail e senha, devolvendo a mesma credencial de sessão do login Google (mesmo formato, mesmo prazo padrão, mesma identificação do usuário).
 - **FR-008**: Em e-mail inexistente, senha incorreta ou conta sem senha (só Google), o sistema DEVE responder a mesma mensagem genérica "E-mail ou senha inválidos", sem distinguir os casos.
-- **FR-009**: O login com conta Google DEVE ser mantido, funcionando como hoje, ao lado do login com senha; um mesmo e-mail que entra por Google reutiliza a conta existente sem alterar a senha.
+- **FR-009**: O login com conta Google DEVE ser mantido, funcionando como hoje, ao lado do login com senha. Quando o e-mail do Google corresponde a uma conta existente, a conta DEVE ser reutilizada; se essa conta tiver senha, a senha DEVE ser removida no mesmo login (a conta passa a entrar só por Google, e a entrada por senha passa a receber a mensagem genérica do FR-008).
 - **FR-010**: A sessão iniciada por senha DEVE ter o mesmo ciclo de vida da sessão existente: persistir entre aberturas do navegador até expirar, encerrar com aviso ao expirar ou ser recusada pela API, e "Sair" DEVE remover todo dado guardado no navegador.
 - **FR-011**: Após entrar ou criar conta, o sistema DEVE levar a vendedora à tela que tentou abrir originalmente (ou à lista de clientes).
 
@@ -143,13 +148,13 @@ Quem roda os testes de API do backend contra Development ou Homolog não precisa
 
 **Interface**
 
-- **FR-018**: A tela de entrada DEVE ter o formulário de e-mail e senha, a ação "Criar conta" (na mesma tela ou em tela própria com caminho de volta) e o botão Google.
+- **FR-018**: A tela de entrada DEVE ter o formulário de e-mail e senha, o link "Criar conta" que leva à tela própria de cadastro (rota `/cadastro`, pública) e o botão Google. A tela de cadastro DEVE ter o link "Já tenho conta" de volta à entrada; ambos os links DEVEM preservar a tela de origem para o redirecionamento do FR-011, e quem já está conectado ao abrir `/cadastro` DEVE ser levado à lista de clientes.
 - **FR-019**: Os formulários DEVEM mostrar estados de carregando, erro de validação por campo e erro da API, e DEVEM funcionar a partir de 360 px de largura, com rótulos acessíveis e foco visível, em português do Brasil.
 - **FR-020**: O campo de senha DEVE ocultar o conteúdo digitado, com opção de mostrar/ocultar.
 
 ### Key Entities
 
-- **Usuário (vendedora)**: pessoa que acessa o Ambrosia. Atributos: nome, e-mail (único, normalizado), forma(s) de entrada (senha e/ou Google), segredo de senha (nunca exposto), datas de criação e atualização. Dona dos clientes e pedidos.
+- **Usuário (vendedora)**: pessoa que acessa o Ambrosia. Atributos: nome, e-mail (único, normalizado), forma(s) de entrada (senha e/ou Google), segredo de senha (nunca exposto; removido quando a conta entra por Google), datas de criação e atualização. Dona dos clientes e pedidos.
 - **Sessão**: credencial emitida ao entrar ou criar conta, com prazo de expiração e dados básicos do usuário; idêntica independentemente da forma de entrada.
 - **Credenciais de cadastro**: nome, e-mail, senha informados ao criar conta.
 - **Credenciais de login**: e-mail e senha informados ao entrar.
@@ -171,7 +176,7 @@ Quem roda os testes de API do backend contra Development ou Homolog não precisa
 ## Assumptions
 
 - **Cadastro aberto**: qualquer pessoa com um e-mail pode criar conta (não há convite, aprovação nem lista de permitidos), pois o Ambrosia é de uso individual por vendedora e a entrada de desenvolvimento já permitia criar usuários livremente.
-- **Sem verificação de e-mail**: o cadastro não envia e-mail de confirmação; o e-mail é aceito como informado. Verificação, recuperação e troca de senha ficam para histórias futuras.
+- **Sem verificação de e-mail**: o cadastro não envia e-mail de confirmação; o e-mail é aceito como informado. Verificação, recuperação e troca de senha ficam para histórias futuras. Como mitigação do pré-cadastro de e-mail alheio, o primeiro login Google no e-mail remove a senha existente (FR-009).
 - **Sem bloqueio por tentativas**: limitação de tentativas de login (rate limiting/lockout) fica fora do escopo; a mitigação nesta entrega é a mensagem genérica e o tempo de resposta uniforme.
 - **Política de senha**: mínimo de 8 e máximo de 128 caracteres, sem exigência de composição (maiúsculas, símbolos), para não atrapalhar o uso no celular.
 - **Sessão**: mesmo prazo padrão já em uso (8 h) e mesma chave de armazenamento no navegador; nada muda para quem já usa Google.
