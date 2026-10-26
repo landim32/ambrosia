@@ -1,0 +1,28 @@
+meta {
+  name: Google Login
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/google
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "idToken": "{{googleIdToken}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setEnvVar("token", res.body.token);
+  }
+}
+
+docs {
+  Troca um ID token do Google por um JWT do Ambrosia. Preencha `googleIdToken` no
+  ambiente (exige `AUTH_GOOGLE_CLIENT_ID` configurado na API).
+}

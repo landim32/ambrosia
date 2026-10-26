@@ -1,0 +1,48 @@
+meta {
+  name: Create Sale Order
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/orders
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "customerId": {{customerId}},
+    "orderNumber": "{{orderNumber}}",
+    "orderDate": "2026-10-24",
+    "kind": "sale",
+    "channel": "Linx",
+    "origin": "cota",
+    "status": "Faturado",
+    "total": 589.80,
+    "items": [
+      { "productName": "Calça Inez", "skuRef": "42CA500UIE_12182", "size": "38", "price": 399.90 },
+      { "productName": "Blusa Lia", "skuRef": "41BL200AAA_00001", "size": "P", "price": 189.90 }
+    ]
+  }
+}
+
+script:pre-request {
+  bru.setEnvVar("orderNumber", "BRU-" + Date.now());
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setEnvVar("orderId", res.body.id);
+  }
+}
+
+tests {
+  test("status 201", function () {
+    expect(res.status).to.equal(201);
+  });
+}
+
+docs {
+  Venda: total positivo. Número único por execução (`orderNumber`).
+}

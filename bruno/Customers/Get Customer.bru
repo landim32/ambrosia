@@ -1,0 +1,21 @@
+meta {
+  name: Get Customer
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/customers/{{customerId}}
+  body: none
+  auth: inherit
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}
+
+docs {
+  Detalhe com CPF completo e resumo de compras.
+}

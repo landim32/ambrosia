@@ -1,0 +1,27 @@
+meta {
+  name: Update Customer
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/customers/{{customerId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "name": "Cliente Homologação (editado)"
+  }
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}
+
+docs {
+  Atualiza só o nome; o CPF é imutável.
+}

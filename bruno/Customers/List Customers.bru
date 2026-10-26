@@ -1,0 +1,27 @@
+meta {
+  name: List Customers
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/customers?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~search: 
+  page: 1
+  pageSize: 20
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}
+
+docs {
+  Busca por trecho do nome (`search`, opcional). CPF mascarado.
+}

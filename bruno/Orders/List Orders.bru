@@ -1,0 +1,32 @@
+meta {
+  name: List Orders
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/orders?page=1&pageSize=20
+  body: none
+  auth: inherit
+}
+
+params:query {
+  ~from: 2026-09-26
+  ~to: 2026-10-25
+  ~kind: sale
+  ~channel: Linx
+  ~customerId: {{customerId}}
+  ~search: 
+  page: 1
+  pageSize: 20
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}
+
+docs {
+  Filtros opcionais (habilite os desejados). `kind`: sale, return, cancellation.
+}

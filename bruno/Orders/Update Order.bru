@@ -1,0 +1,28 @@
+meta {
+  name: Update Order
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/orders/{{orderId}}
+  body: json
+  auth: inherit
+}
+
+body:json {
+  {
+    "status": "Entregue",
+    "total": 589.80
+  }
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}
+
+docs {
+  Atualiza status e total; o sinal do total precisa combinar com o tipo do pedido.
+}
