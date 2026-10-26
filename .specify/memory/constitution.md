@@ -1,13 +1,26 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 2.1.0 → 3.0.0 (MAJOR)
+Version change: 3.0.0 → 3.1.0 (MINOR)
 
-Bump rationale: Bootstrap 5 was removed from the fixed frontend stack and replaced by Tailwind CSS
+Bump rationale: new principle VII (environments and API tests): the Development / Homolog /
+Production environments are created with the `dotnet-env` skill, Homolog runs on local Docker
+(docker compose in WSL), and every development cycle ends with the API tests running against
+Homolog.
+
+Modified principles:
+- I. Skills de Arquitetura Obrigatórias: `dotnet-env` and `dotnet-test-api` added to the
+  mandatory skills table.
+
+Added sections: VII. Ambientes e Testes de API
+Quality gates: added "ambientes seguem a skill `dotnet-env`" and "testes de API executados contra
+a homologação ao final do ciclo".
+
+Previous amendment (2.1.0 → 3.0.0, MAJOR). Bump rationale: Bootstrap 5 was removed from the fixed frontend stack and replaced by Tailwind CSS
 + shadcn/ui (incompatible redefinition of a stack rule; no Bootstrap code exists yet). HotChocolate
 was added to the backend stack for GraphQL, with the `dotnet-graphql` skill made mandatory.
 
-Modified principles:
+Modified principles (3.0.0):
 - I. Skills de Arquitetura Obrigatórias: `dotnet-graphql` added to the mandatory skills table.
 - II. Stack Tecnológica Fixa: Bootstrap 5.x → Tailwind CSS 4.x + shadcn/ui; HotChocolate 14.x added;
   new rules: GraphQL only via HotChocolate, styling only via Tailwind (no Bootstrap or other CSS
@@ -19,9 +32,9 @@ Modified principles:
 - Environment variables: `ASPNETCORE_ENVIRONMENT` values renamed to Development / Homolog /
   Production (the Docker environment became Homolog).
 
-Added sections: none
-Removed sections: none
-Quality gates: added "leituras de repositório filtram por `userId`".
+Added sections (3.0.0): none
+Removed sections (3.0.0): none
+Quality gates (3.0.0): added "leituras de repositório filtram por `userId`".
 
 Previous amendment (2.0.0 → 2.1.0): local Docker prohibition lifted; `wsl-docker` skill added.
 
@@ -55,6 +68,8 @@ Para implementar novas entidades e funcionalidades, as skills abaixo DEVEM ser u
 | **react-architecture** | Criar Types, Service, Context, Hook e registrar Provider no frontend | `/react-architecture` |
 | **dotnet-graphql** | Criar/modificar schema, queries e type extensions GraphQL (HotChocolate) | `/dotnet-graphql` |
 | **wsl-docker** | Executar qualquer comando `docker` / `docker compose` nesta máquina (via WSL2) | `/wsl-docker` |
+| **dotnet-env** | Criar/modificar os ambientes Development, Homolog e Production (appsettings, docker compose, `.env`, pipeline de deploy) | `/dotnet-env` |
+| **dotnet-test-api** | Criar/modificar os testes de API (`{NomeDoProjeto}.ApiTests`) | `/dotnet-test-api` |
 
 Estas skills são a fonte normativa para:
 
@@ -216,6 +231,31 @@ cascata.
 **Rationale**: regras explícitas de armazenamento e proteção impedem vazamento de credenciais
 e endpoints desprotegidos, independentemente do esquema de autenticação adotado.
 
+### VII. Ambientes e Testes de API
+
+Os três ambientes DEVEM ser criados e mantidos com a skill `dotnet-env`:
+
+| Ambiente | `ASPNETCORE_ENVIRONMENT` | Como roda |
+|---|---|---|
+| Dev | `Development` | Local, sem Docker (`dotnet run`, PostgreSQL instalado na máquina) |
+| Homolog | `Homolog` | Docker local: `docker compose` no WSL com frontend, API, banco e gateway |
+| Prod | `Production` | Pipeline do GitHub Actions que publica tudo no servidor de produção |
+
+- O ambiente de homologação DEVE subir no Docker local (`docker compose up -d --build` via skill
+  `wsl-docker`), com as migrações aplicadas pelo próprio compose.
+- Ao final de cada ciclo de desenvolvimento (feature, história ou correção que altere a API), a
+  homologação DEVE ser reconstruída com o código do ciclo e os testes de API
+  (`{NomeDoProjeto}.ApiTests`) DEVEM ser executados contra ela
+  (`ApiBaseUrl=http://localhost:8080/api`). O ciclo só termina com todos os testes passando.
+- Endpoints novos ou alterados DEVEM ganhar ou atualizar testes de API, criados com a skill
+  `dotnet-test-api`, no mesmo ciclo.
+- Falhas nos testes de API DEVEM ser corrigidas no código, não contornadas removendo ou
+  desabilitando testes. Uma exceção DEVE ser justificada explicitamente no PR.
+
+**Rationale**: a homologação reproduz a topologia de produção (gateway, prefixo `/api`, proxy
+reverso, banco em container). Testar a API ali ao fim de cada ciclo pega problemas de
+configuração e integração que os testes de unidade não veem.
+
 ## Restrições Adicionais
 
 ### Variáveis de Ambiente
@@ -259,6 +299,8 @@ Antes de submeter qualquer código, o contribuidor DEVE verificar:
 - [ ] Controllers com dados sensíveis possuem `[Authorize]`.
 - [ ] Leituras de repositório filtram por `userId`.
 - [ ] Comandos Docker locais seguiram a skill `wsl-docker`.
+- [ ] Ambientes Dev, Homolog e Prod seguem a skill `dotnet-env`.
+- [ ] Ao final do ciclo, a homologação foi reconstruída e os testes de API passaram contra ela.
 
 Code reviews DEVEM recusar alterações que não cumpram este checklist.
 
@@ -277,6 +319,6 @@ Code reviews DEVEM recusar alterações que não cumpram este checklist.
   Exceções DEVEM ser justificadas explicitamente no PR. Specs e planos (`/speckit.plan`) DEVEM
   passar pelo Constitution Check antes da implementação.
 - Para orientação detalhada de implementação, use as skills `dotnet-architecture`,
-  `react-architecture`, `dotnet-graphql` e `wsl-docker`.
+  `react-architecture`, `dotnet-graphql`, `wsl-docker`, `dotnet-env` e `dotnet-test-api`.
 
-**Version**: 3.0.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-26
+**Version**: 3.1.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-26
