@@ -1,5 +1,5 @@
-using System.Text;
 using Ambrosia.Domain.Exceptions;
+using Ambrosia.API.Swagger;
 using Ambrosia.DTO.Common;
 using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
@@ -105,6 +105,9 @@ public abstract class ApiControllerBase : ControllerBase
     /// <summary>
     /// Converte um caminho de propriedade FluentValidation em camelCase por segmento,
     /// preservando índices: <c>Items[0].ImageUrl</c> → <c>items[0].imageUrl</c>.
+    /// O camelCase de cada nome é o mesmo usado pela documentação OpenAPI
+    /// (<see cref="OpenApiNaming.ToCamelCase"/>), para que campo citado no erro, parâmetro de
+    /// query e contrato nunca divirjam.
     /// </summary>
     internal static string ToCamelCaseField(string? propertyName)
     {
@@ -114,7 +117,7 @@ public abstract class ApiControllerBase : ControllerBase
         }
 
         var segments = propertyName.Split('.');
-        var builder = new StringBuilder();
+        var builder = new System.Text.StringBuilder();
 
         for (var i = 0; i < segments.Length; i++)
         {
@@ -131,32 +134,11 @@ public abstract class ApiControllerBase : ControllerBase
         static string LowerFirstSegment(string segment)
         {
             var bracket = segment.IndexOf('[');
-            var name = bracket >= 0 ? segment[..bracket] : segment;
-            var suffix = bracket >= 0 ? segment[bracket..] : string.Empty;
 
-            if (name.Length == 0 || !char.IsUpper(name[0]))
-            {
-                return segment;
-            }
-
-            // Tamanho do run inicial de maiúsculas: "Items", "IdToken", "URLValue", "Id".
-            var run = 0;
-            while (run < name.Length && char.IsUpper(name[run]))
-            {
-                run++;
-            }
-
-            // Regra do camelCase do C#: um único maiúsculo inicial sempre desce ("Items" ->
-            // "items", "IdToken" -> "idToken"); um run maior desce todo, exceto o último caractere
-            // quando ele começa a palavra seguinte ("URLValue" -> "urlValue", "Id" -> "id").
-            var lowerCount = run switch
-            {
-                1 => 1,
-                var length when length == name.Length => length,
-                var length => length - 1
-            };
-
-            return name[..lowerCount].ToLowerInvariant() + name[lowerCount..] + suffix;
+            // O índice (entre colchetes) é preservado tal como veio.
+            return bracket < 0
+                ? OpenApiNaming.ToCamelCase(segment)
+                : OpenApiNaming.ToCamelCase(segment[..bracket]) + segment[bracket..];
         }
     }
 }

@@ -5,6 +5,12 @@ namespace Ambrosia.DTO.Common;
 /// <summary>
 /// Página de resultados de uma listagem (FR-008, FR-017). Página além do fim devolve
 /// <see cref="Items"/> vazio com <see cref="TotalCount"/> correto.
+/// <para>
+/// Este tipo genérico não conhece nada da camada de apresentação; o nome do schema no documento
+/// OpenAPI (<c>PagedCustomerInfo</c> / <c>PagedOrderInfo</c>, como em
+/// <c>contracts/openapi.yaml</c>) é decidido pela API em <c>Program.cs</c> via
+/// <c>CustomSchemaIds</c> (T094), para não vazar convenção de Swagger para o DTO.
+/// </para>
 /// </summary>
 /// <typeparam name="T">Tipo do item da listagem.</typeparam>
 public class PagedResult<T>

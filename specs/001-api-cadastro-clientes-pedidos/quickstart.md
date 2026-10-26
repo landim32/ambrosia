@@ -160,10 +160,10 @@ Com ~10.000 pedidos inseridos para um usuário (script de carga nas tasks), `GET
 
 ## Checklist de aceite
 
-- [ ] 401 em todas as rotas de clientes/pedidos sem token
-- [ ] Mesmo e-mail → mesmo usuário; perfil sem senha
-- [ ] CPF inválido 400; duplicado 409; listagem só mascarado; detalhe completo
-- [ ] Sinal do total por tipo; ≥ 1 item; data futura recusada; duplicidade (número, data, tipo) 409
-- [ ] Filtros e ordenação por data desc; página além do fim → `items: []`
-- [ ] Usuário B não vê/altera nada de A (404); mesmo CPF em A e B → clientes distintos
-- [ ] Swagger acessível com Bearer
+- [X] 401 em todas as rotas de clientes/pedidos sem token
+- [X] Mesmo e-mail → mesmo usuário; perfil sem senha
+- [X] CPF inválido 400; duplicado 409; listagem só mascarado; detalhe completo
+- [X] Sinal do total por tipo; ≥ 1 item; data futura recusada; duplicidade (número, data, tipo) 409
+- [X] Filtros e ordenação por data desc; página além do fim → `items: []`
+- [X] Usuário B não vê/altera nada de A (404); mesmo CPF em A e B → clientes distintos
+- [X] Swagger acessível com Bearer
