@@ -1,28 +1,35 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 2.0.0 → 2.1.0 (MINOR)
+Version change: 2.1.0 → 3.0.0 (MAJOR)
 
-Bump rationale: the local Docker prohibition was lifted (relaxation, no existing code breaks)
-and a new mandatory skill (`wsl-docker`) was added — material expansion of guidance.
+Bump rationale: Bootstrap 5 was removed from the fixed frontend stack and replaced by Tailwind CSS
++ shadcn/ui (incompatible redefinition of a stack rule; no Bootstrap code exists yet). HotChocolate
+was added to the backend stack for GraphQL, with the `dotnet-graphql` skill made mandatory.
 
 Modified principles:
-- I. Skills de Arquitetura Obrigatórias: `wsl-docker` added to the mandatory skills table.
-- II. Stack Tecnológica Fixa: rule forbidding `docker` / `docker compose` locally replaced by a
-  rule allowing them, provided the `wsl-docker` skill is followed.
+- I. Skills de Arquitetura Obrigatórias: `dotnet-graphql` added to the mandatory skills table.
+- II. Stack Tecnológica Fixa: Bootstrap 5.x → Tailwind CSS 4.x + shadcn/ui; HotChocolate 14.x added;
+  new rules: GraphQL only via HotChocolate, styling only via Tailwind (no Bootstrap or other CSS
+  frameworks).
+
+- VI. Autenticação e Segurança: TODO(AUTH_SCHEME) resolved with the scheme implemented in feature
+  001 (proposal specs/001-api-cadastro-clientes-pedidos/constitution-amendment.md, folded into
+  this amendment); `/auth/dev-login` allowed in Development and Homolog.
+- Environment variables: `ASPNETCORE_ENVIRONMENT` values renamed to Development / Homolog /
+  Production (the Docker environment became Homolog).
 
 Added sections: none
 Removed sections: none
-Quality gates: new checklist item for `wsl-docker`.
+Quality gates: added "leituras de repositório filtram por `userId`".
 
-Out-of-constitution changes (same request):
-- Skill `.claude/skills/wsl-docker/` created.
+Previous amendment (2.0.0 → 2.1.0): local Docker prohibition lifted; `wsl-docker` skill added.
 
 Previous amendment (1.0.0 → 2.0.0): NAuth and zTools removed from the stack; Principle VI
 authentication scheme set to TODO(AUTH_SCHEME); nauth-guide and ztools-guide skills deleted.
 
 Follow-up TODOs:
-- TODO(AUTH_SCHEME): define the authentication scheme that replaces NAuth (Principle VI).
+- Resolved: TODO(AUTH_SCHEME) (Principle VI), in 3.0.0.
 - Casing divergence (deferred by decision): Principle III requires `Contexts/` and `Services/`,
   but the `react-architecture` skill generates `src/contexts/` and `src/services/`. Decide which
   one prevails.
@@ -46,6 +53,7 @@ Para implementar novas entidades e funcionalidades, as skills abaixo DEVEM ser u
 |---|---|---|
 | **dotnet-architecture** | Criar/modificar entidades, services, repositories, DTOs, migrations, DI no backend | `/dotnet-architecture` |
 | **react-architecture** | Criar Types, Service, Context, Hook e registrar Provider no frontend | `/react-architecture` |
+| **dotnet-graphql** | Criar/modificar schema, queries e type extensions GraphQL (HotChocolate) | `/dotnet-graphql` |
 | **wsl-docker** | Executar qualquer comando `docker` / `docker compose` nesta máquina (via WSL2) | `/wsl-docker` |
 
 Estas skills são a fonte normativa para:
@@ -76,6 +84,7 @@ contribuidores.
 | Entity Framework Core | 9.x | ORM e migrações |
 | PostgreSQL | Latest | Banco de dados relacional |
 | Swashbuckle | 8.x | Swagger / OpenAPI |
+| HotChocolate | 14.x | GraphQL (consultas) |
 
 **Frontend**
 
@@ -85,7 +94,8 @@ contribuidores.
 | TypeScript | 5.x | Tipagem estática |
 | React Router | 6.x | Roteamento SPA |
 | Vite | 6.x | Build toolchain |
-| Bootstrap | 5.x | Sistema de grid e componentes base |
+| Tailwind CSS | 4.x | Estilização utility-first |
+| shadcn/ui | Latest | Componentes base (Radix UI + Tailwind) |
 | i18next | 25.x | Internacionalização |
 | Axios | 1.x | HTTP client (legado) |
 | Fetch API | Nativo | HTTP client (novos serviços) |
@@ -93,6 +103,9 @@ contribuidores.
 **Regras de stack (inegociáveis)**
 
 - Vite é o bundler obrigatório. NÃO usar CRA, Webpack manual ou outros bundlers.
+- Tailwind CSS é o único framework de estilo. NÃO usar Bootstrap, Material UI ou similares;
+  componentes base vêm do shadcn/ui.
+- HotChocolate é a única biblioteca GraphQL permitida e DEVE seguir a skill `dotnet-graphql`.
 - EF Core é o único ORM permitido. NÃO introduzir ORMs alternativos (Dapper etc.).
 - Context API é o padrão de estado. NÃO adicionar Redux, Zustand, MobX ou similares.
 - Novos serviços HTTP no frontend DEVEM usar Fetch API. Axios fica restrito ao código legado.
@@ -176,7 +189,7 @@ cascata.
 
 | Aspecto | Padrão |
 |---|---|
-| Esquema | TODO(AUTH_SCHEME): esquema de autenticação a definir (NAuth foi removido) |
+| Esquema | JWT Bearer emitido pela própria API após login OAuth/OIDC (Google): `POST /auth/google` troca o ID token do provedor por um JWT HS256 (`sub` = `user_id`, `email`, `name`; `iss`/`aud` configuráveis; expiração padrão de 8 h) |
 | Storage (frontend) | localStorage, chave `"login-with-metamask:auth"` |
 | Proteção de rotas | Atributo `[Authorize]` nos controllers |
 
@@ -186,6 +199,19 @@ cascata.
 - Connection strings e secrets NUNCA DEVEM ser expostos no frontend.
 - Controllers com dados sensíveis DEVEM ter `[Authorize]`.
 - CORS `AllowAnyOrigin` é permitido APENAS no ambiente Development.
+- `[AllowAnonymous]` só é permitido em `/auth/*`.
+- O identificador do usuário DEVE vir exclusivamente do claim `sub`. Nenhum DTO de entrada pode
+  carregar `userId`.
+- Todo método de leitura de repositório DEVE receber `userId` e filtrá-lo como primeira cláusula.
+  Recurso de outro usuário responde 404, indistinguível de inexistente.
+- O segredo JWT (mínimo 32 bytes), o pepper e a chave de cifra DEVEM vir de variáveis de ambiente
+  (ou do `appsettings.Development.json` local); a API DEVE recusar o startup com configuração
+  incompleta.
+- Senhas e hashes de senha NUNCA são mapeados para DTO. Dados pessoais sensíveis (ex.: CPF) DEVEM
+  ser gravados como hash com pepper (unicidade) e cifra autenticada (recuperação), exibidos
+  mascarados em listagens.
+- `POST /auth/dev-login` (token sem provedor) é permitido SOMENTE em Development e Homolog: em
+  Production responde 404 e é omitido do Swagger.
 
 **Rationale**: regras explícitas de armazenamento e proteção impedem vazamento de credenciais
 e endpoints desprotegidos, independentemente do esquema de autenticação adotado.
@@ -199,7 +225,7 @@ e endpoints desprotegidos, independentemente do esquema de autenticação adotad
 | Variável | Obrigatória | Descrição |
 |---|---|---|
 | `ConnectionStrings__{NomeDoProjeto}Context` | Sim | Connection string PostgreSQL |
-| `ASPNETCORE_ENVIRONMENT` | Sim | Development, Docker, Production |
+| `ASPNETCORE_ENVIRONMENT` | Sim | Development (local, sem Docker), Homolog (docker compose no WSL), Production |
 
 **Frontend**
 
@@ -231,6 +257,7 @@ Antes de submeter qualquer código, o contribuidor DEVE verificar:
 - [ ] Imports respeitam o casing exato dos diretórios.
 - [ ] Variáveis de ambiente do frontend usam o prefixo `VITE_`.
 - [ ] Controllers com dados sensíveis possuem `[Authorize]`.
+- [ ] Leituras de repositório filtram por `userId`.
 - [ ] Comandos Docker locais seguiram a skill `wsl-docker`.
 
 Code reviews DEVEM recusar alterações que não cumpram este checklist.
@@ -250,6 +277,6 @@ Code reviews DEVEM recusar alterações que não cumpram este checklist.
   Exceções DEVEM ser justificadas explicitamente no PR. Specs e planos (`/speckit.plan`) DEVEM
   passar pelo Constitution Check antes da implementação.
 - Para orientação detalhada de implementação, use as skills `dotnet-architecture`,
-  `react-architecture` e `wsl-docker`.
+  `react-architecture`, `dotnet-graphql` e `wsl-docker`.
 
-**Version**: 2.1.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-25
+**Version**: 3.0.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-26
