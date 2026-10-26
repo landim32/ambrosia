@@ -29,12 +29,10 @@ Esta feature **não cria dados persistentes**: todo dado de negócio vem da API 
 
 | Interface / tipo | Campos | Origem |
 |---|---|---|
-| `OrderKind` | `'sale' \| 'return' \| 'cancellation'` | `OrderKind` |
-| `OrderOrigin` | `'cota' \| 'omni'` | `OrderOrigin` |
-| `OrderInfo` | `id`, `customerId`, `customerName`, `orderNumber`, `orderDate` (`AAAA-MM-DD`), `kind: OrderKind`, `channel: string \| null`, `origin: OrderOrigin \| null`, `status: string \| null`, `total: number`, `itemsCount: number`, `createdAt`, `updatedAt` | `OrderInfo` |
+| `OrderInfo` | `id`, `customerId`, `customerName`, `orderNumber`, `orderDate` (`AAAA-MM-DD`), `kind: 'sale' \| 'return' \| 'cancellation'`, `channel: string \| null`, `origin: 'cota' \| 'omni' \| null`, `status: string \| null`, `total: number`, `itemsCount: number`, `createdAt`, `updatedAt` | `OrderInfo` |
 | `OrderItemInfo` | `id: number`, `lineNo: number`, `productName: string \| null`, `skuRef: string \| null`, `size: string \| null`, `price: number \| null`, `imageUrl: string \| null` | `OrderItemInfo` |
 | `OrderDetailInfo` | `OrderInfo` + `originalSaleOn: string \| null`, `cancelledOn: string \| null`, `externalId: string \| null`, `customer: CustomerInfo`, `items: OrderItemInfo[]` | `OrderDetailInfo` |
-| `OrderFilters` | `from?: string`, `to?: string`, `kind?: OrderKind`, `channel?: string`, `customerId?: number`, `search?: string`, `page: number`, `pageSize: 20` | query de `GET /orders` |
+| `OrderFilters` | `from?: string`, `to?: string`, `kind?: OrderInfo['kind']`, `channel?: string`, `customerId?: number`, `search?: string`, `page: number`, `pageSize: 20` | query de `GET /orders` |
 
 ### `types/common.ts`
 
@@ -115,9 +113,9 @@ Estado local do componente; não persiste.
 | `parseDateOnly(s)` | `AAAA-MM-DD` | `Date` local (sem deslocamento) | FR-020 |
 | `formatDateOnly(s)` | `AAAA-MM-DD` | `dd/mm/aaaa` | FR-020 |
 | `formatDateTime(s)` | ISO date-time | `dd/mm/aaaa HH:mm` (uso eventual) | — |
-| `orderKindLabel(k)` | `OrderKind` | Venda / Devolução / Cancelamento | FR-021 |
+| `orderKindLabel(k)` | `OrderInfo['kind']` | Venda / Devolução / Cancelamento | FR-021 |
 | `initials(name)` | `string` | até 2 letras maiúsculas | FR-010 |
-| `isNegativeKind(k)` | `OrderKind` | `k !== 'sale'` | FR-018 |
+| `isNegativeKind(k)` | `OrderInfo['kind']` | `k !== 'sale'` | FR-018 |
 | `parseOrderFilters(sp)` / `toSearchParams(f)` | `URLSearchParams` ⇄ `OrderFilters` | ver tabela acima | FR-015 |
 
 ## 6. Entidades da spec × tipos

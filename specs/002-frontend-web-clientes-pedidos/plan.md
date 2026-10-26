@@ -46,16 +46,16 @@ Decisões tomadas com o solicitante nesta fase (ver [research.md](./research.md)
 
 | # | Princípio | Como o plano atende | Status |
 |---|---|---|---|
-| I | Skills de arquitetura obrigatórias | Frontend gerado com `react-architecture` para `User`/`Auth`, `Customer` e `Order` (types → Service → Context → hook → provider em `main.tsx`); toasts com `react-alert` (sonner). O ajuste do `OrderRepository` segue `dotnet-architecture` (repositório continua filtrando por `userId` como primeira cláusula). Comandos Docker locais via `wsl-docker`. `dotnet-graphql` não se aplica (REST). | ✅ |
+| I | Skills de arquitetura obrigatórias | Frontend gerado com `react-architecture` para `User`/`Auth`, `Customer` e `Order` (types → Service → Context → hook → provider em `main.tsx`); toasts com `react-alert` (sonner). O ajuste do `OrderRepository` segue `dotnet-architecture` (repositório continua filtrando por `userId` como primeira cláusula). Comandos Docker locais via `wsl-docker`. `dotnet-graphql` não se aplica (REST). **Exceção formal** à regra 7 da skill (não checar `result.sucesso` em respostas 200), registrada no Complexity Tracking e a ser justificada explicitamente no PR (Governance → Compliance). | ⚠️ Exceção justificada |
 | II | Stack fixa | React 18, TS 5, React Router 6, Vite 6, Tailwind 4 + shadcn/ui, i18next 25, Fetch API. Sem Bootstrap/MUI, sem Redux/Zustand, sem Axios, sem bundler alternativo. Variáveis com prefixo `VITE_`. | ✅ |
 | III | Case sensitivity | `src/Contexts/`, `src/Services/`, `src/hooks/`, `src/types/` exatamente como a tabela do princípio; imports com casing idêntico (build roda em Linux no Docker). Prevalece sobre o casing minúsculo da skill (divergência já registrada na constituição). | ✅ |
-| IV | Convenções de código | Componentes PascalCase, funções/variáveis camelCase em arrow functions, constantes UPPER_CASE (`AUTH_STORAGE_KEY`), `interface` em vez de `type` (exceto unions de string como `OrderKind`, ver Complexity Tracking), acesso direto às propriedades camelCase do JSON. Backend: namespaces file-scoped e PascalCase mantidos. | ✅ |
+| IV | Convenções de código | Componentes PascalCase, funções/variáveis camelCase em arrow functions, constantes UPPER_CASE (`AUTH_STORAGE_KEY`), `interface` em vez de `type` (as unions de string `kind`/`origin` são declaradas como propriedades de `OrderInfo` e referenciadas por acesso indexado, ex.: `OrderInfo['kind']`; nenhum `type` é criado), acesso direto às propriedades camelCase do JSON. Backend: namespaces file-scoped e PascalCase mantidos. | ✅ |
 | V | Banco de dados | Nenhuma tabela, coluna ou migração nova. | ✅ (N/A) |
 | VI | Autenticação e segurança | JWT Bearer da API obtido via `POST /auth/google` (ID token do GIS) ou `POST /auth/dev-login` (só Development/Homolog, excluído do bundle de produção); token em `localStorage` na chave da constituição, nunca em cookie; nenhum segredo no frontend (`VITE_GOOGLE_CLIENT_ID` é público por natureza); CSP restritiva no nginx do frontend; CPF exibido mascarado em listagens. Nenhum `userId` enviado em DTO de entrada. | ✅ |
 | — | Variáveis de ambiente | `VITE_API_URL` (obrigatória, padrão `/api`), `VITE_SITE_BASENAME` (opcional), mais `VITE_GOOGLE_CLIENT_ID` e `VITE_DEV_LOGIN` (build-time), todas via `import.meta.env.VITE_*`. | ✅ |
 | — | Tratamento de erros | Frontend: `handleError`/`clearError`/`loading` em cada contexto (skill); erros normalizados no `apiClient`. Backend: inalterado (`try/catch` → 500). | ✅ |
 
-**Resultado do gate (pré-Phase 0)**: APROVADO. Nenhuma violação; duas adaptações da skill `react-architecture` justificadas abaixo.
+**Resultado do gate (pré-Phase 0)**: APROVADO COM EXCEÇÃO. Nenhuma violação da §IV; uma exceção formal à §I (regra 7 da skill `react-architecture`), justificada abaixo e que deve constar na descrição do PR conforme a Governance.
 
 **Re-avaliação pós-Phase 1**: data-model, contratos e quickstart mantêm todas as regras acima; o ajuste de backend não toca banco nem autenticação. APROVADO.
 
@@ -148,10 +148,9 @@ specs/001-api-cadastro-clientes-pedidos/contracts/openapi.yaml   # descrição d
 
 ## Complexity Tracking
 
-> Preenchido apenas para desvios justificados (nenhum viola a constituição; dois adaptam a skill `react-architecture`).
+> Preenchido apenas para desvios justificados. A exceção à regra 7 da skill `react-architecture` (§I) é formal: deve ser justificada explicitamente no PR (Governance → Compliance).
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
-| Serviços não checam `result.sucesso` em respostas 200 (skill `react-architecture`, regra 7) | A API da HU 001 devolve DTOs puros em 200 e `ErrorResult` (`sucesso`/`mensagem`/`erros`) apenas em erro; o `apiClient` converte erros em classes (`UnauthorizedError`, `NotFoundError`, `ApiError`, `NetworkError`) e os contextos tratam por tipo | Envolver cada resposta num wrapper `{ sucesso, dados }` artificial duplicaria o contrato e esconderia o status HTTP, que é o que distingue 404 ("não encontrado") de 401 (sessão) |
-| `OrderKind`/`OrderOrigin` como `type` union de string (constituição §IV: "Tipos: `interface`") | Enums de string da API (`sale`/`return`/`cancellation`) não são representáveis como `interface`; um `enum` TS geraria código em runtime e valores divergentes do JSON | `enum` numérico (skill) não casa com o JSON textual da API; `interface` não modela unions |
+| **Exceção formal (§I)**: serviços não checam `result.sucesso` em respostas 200 (skill `react-architecture`, regra 7) | A API da HU 001 devolve DTOs puros em 200 e `ErrorResult` (`sucesso`/`mensagem`/`erros`) apenas em erro; o `apiClient` converte erros em classes (`UnauthorizedError`, `NotFoundError`, `ApiError`, `NetworkError`) e os contextos tratam por tipo | Envolver cada resposta num wrapper `{ sucesso, dados }` artificial duplicaria o contrato e esconderia o status HTTP, que é o que distingue 404 ("não encontrado") de 401 (sessão) |
 | Ajuste de backend dentro de uma feature de frontend | FR-014 (trecho de canal) não é atendível só no cliente; a mudança é de uma linha + teste + descrição no contrato, sem migração | Documentar a limitação violaria FR-014; criar uma feature separada atrasaria a entrega por uma linha de código |
