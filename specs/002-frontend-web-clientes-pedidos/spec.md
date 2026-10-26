@@ -20,6 +20,10 @@ Assim como o +Vendas (doc 01), o uso principal é no **celular, dentro da loja**
 
 - Q: Como o CPF deve aparecer no perfil do cliente? → A: Mascarado por padrão, com botão "mostrar" que revela o CPF completo sob demanda.
 - Q: A lista de pedidos deve ter seletor de "mês de cota" (26 a 25) além do período livre? → A: Não; só período livre nesta entrega. O mês de cota fica para uma HU futura com dashboards.
+- Q: Ao abrir a lista de pedidos sem nenhum filtro, qual período deve ser exibido por padrão? → A: Todos os pedidos, sem filtro de data, paginados do mais recente para o mais antigo.
+- Q: Como a lista de pedidos dentro do perfil do cliente deve ser paginada? → A: 20 por página, com os mesmos controles das demais listas.
+- Q: Como a vendedora deve escolher o canal no filtro de pedidos? → A: Campo de texto livre, com busca por trecho, ignorando maiúsculas/minúsculas.
+- Q: Em quais navegadores o site precisa funcionar de forma garantida e testada? → A: Chrome Android e Safari iOS, mais Chrome, Edge, Firefox e Safari desktop, nas 2 últimas versões estáveis.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -60,7 +64,7 @@ Na loja, a vendedora procura uma cliente pelo nome, abre o perfil e vê rapidame
 5. **Given** o perfil de um cliente, **When** a tela carrega, **Then** mostra o nome, o CPF mascarado com um botão "mostrar", e o resumo: quantidade de compras, total líquido em reais, data da última compra e dias desde a última compra.
 6. **Given** o perfil com o CPF mascarado, **When** toca em "mostrar", **Then** o CPF completo formatado aparece e o botão passa a "ocultar"; ao sair do perfil ou tocar em "ocultar", volta a mascarado.
 7. **Given** um cliente sem foto, **When** o perfil abre, **Then** aparece um avatar com as iniciais do nome; **Given** um cliente com foto (vinda da HU 010), **Then** aparece a foto.
-8. **Given** o perfil de um cliente, **When** a tela carrega, **Then** lista os pedidos daquele cliente (mais recentes primeiro), cada um levando ao detalhe do pedido.
+8. **Given** o perfil de um cliente, **When** a tela carrega, **Then** lista os pedidos daquele cliente (mais recentes primeiro), 20 por página, com controles para avançar e voltar páginas e o total de pedidos, cada um levando ao detalhe do pedido.
 9. **Given** um cliente que nunca comprou, **When** o perfil abre, **Then** o resumo mostra zero compras, total R$ 0,00 e "sem compras" no lugar da última compra, e a lista de pedidos mostra um estado vazio.
 10. **Given** um identificador de cliente inexistente ou pertencente a outra vendedora, **When** tenta abrir o perfil, **Then** vê a tela "Cliente não encontrado", sem diferença entre os dois casos.
 
@@ -76,8 +80,8 @@ A vendedora abre a lista de todos os seus pedidos, filtra por período, tipo (ve
 
 **Acceptance Scenarios**:
 
-1. **Given** a vendedora conectada, **When** abre a lista de pedidos, **Then** vê cards com nome do cliente, número, data, canal, tipo, etiqueta de origem (quando houver) e total, ordenados da data mais recente para a mais antiga, 20 por página.
-2. **Given** a lista de pedidos, **When** filtra por período (data inicial e final), tipo, canal ou texto (número do pedido ou nome do cliente), **Then** a lista mostra apenas os pedidos correspondentes e o total de resultados.
+1. **Given** a vendedora conectada, **When** abre a lista de pedidos sem filtros, **Then** vê todos os seus pedidos (sem filtro de data) em cards com nome do cliente, número, data, canal, tipo, etiqueta de origem (quando houver) e total, ordenados da data mais recente para a mais antiga, 20 por página.
+2. **Given** a lista de pedidos, **When** filtra por período (data inicial e final), tipo, canal (trecho digitado em campo de texto, ignorando maiúsculas/minúsculas) ou texto (número do pedido ou nome do cliente), **Then** a lista mostra apenas os pedidos correspondentes e o total de resultados.
 3. **Given** filtros aplicados, **When** recarrega a página ou compartilha o endereço, **Then** os mesmos filtros continuam aplicados.
 4. **Given** pedidos de devolução ou cancelamento, **When** aparecem na lista, **Then** o total é exibido negativo (ex.: `-R$ 1.234,56`) e com destaque visual distinto do de venda.
 5. **Given** filtros que não correspondem a nenhum pedido, **When** a lista carrega, **Then** aparece "nenhum pedido encontrado" e uma forma de limpar os filtros.
@@ -117,6 +121,7 @@ A vendedora usa o Ambrosia no celular na loja, com rede instável, e precisa que
 2. **Given** qualquer consulta em andamento, **When** os dados ainda não chegaram, **Then** a tela mostra um indicador de carregamento no lugar do conteúdo.
 3. **Given** uma falha de rede ou um erro da API, **When** a consulta falha, **Then** aparece um aviso curto com a mensagem retornada pela API (ou "Não foi possível conectar") e uma opção de tentar de novo.
 4. **Given** navegação por teclado ou leitor de tela, **When** percorre as telas, **Then** todos os controles têm rótulo, foco visível e contraste adequado.
+5. **Given** os navegadores suportados (FR-031), **When** percorre todas as telas em cada um, **Then** o comportamento e o layout são equivalentes.
 
 ---
 
@@ -124,7 +129,7 @@ A vendedora usa o Ambrosia no celular na loja, com rede instável, e precisa que
 
 - **Sessão expira no meio da navegação**: ao abrir a próxima tela ou consulta, a vendedora é levada à entrada com o aviso; ao reentrar, volta à tela em que estava.
 - **Datas sem hora** (data do pedido, venda original, cancelamento): devem aparecer no mesmo dia em qualquer fuso horário do navegador, sem deslocamento de um dia.
-- **Período dos filtros**: as datas inicial e final escolhidas pela vendedora são enviadas explicitamente à API, no fuso de Brasília (a API trata "hoje" em UTC).
+- **Período dos filtros**: as datas inicial e final escolhidas pela vendedora são enviadas explicitamente à API, no fuso de Brasília (a API trata "hoje" em UTC). Sem período escolhido, nenhuma data é enviada e a lista traz todos os pedidos.
 - **Página além do fim** (ex.: endereço com página 99 em uma lista de 2 páginas): mostra o estado vazio e permite voltar à primeira página.
 - **Filtro inválido no endereço** (tipo desconhecido, data mal formada): o filtro inválido é ignorado e a lista carrega sem ele.
 - **Nome muito longo** no card ou no cabeçalho: truncado com reticências, sem quebrar o layout.
@@ -152,13 +157,13 @@ A vendedora usa o Ambrosia no celular na loja, com rede instável, e precisa que
 - **FR-008**: O sistema DEVE listar os clientes da vendedora em cards com nome e CPF mascarado, paginados (20 por página) e com total de registros.
 - **FR-009**: O sistema DEVE permitir buscar clientes por trecho do nome, aplicando a busca automaticamente após breve pausa na digitação.
 - **FR-010**: O sistema DEVE exibir o perfil do cliente com nome, CPF (ver FR-012), avatar (iniciais ou foto, quando houver) e resumo de compras: quantidade de compras, total líquido, data da última compra e dias desde a última compra.
-- **FR-011**: O perfil DEVE listar os pedidos do cliente, mais recentes primeiro, com acesso ao detalhe de cada um.
+- **FR-011**: O perfil DEVE listar os pedidos do cliente, mais recentes primeiro, paginados (20 por página, com os mesmos controles e total de registros das demais listas), com acesso ao detalhe de cada um.
 - **FR-012**: No perfil, o CPF DEVE aparecer mascarado (`***.456.789-**`) por padrão, com um botão "mostrar" que revela o CPF completo formatado e passa a "ocultar"; o estado revelado NÃO DEVE ser lembrado entre aberturas do perfil.
 
 **Pedidos**
 
 - **FR-013**: O sistema DEVE listar os pedidos da vendedora em cards com nome do cliente, número, data, canal, tipo, etiqueta de origem e total, ordenados por data decrescente e paginados (20 por página).
-- **FR-014**: O sistema DEVE permitir filtrar pedidos por período livre (data inicial e final), tipo, canal e texto (número do pedido ou nome do cliente), e DEVE permitir limpar os filtros.
+- **FR-014**: O sistema DEVE permitir filtrar pedidos por período livre (data inicial e final), tipo, canal e texto (número do pedido ou nome do cliente), e DEVE permitir limpar os filtros. O canal é informado em campo de texto livre (sem lista pré-definida) e filtra por trecho, ignorando maiúsculas/minúsculas. Sem filtros (abertura inicial ou após limpar), a lista DEVE mostrar todos os pedidos da vendedora, sem filtro de data.
 - **FR-015**: Os filtros DEVEM ficar refletidos no endereço da página, de modo que recarregar ou compartilhar o endereço mantenha os mesmos filtros.
 - **FR-016**: O período dos pedidos é filtrado apenas por datas livres nesta entrega; o sistema NÃO DEVE oferecer seletor de "mês de cota" (26 a 25), que fica para uma história futura com dashboards.
 - **FR-017**: O sistema DEVE exibir o detalhe do pedido com: cliente (nome com link para o perfil e CPF mascarado), número, data, tipo, canal, origem, status, total, data da venda original e data do cancelamento (quando houver) e os itens em ordem de linha, cada um com imagem, nome do produto, referência, tamanho e preço.
@@ -181,6 +186,7 @@ A vendedora usa o Ambrosia no celular na loja, com rede instável, e precisa que
 - **FR-028**: O layout DEVE funcionar a partir de 360 px de largura, sem rolagem horizontal.
 - **FR-029**: Todos os controles DEVEM ter rótulo acessível, foco visível e contraste adequado (verificações básicas de acessibilidade).
 - **FR-030**: Nenhuma tela DEVE ter ação de criar, editar ou excluir clientes ou pedidos.
+- **FR-031**: O sistema DEVE funcionar nas 2 últimas versões estáveis de Chrome (Android) e Safari (iOS) no celular e de Chrome, Edge, Firefox e Safari no desktop. Navegadores mais antigos não têm suporte garantido.
 
 ### Key Entities
 
@@ -205,6 +211,7 @@ Esta feature não cria dados; apenas apresenta os da HU 001.
 - **SC-007**: Datas de pedidos aparecem no dia correto em 100% dos casos, testadas em pelo menos 3 fusos horários distintos.
 - **SC-008**: O pacote publicado em produção não contém o formulário de entrada de desenvolvimento.
 - **SC-009**: A vendedora deixa de precisar do Swagger ou do +Vendas para consultar clientes e pedidos: todos os campos expostos pela API de consulta (HU 001) estão visíveis em alguma tela.
+- **SC-010**: 100% das telas são percorridas sem defeito funcional ou de layout em cada navegador da matriz de suporte (FR-031).
 
 ## Assumptions
 
@@ -220,4 +227,5 @@ Esta feature não cria dados; apenas apresenta os da HU 001.
 - **Dashboards de cota, supercota, PA, VA e TMA**: fora do escopo (a API não tem os dados).
 - **PWA, instalação e uso offline**: fora do escopo (HU 004).
 - **Paginação**: 20 por página, igual ao padrão da API.
+- **Filtro de canal por trecho**: se a API da HU 001 só aceitar canal exato, o plano deve prever o ajuste no backend (ou documentar a limitação); a lista fixa de canais foi descartada.
 - **Dependência de backend para produção**: a API precisa aceitar ser servida na subpasta `/api` (ajuste da HU 001, fora deste frontend).

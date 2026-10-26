@@ -15,3 +15,31 @@ _claude-code / claude-sonnet-5-5_
 **Escolha:** A - Só período livre (Recommended)
 **Por quê:** A opção A está marcada como recomendada, então a política manda escolhê-la. Também é a que menos amplia escopo e risco, já que evita implementar a regra de cota 26→25 no frontend. O mês de cota fica para uma HU futura com dashboards.
 _claude-code / claude-sonnet-5-5_
+
+## clarify · 2026-10-26 03:42
+**Pergunta:** Ao abrir a lista de pedidos sem nenhum filtro, qual período deve ser exibido por padrão?
+**Opções:** Todos os pedidos (Recommended) (recomendada) · Mês calendário atual · Últimos 30 dias
+**Escolha:** Todos os pedidos (Recommended)
+**Por quê:** É a opção marcada como recomendada, então segue a política definida. Também é a que menos amplia o escopo, pois não adiciona regra de período padrão, e é coerente com a decisão anterior de oferecer apenas período livre, sem mês de cota.
+_claude-code / claude-sonnet-5-5_
+
+## clarify · 2026-10-26 03:43
+**Pergunta:** Como a lista de pedidos dentro do perfil do cliente deve ser paginada?
+**Opções:** 20 por página (Recommended) (recomendada) · Últimos N + 'ver todos' · Todos de uma vez
+**Escolha:** 20 por página (Recommended)
+**Por quê:** É a opção marcada como recomendada, então a política manda escolhê-la. Mantém o mesmo padrão e os mesmos controles das listas de clientes e pedidos, sem ampliar o escopo.
+_claude-code / claude-sonnet-5-5_
+
+## clarify · 2026-10-26 03:44
+**Pergunta:** Como a vendedora deve escolher o canal no filtro de pedidos?
+**Opções:** Campo de texto (Recommended) (recomendada) · Lista fixa de canais · Lista dinâmica
+**Escolha:** Campo de texto (Recommended)
+**Por quê:** É a opção marcada como recomendada. Também é a que menos amplia escopo e risco, pois não depende de lista prévia, de manutenção no frontend nem de apoio adicional da API.
+_claude-code / claude-sonnet-5-5_
+
+## clarify · 2026-10-26 03:46
+**Pergunta:** Em quais navegadores o site precisa funcionar de forma garantida e testada?
+**Opções:** Mobile + desktop atuais (Recommended) (recomendada) · Só Chrome (Android e desktop) · Inclui navegadores antigos
+**Escolha:** Mobile + desktop atuais (Recommended)
+**Por quê:** A opção está marcada como recomendada e cobre o uso principal da vendedora no celular (Chrome Android e Safari iOS), além do desktop. Restringir a só Chrome deixaria iPhone sem garantia, e incluir navegadores antigos ampliaria escopo e testes sem necessidade na história.
+_claude-code / claude-sonnet-5-5_
