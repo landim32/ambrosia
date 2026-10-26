@@ -8,7 +8,7 @@
 
 Primeiro frontend do Ambrosia: SPA React 18 + TypeScript 5 + Vite 6, **somente leitura**, mobile-first, que permite à vendedora entrar com a conta Google (ou pelo dev-login fora de produção), encontrar clientes, ver o perfil com resumo de compras e CPF mascarado/revelável, consultar pedidos com filtros refletidos na URL e abrir o detalhe de cada pedido com seus itens. Consome exclusivamente a API REST da HU 001 na mesma origem (`/api`), guarda a sessão em `localStorage` conforme a constituição, segue a skill `react-architecture` (types → Services → Contexts → hooks → providers) com Tailwind CSS 4 + shadcn/ui, e é publicado como container nginx no profile `frontend` já previsto nos dois `docker-compose`.
 
-Decisões tomadas com o solicitante nesta fase (ver [research.md](./research.md)): testes com **Vitest + RTL + Playwright**; login Google com **Google Identity Services direto**; e **ajuste do backend** para o filtro de canal passar de igualdade a trecho (FR-014).
+Decisões tomadas com o solicitante nesta fase (ver [research.md](./research.md)): testes com **Vitest + RTL**, sem E2E no frontend (revisto em 2026-10-26: o Playwright foi retirado); login Google com **Google Identity Services direto**; e **ajuste do backend** para o filtro de canal passar de igualdade a trecho (FR-014).
 
 ## Technical Context
 
@@ -17,12 +17,12 @@ Decisões tomadas com o solicitante nesta fase (ver [research.md](./research.md)
 **Primary Dependencies**:
 - React 18.x, React Router 6.x, Vite 6.x (`@vitejs/plugin-react`), Tailwind CSS 4.x (`@tailwindcss/vite`), shadcn/ui (Radix UI), i18next 25.x + react-i18next, sonner (toasts)
 - Fetch API nativa (nenhum Axios); Google Identity Services (script oficial) + `@types/google.accounts`
-- Testes: Vitest + @testing-library/react + jsdom; Playwright + @axe-core/playwright
+- Testes: Vitest + @testing-library/react + jsdom
 - Backend (ajuste): EF Core 9.x já presente
 
 **Storage**: nenhum no frontend além de `localStorage` (chave `login-with-metamask:auth` com `{ token, expiresAt, user }`); dados vêm da API (PostgreSQL via HU 001)
 
-**Testing**: Vitest + RTL para `lib/`, `Services/`, `Contexts/` e componentes; Playwright para fluxos E2E na matriz FR-031 (chromium, firefox, webkit, msedge, Mobile Chrome, Mobile Safari), viewport 360 px, 3 `timezoneId` e axe-core; xUnit para o caso novo de `OrderRepositoryTest`
+**Testing**: Vitest + RTL para `lib/`, `Services/`, `Contexts/` e componentes (os 3 fusos de SC-007 nos testes de `lib/dates`); sem E2E no frontend, com 360 px, acessibilidade e a matriz FR-031 verificados manualmente pelo quickstart; xUnit para o caso novo de `OrderRepositoryTest`
 
 **Target Platform**: navegadores Chrome (Android), Safari (iOS), Chrome/Edge/Firefox/Safari desktop nas 2 últimas versões estáveis; publicado como imagem `nginx:1.27-alpine` (porta 80) atrás do gateway nginx existente
 
@@ -86,7 +86,6 @@ frontend/                                  # NOVO — projeto Vite
 ├── package.json
 ├── vite.config.ts                         # @vitejs/plugin-react, @tailwindcss/vite, server.proxy /api → localhost:5000
 ├── vitest.config.ts
-├── playwright.config.ts                   # projetos: chromium, firefox, webkit, msedge, Mobile Chrome, Mobile Safari
 ├── tsconfig.json / tsconfig.app.json / tsconfig.node.json
 ├── components.json                        # shadcn/ui
 ├── .env.example / .env.development / .env.homolog / .env.production
@@ -94,14 +93,6 @@ frontend/                                  # NOVO — projeto Vite
 ├── nginx.conf                             # try_files → index.html, cache de /assets, CSP
 ├── public/
 │   └── favicon.svg
-├── e2e/
-│   ├── seed.ts                            # semeia 2 vendedoras, clientes e pedidos via API (dev-login)
-│   ├── fixtures.ts                        # login programático, timezones
-│   ├── auth.spec.ts
-│   ├── customers.spec.ts
-│   ├── orders.spec.ts
-│   ├── order-detail.spec.ts
-│   └── mobile-a11y.spec.ts                # 360 px + axe
 └── src/
     ├── main.tsx                           # AuthProvider → CustomerProvider → OrderProvider → App; Toaster
     ├── App.tsx                            # BrowserRouter(basename) + rotas lazy + RequireAuth

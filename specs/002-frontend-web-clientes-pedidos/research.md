@@ -8,10 +8,9 @@ Phase 0 do plano. Cada item resolve um "NEEDS CLARIFICATION" do Technical Contex
 
 ## 1. Stack de testes do frontend **[decisão do solicitante]**
 
-- **Decision**: Vitest + React Testing Library (jsdom) para formatadores, hooks, serviços e componentes; Playwright para fluxos ponta a ponta na matriz de navegadores (projetos `chromium`, `firefox`, `webkit`, `msedge`, `Mobile Chrome` e `Mobile Safari`), com viewport de 360 px, `timezoneId` em 3 fusos e `@axe-core/playwright` para acessibilidade básica.
-- **Rationale**: é a única combinação que prova SC-006 (360 px + acessibilidade), SC-007 (3 fusos) e SC-010 (matriz FR-031) de forma automatizada. Playwright traz WebKit real (Safari) e Edge via canal `msedge`; Vitest compartilha a configuração do Vite.
-- **Alternatives considered**: só Vitest + RTL (deixaria navegadores/fusos/360 px para verificação manual); Vitest + Cypress (sem WebKit real, fusos exigem plugin).
-- **Fixture de dados**: os testes E2E usam `POST /auth/dev-login` (Development) e os endpoints de escrita da HU 001 para semear clientes e pedidos (venda, devolução, cancelamento) antes de cada suíte, com duas vendedoras (isolamento, FR-027).
+- **Decision** (revista em 2026-10-26 pelo solicitante): só Vitest + React Testing Library (jsdom) para formatadores, hooks, serviços e componentes. **Sem testes E2E no frontend.**
+- **Rationale**: o frontend é só de exibição; a matriz Playwright (6 navegadores, ~500 MB de download, API de pé) custa mais do que protege. Os 3 fusos de SC-007 são provados nos testes unitários de `lib/dates` (mudando `TZ`); 360 px, acessibilidade (SC-006) e a matriz de navegadores (FR-031, SC-010) são verificados manualmente pelo quickstart.
+- **Alternatives considered**: Vitest + RTL + Playwright (escolha original do plan, tomada pelo decisor automático do autopiloto e revertida); Vitest + Cypress (sem WebKit real, fusos exigem plugin).
 
 ## 2. Login com Google no navegador **[decisão do solicitante]**
 

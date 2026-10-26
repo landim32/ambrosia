@@ -86,8 +86,12 @@ public class OrderRepository : IOrderRepository<Order>
         {
             var channel = query.Channel.Trim().ToLower();
 
-            // Igualdade case-insensitive: "linx" encontra "Linx" (T074).
-            scoped = scoped.Where(o => o.Channel != null && o.Channel.ToLower() == channel);
+            // Trecho case-insensitive (FR-014, T067): "lin" encontra "Linx".
+            // A igualdade continua sendo um caso particular, entao quem enviava o
+            // canal inteiro mantem os mesmos resultados. Contains sobre ToLower
+            // (em vez de EF.Functions.ILike) para rodar no provedor InMemory dos
+            // testes de repositorio.
+            scoped = scoped.Where(o => o.Channel != null && o.Channel.ToLower().Contains(channel));
         }
 
         if (query.CustomerId is { } customerId)

@@ -7,7 +7,6 @@ Guia para provar que o frontend funciona de ponta a ponta contra a API da HU 001
 
 - Node.js 22 LTS (`node --version` → 22.x) e npm 10+
 - API da HU 001 rodando em Development: `http://localhost:5000` (ver [quickstart da 001](../001-api-cadastro-clientes-pedidos/quickstart.md)); o `dev-login` precisa estar ativo
-- Navegadores do Playwright: `npx playwright install --with-deps chromium firefox webkit msedge`
 - (Opcional, login Google) um Client ID OAuth do Google com `http://localhost:5173` nas origens JavaScript autorizadas e o mesmo valor em `Auth__GoogleClientId` da API
 
 ## Configuração
@@ -37,7 +36,7 @@ Esperado: abrir `http://localhost:5173/clientes` sem sessão redireciona para `/
 
 ## Dados de teste
 
-Semear pela API (PowerShell, com o token do dev-login `$TA` obtido como no quickstart da 001): ao menos 25 clientes (para paginar), um cliente sem compras, e pedidos `sale`, `return` e `cancellation` com itens (um com `imageUrl` inválida). Criar uma segunda vendedora (`bia@exemplo.com`) com um cliente e um pedido próprios para o teste de isolamento. O script `frontend/e2e/seed.ts` faz isso automaticamente antes da suíte E2E.
+Semear pela API (PowerShell, com o token do dev-login `$TA` obtido como no quickstart da 001): ao menos 25 clientes (para paginar), um cliente sem compras, e pedidos `sale`, `return` e `cancellation` com itens (um com `imageUrl` inválida). Criar uma segunda vendedora (`bia@exemplo.com`) com um cliente e um pedido próprios para o teste de isolamento.
 
 ## Cenário 1 — Sessão (US1; SC-002, SC-008)
 
@@ -89,10 +88,9 @@ Semear pela API (PowerShell, com o token do dev-login `$TA` obtido como no quick
 ```powershell
 npm run lint && npm run type-check
 npm test                 # Vitest + RTL: formatadores (moeda, datas em 3 fusos), parser de filtros, apiClient, AuthContext, componentes
-npm run test:e2e         # Playwright: chromium, firefox, webkit, msedge, Mobile Chrome, Mobile Safari; viewport 360; timezones America/Sao_Paulo, UTC, Asia/Tokyo; axe-core
 ```
 
-Esperado: todas as suítes verdes. O E2E exige a API em Development em `http://localhost:5000` (o `playwright.config.ts` sobe o `vite dev` sozinho).
+Esperado: todas as suítes verdes. Não há testes E2E no frontend: 360 px, acessibilidade e a matriz de navegadores (FR-031) são verificados manualmente pelos cenários acima.
 
 ## Build de produção (SC-008)
 
@@ -119,3 +117,40 @@ dotnet test Ambrosia.Tests --filter OrderRepositoryTest
 ```
 
 Esperado: casos `channel=lin` → casa `Linx`; `channel=LINX` → casa; `channel=xyz` → vazio.
+
+## Resultado da validação (2026-10-26, implementação /speckit.implement)
+
+Automatizado e à revelia do navegador (executado nesta máquina):
+
+| Item | Comando | Resultado |
+|---|---|---|
+| Testes do frontend | `npm test` | **19 arquivos, 176 testes aprovados** — inclui o smoke test de integração `src/App.test.tsx` (cadeia completa de providers: `RequireAuth` → `AppShell` → lista montada a partir do `fetch` mockado) |
+| Lint / tipos | `npm run lint`, `npm run type-check` | limpos (0 erros, 0 warnings) |
+| Build de produção | `npm run build -- --mode production` | entry `index-DnwvLCKQ.js` = **98,75 kB gzip** (orçamento: 250 kB) |
+| SC-008 | `npm run verify:prod` | **PASS**: nenhuma ocorrência de `dev-login`/`DevLoginForm` em `dist/` |
+| Build de homolog | `npm run build -- --mode homolog` | gera o chunk `DevLoginForm-*.js` (o dev-login existe onde deve) |
+| Backend (trecho de canal) | `dotnet test Ambrosia.Tests --filter OrderRepositoryTest` | **14 aprovados, 0 falhas** |
+| Imagem Docker | `docker compose --profile frontend build frontend` | build ok; container `healthy` |
+| Gateway + headers | `curl -D - http://localhost:8080/clientes` | 200, CSP/Referrer-Policy/nosniff presentes, `index.html` com `no-store` |
+| Cache de asset | `curl -D - /assets/index-*.js` | `Cache-Control: public, immutable` + `max-age=31536000` |
+| API pela mesma origem | `POST /api/auth/dev-login` via gateway | 200 com JWT, sem CORS |
+| Swagger | `GET /api/swagger` | 301 → 200 |
+| FR-027 | `GET /orders/999999`, `GET /customers/999999` | 404 |
+| Filtros da API | `kind=cancellation`, `search=00004751`, `search=Maria`, `from/to`, `page=99`, data invertida | 200 com os conjuntos esperados; invertida → 400 |
+
+**C3.2 no container (revalidado após rebuild da API):** na primeira rodada,
+`channel=lin` devolveu 0 porque o container `ambrosia-homolog-api` ainda rodava a
+imagem construída antes do ajuste da T067. Após `docker compose build api migrator`
+e `up -d`, a mesma bateria passou: `channel=lin` → 2, `channel=LINX` → 2,
+`channel=Linx` → 2, `channel=ins` → 1 (trecho de "Instagram Direct"),
+`channel=xyz` → 0, sem filtro → 3. `POST /api/auth/dev-login` via gateway → 200
+com JWT (mesma origem, sem CORS), `/api/swagger` → 200 e
+`/orders/{id}` devolve itens com `lineNo`, `skuRef` e `cpfMasked` (FR-017/FR-022).
+A semeadura deixou 2 clientes e 3 pedidos na base de homologação da vendedora
+`ana@exemplo.com` (ids 42/43, pedido 26).
+
+Pendente de navegador (não automatizável aqui, sem E2E por decisão do solicitante):
+Cenários 1.1–1.7, 2.1–2.8, 3.1–3.7, 4.1–4.4 e 5.1–5.4 — sessão/expiração na UI,
+avatar/iniciais, "mostrar/ocultar" CPF, placeholder de imagem sem `Referer`, 360 px,
+foco visível por Tab e a matriz de navegadores (FR-031, SC-006, SC-010).
+

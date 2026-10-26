@@ -158,7 +158,7 @@ paths:
         - { name: from, in: query, schema: { type: string, format: date }, description: Data inicial inclusiva }
         - { name: to, in: query, schema: { type: string, format: date }, description: Data final inclusiva }
         - { name: kind, in: query, schema: { $ref: '#/components/schemas/OrderKind' } }
-        - { name: channel, in: query, schema: { type: string }, description: Igualdade case-insensitive }
+        - { name: channel, in: query, schema: { type: string }, description: Trecho do canal (case-insensitive) }
         - { name: customerId, in: query, schema: { type: integer, format: int64 } }
         - { name: search, in: query, schema: { type: string }, description: Trecho do nº do pedido ou do nome do cliente }
         - { $ref: '#/components/parameters/Page' }

@@ -27,8 +27,9 @@ public class OrdersController : ApiControllerBase
 
     /// <summary>
     /// Lista os pedidos do usuário com filtros e paginação, ordenados por data decrescente
-    /// (FR-017). <c>from</c>/<c>to</c> são inclusivos, <c>channel</c> compara por igualdade sem
-    /// diferenciar maiúsculas e <c>search</c> varre número do pedido OU nome do cliente.
+    /// (FR-017). <c>from</c>/<c>to</c> são inclusivos; <c>channel</c> filtra por trecho, sem
+    /// diferenciar maiúsculas ("lin" encontra "Linx"); <c>search</c> varre número do pedido ou
+    /// nome do cliente.
     /// </summary>
     /// <param name="query">Filtros e paginação (<c>page</c> ≥ 1, <c>pageSize</c> 1-100).</param>
     /// <response code="200">Página de pedidos.</response>

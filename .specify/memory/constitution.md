@@ -1,41 +1,54 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 2.1.0 → 3.0.0 (MAJOR)
+Version change: 3.1.0 → 3.2.0 (MINOR)
 
-Bump rationale: Bootstrap 5 was removed from the fixed frontend stack and replaced by Tailwind CSS
-+ shadcn/ui (incompatible redefinition of a stack rule; no Bootstrap code exists yet). HotChocolate
-was added to the backend stack for GraphQL, with the `dotnet-graphql` skill made mandatory.
+Bump rationale: new principle VIII (Estratégia de Testes) que define a política de testes do
+projeto: backend somente com testes de API; frontend somente com testes unitários; Playwright e
+qualquer teste E2E no frontend são proibidos. Nova regra de stack correspondente. Não há remoção
+de princípio existente nem código afetado (nenhum teste E2E/Playwright existia na constituição).
 
 Modified principles:
+- II. Stack Tecnológica Fixa: nova regra de stack proibindo Playwright/E2E no frontend.
+
+Added sections: VIII. Estratégia de Testes
+Removed sections: none
+Quality gates: added "frontend testado apenas com testes unitários (sem Playwright/E2E)".
+
+Previous amendment (3.0.0 → 3.1.0, MINOR): new principle VII (environments and API tests): the
+Development / Homolog / Production environments are created with the `dotnet-env` skill, Homolog
+runs on local Docker (docker compose in WSL), and every development cycle ends with the API tests
+running against Homolog. `dotnet-env` and `dotnet-test-api` added to the mandatory skills table.
+
+Previous amendment (2.1.0 → 3.0.0, MAJOR). Bump rationale: Bootstrap 5 was removed from the fixed
+frontend stack and replaced by Tailwind CSS + shadcn/ui (incompatible redefinition of a stack
+rule; no Bootstrap code exists yet). HotChocolate was added to the backend stack for GraphQL, with
+the `dotnet-graphql` skill made mandatory.
+
+Modified principles (3.0.0):
 - I. Skills de Arquitetura Obrigatórias: `dotnet-graphql` added to the mandatory skills table.
 - II. Stack Tecnológica Fixa: Bootstrap 5.x → Tailwind CSS 4.x + shadcn/ui; HotChocolate 14.x added;
   new rules: GraphQL only via HotChocolate, styling only via Tailwind (no Bootstrap or other CSS
   frameworks).
-
 - VI. Autenticação e Segurança: TODO(AUTH_SCHEME) resolved with the scheme implemented in feature
   001 (proposal specs/001-api-cadastro-clientes-pedidos/constitution-amendment.md, folded into
   this amendment); `/auth/dev-login` allowed in Development and Homolog.
 - Environment variables: `ASPNETCORE_ENVIRONMENT` values renamed to Development / Homolog /
   Production (the Docker environment became Homolog).
+Quality gates (3.0.0): added "leituras de repositório filtram por `userId`".
 
-Added sections: none
-Removed sections: none
-Quality gates: added "leituras de repositório filtram por `userId`".
+Previous amendment (2.1.0): local Docker prohibition lifted; `wsl-docker` skill added.
 
-Previous amendment (2.0.0 → 2.1.0): local Docker prohibition lifted; `wsl-docker` skill added.
-
-Previous amendment (1.0.0 → 2.0.0): NAuth and zTools removed from the stack; Principle VI
+Previous amendment (2.0.0): NAuth and zTools removed from the stack; Principle VI
 authentication scheme set to TODO(AUTH_SCHEME); nauth-guide and ztools-guide skills deleted.
 
 Follow-up TODOs:
-- Resolved: TODO(AUTH_SCHEME) (Principle VI), in 3.0.0.
 - Casing divergence (deferred by decision): Principle III requires `Contexts/` and `Services/`,
   but the `react-architecture` skill generates `src/contexts/` and `src/services/`. Decide which
   one prevails.
-- Resolved: duplicate skill `.claude/skills/react-arch/` deleted.
+- Verificar se o repositório já contém testes E2E/Playwright no frontend (dependências,
+  configuração, pastas) e removê-los em uma tarefa separada.
 - `{NomeDoProjeto}` is intentionally kept as a convention token (not a template placeholder).
-- Resolved: `dotnet-architecture` and `react-architecture` are installed in `.claude/skills/`.
 -->
 
 # Ambrosia Constitution
@@ -55,6 +68,8 @@ Para implementar novas entidades e funcionalidades, as skills abaixo DEVEM ser u
 | **react-architecture** | Criar Types, Service, Context, Hook e registrar Provider no frontend | `/react-architecture` |
 | **dotnet-graphql** | Criar/modificar schema, queries e type extensions GraphQL (HotChocolate) | `/dotnet-graphql` |
 | **wsl-docker** | Executar qualquer comando `docker` / `docker compose` nesta máquina (via WSL2) | `/wsl-docker` |
+| **dotnet-env** | Criar/modificar os ambientes Development, Homolog e Production (appsettings, docker compose, `.env`, pipeline de deploy) | `/dotnet-env` |
+| **dotnet-test-api** | Criar/modificar os testes de API (`{NomeDoProjeto}.ApiTests`) | `/dotnet-test-api` |
 
 Estas skills são a fonte normativa para:
 
@@ -113,6 +128,8 @@ contribuidores.
   permitidos no ambiente local e DEVEM seguir a skill `wsl-docker` (o Docker Engine roda dentro
   do WSL2; não há `docker` no Windows).
 - Variáveis de ambiente do frontend DEVEM usar o prefixo `VITE_`. NÃO usar `REACT_APP_`.
+- NÃO usar Playwright, Cypress, Selenium ou qualquer outra ferramenta de teste E2E/de navegador
+  no frontend (ver Princípio VIII).
 
 **Rationale**: uma stack fixa reduz a carga cognitiva, mantém as skills aplicáveis e evita
 dependências redundantes.
@@ -216,6 +233,52 @@ cascata.
 **Rationale**: regras explícitas de armazenamento e proteção impedem vazamento de credenciais
 e endpoints desprotegidos, independentemente do esquema de autenticação adotado.
 
+### VII. Ambientes e Testes de API
+
+Os três ambientes DEVEM ser criados e mantidos com a skill `dotnet-env`:
+
+| Ambiente | `ASPNETCORE_ENVIRONMENT` | Como roda |
+|---|---|---|
+| Dev | `Development` | Local, sem Docker (`dotnet run`, PostgreSQL instalado na máquina) |
+| Homolog | `Homolog` | Docker local: `docker compose` no WSL com frontend, API, banco e gateway |
+| Prod | `Production` | Pipeline do GitHub Actions que publica tudo no servidor de produção |
+
+- O ambiente de homologação DEVE subir no Docker local (`docker compose up -d --build` via skill
+  `wsl-docker`), com as migrações aplicadas pelo próprio compose.
+- Ao final de cada ciclo de desenvolvimento (feature, história ou correção que altere a API), a
+  homologação DEVE ser reconstruída com o código do ciclo e os testes de API
+  (`{NomeDoProjeto}.ApiTests`) DEVEM ser executados contra ela
+  (`ApiBaseUrl=http://localhost:8080/api`). O ciclo só termina com todos os testes passando.
+- Endpoints novos ou alterados DEVEM ganhar ou atualizar testes de API, criados com a skill
+  `dotnet-test-api`, no mesmo ciclo.
+- Falhas nos testes de API DEVEM ser corrigidas no código, não contornadas removendo ou
+  desabilitando testes. Uma exceção DEVE ser justificada explicitamente no PR.
+
+**Rationale**: a homologação reproduz a topologia de produção (gateway, prefixo `/api`, proxy
+reverso, banco em container). Testar a API ali ao fim de cada ciclo pega problemas de
+configuração e integração que os testes de unidade não veem.
+
+### VIII. Estratégia de Testes
+
+| Camada | Tipo de teste permitido | Ferramentas |
+|---|---|---|
+| Backend | Somente testes de API (Princípio VII) | xUnit + Flurl.Http + FluentAssertions (skill `dotnet-test-api`) |
+| Frontend | Somente testes unitários | Runner unitário compatível com Vite (ex.: Vitest) + Testing Library |
+
+- O frontend DEVE ser testado apenas com testes unitários (componentes, hooks, services e
+  utilitários isolados, com dependências externas simuladas).
+- Playwright, Cypress, Selenium e qualquer outro teste E2E ou de automação de navegador no
+  frontend são PROIBIDOS. NÃO adicionar suas dependências, configurações, pastas ou etapas de
+  pipeline.
+- O backend NÃO DEVE ter testes de unidade ou de integração paralelos aos testes de API; a
+  cobertura do backend vem dos testes de API executados contra a homologação.
+- Fluxos de ponta a ponta são cobertos indiretamente: a API pelos testes de API e a interface
+  pelos testes unitários do frontend.
+
+**Rationale**: testes E2E de navegador são lentos, frágeis e caros de manter. Testes de API
+validam o contrato e a integração real do backend, e testes unitários dão feedback rápido no
+frontend sem dependência de navegador ou ambiente.
+
 ## Restrições Adicionais
 
 ### Variáveis de Ambiente
@@ -259,6 +322,9 @@ Antes de submeter qualquer código, o contribuidor DEVE verificar:
 - [ ] Controllers com dados sensíveis possuem `[Authorize]`.
 - [ ] Leituras de repositório filtram por `userId`.
 - [ ] Comandos Docker locais seguiram a skill `wsl-docker`.
+- [ ] Ambientes Dev, Homolog e Prod seguem a skill `dotnet-env`.
+- [ ] Ao final do ciclo, a homologação foi reconstruída e os testes de API passaram contra ela.
+- [ ] O frontend foi testado apenas com testes unitários (sem Playwright nem E2E).
 
 Code reviews DEVEM recusar alterações que não cumpram este checklist.
 
@@ -277,6 +343,6 @@ Code reviews DEVEM recusar alterações que não cumpram este checklist.
   Exceções DEVEM ser justificadas explicitamente no PR. Specs e planos (`/speckit.plan`) DEVEM
   passar pelo Constitution Check antes da implementação.
 - Para orientação detalhada de implementação, use as skills `dotnet-architecture`,
-  `react-architecture`, `dotnet-graphql` e `wsl-docker`.
+  `react-architecture`, `dotnet-graphql`, `wsl-docker`, `dotnet-env` e `dotnet-test-api`.
 
-**Version**: 3.0.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-26
+**Version**: 3.2.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-26

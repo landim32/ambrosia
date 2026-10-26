@@ -68,6 +68,11 @@ services:
     profiles: ["frontend"]
     build:
       context: ./frontend
+      # Flags de BUILD (o Vite embute no bundle): homolog tem dev-login.
+      args:
+        BUILD_MODE: homolog
+        VITE_DEV_LOGIN: "true"
+        VITE_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID:-}
     image: ambrosia-frontend:homolog
     container_name: ambrosia-homolog-frontend
     restart: unless-stopped

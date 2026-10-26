@@ -10,6 +10,10 @@ get {
   auth: inherit
 }
 
+vars:pre-request {
+  customerId: 32
+}
+
 tests {
   test("status 200", function () {
     expect(res.status).to.equal(200);

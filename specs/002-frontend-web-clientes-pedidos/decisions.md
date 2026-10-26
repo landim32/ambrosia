@@ -78,3 +78,25 @@ _claude-code / claude-sonnet-5-5_
 **Escolha:** Top 6 (Recommended)
 **Por quê:** A opção está marcada como recomendada, então a política manda escolhê-la. Ela cobre os 2 problemas HIGH e os MEDIUM que afetam a implementação, sem ampliar o escopo para os LOW. Apenas sugere edições, sem aplicá-las.
 _claude-code / claude-sonnet-5-5_
+
+
+## implement · 2026-10-26
+**Pergunta:** O limite de `busca`/`search` divergia entre os documentos: `tasks.md` (T064/T072) e `data-model.md` §4 diziam 200 caracteres, mas a API valida `Search` com `MaximumLength(60)` (`OrderListQueryValidator`). O que prevalece?
+**Opções:** A - Manter 60 no código e acertar a documentação (Recommended) · B - Aceitar 200 no campo e cortar antes da API · C - Só sinalizar a divergência
+**Escolha:** A - Manter 60 no código e acertar a documentação
+**Por quê:** Enviar 200 devolveria 400 da API e a vendedora veria um erro em vez da lista — exatamente o que o parser de filtros evita ao descartar inválidos. O código já estava em 60 (`SEARCH_MAX`, `maxLength` do input e os testes de `lib/filters.test.ts`); corrigiram-se `data-model.md` §4 e as descrições de T064/T072.
+_maestro / implement_
+
+## implement · 2026-10-26
+**Pergunta:** A verificação da SC-008 (T091) falhou: `dev-login` continuava no bundle de produção mesmo com `VITE_DEV_LOGIN` ausente. Colocar o `loginDev` do `authService` atrás de uma guarda de build?
+**Opções:** A - Corrigir o import estático de `DevLoginForm` em `LoginPage.tsx` (Recommended) · B - Adicionar guarda de runtime em `authService.loginDev`
+**Escolha:** A - Corrigir o import estático
+**Por quê:** A causa era um `import DevLoginForm from ./DevLoginForm` usado apenas dentro do `Suspense`: o binding é marcado como utilizado e impedia a eliminação do ramo morto, então o chunk sobrevivia à flag. A guarda de runtime (opção B) bastaria para a busca por texto, mas quebraria o dev-login em Homolog, onde `VITE_DEV_LOGIN=true` e o Rollup não gera chunk estático. `npm run verify:prod` cobre os dois caminhos.
+_maestro / implement_
+
+## implement · 2026-10-26
+**Pergunta:** O retry de erro (T086) devia viver nas páginas ou nos contextos?
+**Opções:** A - No contexto, com a última consulta guardada em ref (Recommended) · B - Nas páginas, recompondo os parâmetros do efeito
+**Escolha:** A - No contexto, com a última consulta guardada em ref
+**Por quê:** Com a guarda no contexto (`retryCustomers`/`retryCustomer`/`retryOrders`/`retryOrder`), o `onRetry` tem identidade estável: o toast com "Tentar de novo" repete exatamente a consulta que falhou sem a página remontar o efeito de carga e sem reescrever a URL. A opção B obrigava cada página a reconstruir os parâmetros e reinstalava o efeito a cada toque.
+_maestro / implement_

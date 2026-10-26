@@ -91,11 +91,16 @@ Representado nos contextos por `loading: boolean`, `error: string | null`, dados
 | `ate` | `to` | `AAAA-MM-DD` válido; se `de` > `ate`, ambos ignorados | `to` |
 | `tipo` | `kind` | ∈ `sale\|return\|cancellation` | `kind` |
 | `canal` | `channel` | texto ≤ 60, `trim` | `channel` (trecho, case-insensitive — ajuste backend) |
-| `busca` | `search` | texto ≤ 200, `trim` | `search` |
+| `busca` | `search` | texto ≤ 60, `trim` (limite da API: `OrderListQueryValidator.MaximumLength(60)`) | `search` |
 | `pagina` | `page` | inteiro ≥ 1; padrão 1 | `page` |
 | (perfil) `:id` da rota | `customerId` | inteiro | `customerId` |
 
 Valores inválidos são descartados silenciosamente e removidos da URL na próxima navegação (edge case "Filtro inválido no endereço"). Para `/clientes` valem só `busca` e `pagina`.
+
+> **`busca` ≤ 60, nao 200**: a HU 002 original falava em 200 caracteres, mas a
+> API valida `Search` com `MaximumLength(60)` — aceitar 200 no campo devolveria 400
+> na tela da vendedora. O `maxLength` do input e o `SEARCH_MAX` do parser seguem a
+> API, e o teste de `lib/filters.test.ts` trava os 60.
 
 ### CPF no perfil (`CpfReveal`)
 

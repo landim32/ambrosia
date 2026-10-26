@@ -45,6 +45,11 @@ services:
     profiles: ["frontend"]
     build:
       context: ./frontend
+      # SEM VITE_DEV_LOGIN: a entrada de desenvolvimento nao entra no bundle
+      # de producao (FR-002 / SC-008, provado por npm run verify:prod).
+      args:
+        BUILD_MODE: production
+        VITE_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID}
     image: ambrosia-frontend:prod
     container_name: ambrosia-frontend
     restart: unless-stopped
