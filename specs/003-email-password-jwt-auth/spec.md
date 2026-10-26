@@ -185,3 +185,4 @@ Quem roda os testes de API do backend contra Development ou Homolog não precisa
 - **Constituição**: o princípio VI (que hoje permite `/auth/dev-login` em Development e Homolog e descreve o esquema como Google-only) precisa de emenda para refletir a nova forma de entrada e a proibição do dev-login em todos os ambientes; a emenda faz parte deste ciclo.
 - **Bruno**: as credenciais de teste no ambiente da coleção (e-mail e nome) são variáveis não secretas de homologação local; token e senha ficam como secretas.
 - **Testes do frontend**: permanecem apenas unitários (constituição §VIII); os testes de API do backend são os únicos que exercitam o fluxo real de cadastro + login.
+- **Testes unitários do backend**: o projeto `Ambrosia.Tests` é um desvio pré-existente da constituição §VIII; esta feature **apaga** os testes unitários afetados pela autenticação, sem ajustá-los nem criar novos, e o comportamento de cadastro/login passa a ser provado só pelos testes de API.
