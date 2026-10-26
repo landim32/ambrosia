@@ -1,0 +1,59 @@
+# Convenções do backend Ambrosia (constituição §IV / skill dotnet-architecture)
+root = true
+
+[*]
+charset = utf-8
+end_of_line = crlf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{json,yml,yaml,md}]
+indent_size = 2
+
+[*.cs]
+indent_size = 4
+
+# Namespaces file-scoped (constituição IV)
+dotnet_style_namespace_match_folder = true : warning
+csharp_style_namespace_declarations = file_scoped : warning
+
+# Campos privados _camelCase (constituição IV)
+dotnet_naming_rule.private_fields_should_be_underscore_camel_case.severity = warning
+dotnet_naming_rule.private_fields_should_be_underscore_camel_case.symbols = private_fields
+dotnet_naming_rule.private_fields_should_be_underscore_camel_case.style = underscore_camel_case_style
+dotnet_naming_symbols.private_fields.applicable_kinds = field
+dotnet_naming_symbols.private_fields.applicable_accessibilities = private
+dotnet_naming_style.underscore_camel_case_style.required_prefix = _
+dotnet_naming_style.underscore_camel_case_style.capitalization = camel_case
+
+# Constantes UPPER_CASE (constituição IV)
+dotnet_naming_rule.static_readonly_constants_should_be_upper_case.severity = suggestion
+dotnet_naming_rule.static_readonly_constants_should_be_upper_case.symbols = constant_fields
+dotnet_naming_rule.static_readonly_constants_should_be_upper_case.style = upper_case_style
+dotnet_naming_symbols.constant_fields.applicable_kinds = field
+dotnet_naming_symbols.constant_fields.applicable_modifiers = const, static_readonly
+dotnet_naming_style.upper_case_style.capitalization = all_upper
+dotnet_naming_style.upper_case_style.required_word_seperator = underscore
+
+# var preferido quando o tipo é óbvio
+var_preference = anywhere : suggestion
+dotnet_style_predefined_type_for_locals_parameters_members = true : suggestion
+csharp_style_var_for_built_in_types = true : suggestion
+csharp_style_var_when_type_is_apparent = true : suggestion
+
+# this. explícito apenas quando necessário
+this_qualification_preference = this_qualification : suggestion
+dotnet_style_qualification_for_field = false : suggestion
+dotnet_style_qualification_for_property = false : suggestion
+dotnet_style_qualification_for_method = false : suggestion
+
+# Corpo de método em bloco; use expressões quando já existir
+dotnet_style_expression_bodied_properties = true : suggestion
+dotnet_style_expression_bodied_methods = when_on_single_line : suggestion
+
+# Nullabilidade
+dotnet_style_coalesce_expression = true : warning
+dotnet_style_null_propagation = true : warning
+dotnet_prefer_null_check_over_type_check = true : suggestion

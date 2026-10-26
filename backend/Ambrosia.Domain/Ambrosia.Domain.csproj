@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain: modelos ricos, enums (via DTO), serviços, validators, value objects. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="11.12.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ambrosia.Infra.Interfaces\Ambrosia.Infra.Interfaces.csproj" />
+    <ProjectReference Include="..\Ambrosia.DTO\Ambrosia.DTO.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,19 @@
+# Temporários locais
+.tmp-*
+*.pid
+logs/
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+*.log
+
+# Ambiente
+.env
+.env.*
+!.env.example
+!.env.*.example

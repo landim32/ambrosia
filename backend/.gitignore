@@ -1,0 +1,35 @@
+# .NET / EF Core
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+packages/
+
+# Resultados de teste e cobertura
+TestResults/
+*.trx
+coverage/
+*.coverage
+[Tt]est[Rr]y*/
+
+# Builds
+artifacts/
+publish/
+*.binlog
+
+# Segredos e configuração local — nunca commitar
+.env
+.env*
+appsettings.*.local.json
+secrets.json
+*.pfx
+
+# Sistema operacional / editores
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.idea/

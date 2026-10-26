@@ -1,0 +1,451 @@
+openapi: 3.0.3
+info:
+  title: Ambrosia API
+  version: 1.0.0
+  description: |
+    API de cadastro e consulta de clientes e pedidos (feature 001).
+    Todas as rotas exceto `/auth/*` exigem `Authorization: Bearer <token>`.
+    Cada usuário enxerga apenas os próprios clientes e pedidos; recursos de
+    outro usuário respondem 404.
+servers:
+  - url: http://localhost:5000
+    description: Desenvolvimento local
+
+tags:
+  - name: Auth
+  - name: Users
+  - name: Customers
+  - name: Orders
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/google:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Login com ID token do Google; cria o usuário no primeiro acesso
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GoogleLoginInfo' }
+      responses:
+        '200':
+          description: Token do Ambrosia
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResult' }
+        '400':
+          description: ID token ausente/inválido ou sem e-mail verificado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /auth/dev-login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: "[Somente Development] Emite token sem Google"
+      description: Responde 404 fora de `ASPNETCORE_ENVIRONMENT=Development`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DevLoginInfo' }
+      responses:
+        '200':
+          description: Token do Ambrosia
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResult' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { description: Indisponível neste ambiente }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Perfil do usuário autenticado (nunca inclui senha)
+      responses:
+        '200':
+          description: Perfil
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UserInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /customers:
+    get:
+      tags: [Customers]
+      summary: Lista clientes do usuário (paginado, busca por nome)
+      parameters:
+        - { name: search, in: query, schema: { type: string }, description: Trecho do nome (case-insensitive) }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: Página de clientes (CPF mascarado)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedCustomerInfo' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      tags: [Customers]
+      summary: Cadastra cliente (nome + CPF válido)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerInsertInfo' }
+      responses:
+        '201':
+          description: Cliente criado
+          headers:
+            Location: { schema: { type: string }, description: "/customers/{id}" }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerDetailInfo' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /customers/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/Id' }
+    get:
+      tags: [Customers]
+      summary: Detalhe do cliente com CPF completo e resumo de compras
+      responses:
+        '200':
+          description: Cliente
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerDetailInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    put:
+      tags: [Customers]
+      summary: Atualiza o nome do cliente
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CustomerUpdateInfo' }
+      responses:
+        '200':
+          description: Cliente atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CustomerDetailInfo' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /orders:
+    get:
+      tags: [Orders]
+      summary: Lista pedidos do usuário (filtros, paginado, data decrescente)
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date }, description: Data inicial inclusiva }
+        - { name: to, in: query, schema: { type: string, format: date }, description: Data final inclusiva }
+        - { name: kind, in: query, schema: { $ref: '#/components/schemas/OrderKind' } }
+        - { name: channel, in: query, schema: { type: string }, description: Igualdade case-insensitive }
+        - { name: customerId, in: query, schema: { type: integer, format: int64 } }
+        - { name: search, in: query, schema: { type: string }, description: Trecho do nº do pedido ou do nome do cliente }
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/PageSize' }
+      responses:
+        '200':
+          description: Página de pedidos
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PagedOrderInfo' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    post:
+      tags: [Orders]
+      summary: Cadastra pedido com itens
+      description: |
+        Regras: `total > 0` para `sale`, `total < 0` para `return`/`cancellation`;
+        ao menos 1 item; `orderDate` não futura; `customerId` deve pertencer ao usuário;
+        `(orderNumber, orderDate, kind)` único por usuário.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderInsertInfo' }
+      responses:
+        '201':
+          description: Pedido criado
+          headers:
+            Location: { schema: { type: string }, description: "/orders/{id}" }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderDetailInfo' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { description: Cliente não encontrado (inclui cliente de outro usuário), content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResult' } } } }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /orders/{id}:
+    parameters:
+      - { $ref: '#/components/parameters/Id' }
+    get:
+      tags: [Orders]
+      summary: Detalhe do pedido com cliente e itens
+      responses:
+        '200':
+          description: Pedido
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderDetailInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    put:
+      tags: [Orders]
+      summary: Atualiza status e total do pedido
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/OrderUpdateInfo' }
+      responses:
+        '200':
+          description: Pedido atualizado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrderDetailInfo' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, minimum: 1, default: 1 }
+    PageSize:
+      name: pageSize
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100, default: 20 }
+
+  responses:
+    Unauthorized:
+      description: Token ausente, inválido ou expirado (corpo vazio)
+    NotFound:
+      description: Recurso inexistente ou pertencente a outro usuário
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResult' }
+          example: { sucesso: false, mensagem: "Cliente não encontrado.", erros: [] }
+    Conflict:
+      description: Duplicidade
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResult' }
+          example: { sucesso: false, mensagem: "Já existe um cliente com este CPF.", erros: [] }
+    ValidationError:
+      description: Dados inválidos (mensagens em português com o campo)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResult' }
+          example:
+            sucesso: false
+            mensagem: "Dados inválidos."
+            erros:
+              - { campo: "cpf", mensagem: "CPF inválido." }
+              - { campo: "total", mensagem: "O total de uma venda deve ser positivo." }
+    ServerError:
+      description: Erro interno (mensagem da exceção como texto)
+      content:
+        text/plain:
+          schema: { type: string }
+
+  schemas:
+    OrderKind:
+      type: string
+      enum: [sale, return, cancellation]
+    OrderOrigin:
+      type: string
+      enum: [cota, omni]
+    AuthProvider:
+      type: string
+      enum: [google, dev]
+
+    GoogleLoginInfo:
+      type: object
+      required: [idToken]
+      properties:
+        idToken: { type: string, description: ID token (JWT) emitido pelo Google }
+    DevLoginInfo:
+      type: object
+      required: [email, name]
+      properties:
+        email: { type: string, format: email }
+        name: { type: string, maxLength: 200 }
+    LoginResult:
+      type: object
+      properties:
+        token: { type: string }
+        expiresAt: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/UserInfo' }
+    UserInfo:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        email: { type: string }
+        name: { type: string }
+        provider: { $ref: '#/components/schemas/AuthProvider' }
+        createdAt: { type: string, format: date-time }
+
+    CustomerInsertInfo:
+      type: object
+      required: [name, cpf]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 200 }
+        cpf: { type: string, description: Com ou sem pontuação; dígitos verificadores validados, example: "123.456.789-09" }
+    CustomerUpdateInfo:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 2, maxLength: 200 }
+    CustomerInfo:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        name: { type: string }
+        cpfMasked: { type: string, example: "***.456.789-**" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    CustomerSummaryInfo:
+      type: object
+      properties:
+        purchases: { type: integer, description: Quantidade de pedidos do tipo sale }
+        netTotal: { type: number, format: double, description: Soma dos totais (devoluções/cancelamentos negativos) }
+        lastPurchase: { type: string, format: date, nullable: true }
+        daysSinceLastPurchase: { type: integer, nullable: true }
+    CustomerDetailInfo:
+      allOf:
+        - $ref: '#/components/schemas/CustomerInfo'
+        - type: object
+          properties:
+            cpf: { type: string, example: "123.456.789-09" }
+            summary: { $ref: '#/components/schemas/CustomerSummaryInfo' }
+    PagedCustomerInfo:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/CustomerInfo' } }
+        page: { type: integer }
+        pageSize: { type: integer }
+        totalCount: { type: integer }
+
+    OrderItemInsertInfo:
+      type: object
+      properties:
+        productName: { type: string, maxLength: 200, nullable: true, example: "Calça Inez" }
+        skuRef: { type: string, maxLength: 60, nullable: true, example: "42CA500UIE_12182" }
+        size: { type: string, maxLength: 20, nullable: true, example: "38" }
+        price: { type: number, format: double, nullable: true }
+        imageUrl: { type: string, format: uri, maxLength: 500, nullable: true }
+    OrderItemInfo:
+      allOf:
+        - $ref: '#/components/schemas/OrderItemInsertInfo'
+        - type: object
+          properties:
+            id: { type: integer, format: int64 }
+            lineNo: { type: integer }
+    OrderInsertInfo:
+      type: object
+      required: [customerId, orderNumber, orderDate, kind, total, items]
+      properties:
+        customerId: { type: integer, format: int64 }
+        orderNumber: { type: string, maxLength: 60, example: "00004751" }
+        orderDate: { type: string, format: date }
+        kind: { $ref: '#/components/schemas/OrderKind' }
+        channel: { type: string, maxLength: 60, nullable: true, example: "Linx" }
+        origin: { allOf: [ { $ref: '#/components/schemas/OrderOrigin' } ], nullable: true }
+        status: { type: string, maxLength: 60, nullable: true, example: "Faturado" }
+        total: { type: number, format: double, description: ">0 em sale; <0 em return/cancellation" }
+        originalSaleOn: { type: string, format: date, nullable: true }
+        cancelledOn: { type: string, format: date, nullable: true }
+        externalId: { type: string, maxLength: 60, nullable: true }
+        items:
+          type: array
+          minItems: 1
+          items: { $ref: '#/components/schemas/OrderItemInsertInfo' }
+    OrderUpdateInfo:
+      type: object
+      required: [total]
+      properties:
+        status: { type: string, maxLength: 60, nullable: true }
+        total: { type: number, format: double }
+    OrderInfo:
+      type: object
+      properties:
+        id: { type: integer, format: int64 }
+        customerId: { type: integer, format: int64 }
+        customerName: { type: string }
+        orderNumber: { type: string }
+        orderDate: { type: string, format: date }
+        kind: { $ref: '#/components/schemas/OrderKind' }
+        channel: { type: string, nullable: true }
+        origin: { allOf: [ { $ref: '#/components/schemas/OrderOrigin' } ], nullable: true }
+        status: { type: string, nullable: true }
+        total: { type: number, format: double }
+        itemsCount: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    OrderDetailInfo:
+      allOf:
+        - $ref: '#/components/schemas/OrderInfo'
+        - type: object
+          properties:
+            originalSaleOn: { type: string, format: date, nullable: true }
+            cancelledOn: { type: string, format: date, nullable: true }
+            externalId: { type: string, nullable: true }
+            customer: { $ref: '#/components/schemas/CustomerInfo' }
+            items: { type: array, items: { $ref: '#/components/schemas/OrderItemInfo' } }
+    PagedOrderInfo:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/OrderInfo' } }
+        page: { type: integer }
+        pageSize: { type: integer }
+        totalCount: { type: integer }
+
+    FieldError:
+      type: object
+      properties:
+        campo: { type: string }
+        mensagem: { type: string }
+    ErrorResult:
+      type: object
+      properties:
+        sucesso: { type: boolean, example: false }
+        mensagem: { type: string }
+        erros: { type: array, items: { $ref: '#/components/schemas/FieldError' } }
