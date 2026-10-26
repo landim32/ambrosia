@@ -5,6 +5,7 @@ using Ambrosia.API.Swagger;
 using Ambrosia.Application;
 using Ambrosia.Application.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 
@@ -94,6 +95,10 @@ builder.Services.AddSwaggerGen(options =>
                       "outro usuário respondem 404."
     });
 
+    // T094: o wrapper paginado saía como "CustomerInfoPagedResult"; o contrato
+    // (contracts/openapi.yaml) define PagedCustomerInfo/PagedOrderInfo.
+    options.CustomSchemaIds(OpenApiNaming.SchemaId);
+
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
@@ -102,29 +107,27 @@ builder.Services.AddSwaggerGen(options =>
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
         Description = "Cole o token do Ambrosia obtido em POST /auth/google (ou /auth/dev-login " +
-                      "em Development). Não inclua o prefixo \"Bearer\"."
+                      "em Development e Homolog). Não inclua o prefixo \"Bearer\"."
     });
 
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" }
-            },
-            Array.Empty<string>()
-        }
-    });
-
+    // O requisito de segurança é declarado POR OPERAÇÃO no ContractAlignmentOperationFilter, e não
+    // globalmente (T094): o contrato marca /auth/google e /auth/dev-login com `security: []`, e a
+    // Microsoft.OpenApi não serializa uma lista de requisitos vazia — com um requisito global, uma
+    // operação não tem como "desligar" a autenticação no documento, e o Swagger mostraria o cadeado
+    // na rota que serve justamente para obter o token. Sem requisito global, cada operação protegida
+    // declara o Bearer e as [AllowAnonymous] ficam sem `security` nenhum, o mesmo efeito do contrato.
     var xmlPath = Path.Combine(AppContext.BaseDirectory, $"{typeof(Program).Assembly.GetName().Name}.xml");
     if (File.Exists(xmlPath))
     {
         options.IncludeXmlComments(xmlPath);
     }
 
-    // T047: /auth/dev-login só aparece na documentação em Development, exatamente como o
+    // T047: /auth/dev-login só aparece na documentação em Development e Homolog, exatamente como o
     // comportamento da rota (research §2).
     options.DocumentFilter<DevLoginDocumentFilter>();
+
+    // T094: parâmetros de query em camelCase e o requisito Bearer por operação.
+    options.OperationFilter<ContractAlignmentOperationFilter>();
 });
 
 // ---------------------------------------------------------------------------
@@ -139,10 +142,43 @@ if (builder.Environment.IsDevelopment())
         policy => policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
 }
 
+// ---------------------------------------------------------------------------
+// Reverse proxy (Homolog/Production): o gateway nginx publica a API em /api, remove o prefixo e
+// informa-o em X-Forwarded-Prefix (deploy/nginx/routes.inc). Com isso Request.PathBase vira
+// "/api" e o esquema/IP reais chegam por X-Forwarded-Proto/For. A API só é alcançável pela rede
+// interna do compose, então qualquer proxy é aceito.
+// ---------------------------------------------------------------------------
+var behindReverseProxy = builder.Configuration.GetValue<bool>("ReverseProxy:Enabled");
+
+if (behindReverseProxy)
+{
+    builder.Services.Configure<ForwardedHeadersOptions>(options =>
+    {
+        options.ForwardedHeaders = ForwardedHeaders.XForwardedFor
+                                   | ForwardedHeaders.XForwardedProto
+                                   | ForwardedHeaders.XForwardedPrefix;
+        options.KnownNetworks.Clear();
+        options.KnownProxies.Clear();
+    });
+}
+
 var app = builder.Build();
 
+if (behindReverseProxy)
+{
+    app.UseForwardedHeaders();
+}
+
 // Swagger UI em todos os ambientes: a documentação não contém dados sensíveis (research §14).
-app.UseSwagger();
+// Atrás do gateway, o documento declara o prefixo (/api) em `servers`, para o "Try it out"
+// chamar /api/auth/google e não /auth/google.
+app.UseSwagger(options => options.PreSerializeFilters.Add((document, request) =>
+{
+    if (request.PathBase.HasValue)
+    {
+        document.Servers = [new OpenApiServer { Url = request.PathBase.Value }];
+    }
+}));
 app.UseSwaggerUI();
 
 if (app.Environment.IsDevelopment())

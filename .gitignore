@@ -17,3 +17,8 @@ TestResults/
 .env.*
 !.env.example
 !.env.*.example
+
+# Certificados (Cloudflare Origin Certificate é gravado pelo pipeline no servidor)
+deploy/nginx/certs/
+*.pem
+*.key

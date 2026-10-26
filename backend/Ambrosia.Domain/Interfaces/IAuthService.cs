@@ -13,7 +13,7 @@ public interface IAuthService
 
     /// <summary>
     /// Emissão direta de token para desenvolvimento (research §2). O controller só expõe a rota
-    /// quando <c>IHostEnvironment.IsDevelopment()</c>.
+    /// em Development e Homolog.
     /// </summary>
     Task<LoginResult> DevLoginAsync(DevLoginInfo info);
 }

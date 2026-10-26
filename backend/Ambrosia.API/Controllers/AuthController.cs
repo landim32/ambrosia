@@ -1,3 +1,4 @@
+using Ambrosia.API.Extensions;
 using Ambrosia.Domain.Interfaces;
 using Ambrosia.DTO.Auth;
 using Ambrosia.DTO.Common;
@@ -57,8 +58,8 @@ public class AuthController : ApiControllerBase
     }
 
     /// <summary>
-    /// <b>Somente em Development.</b> Emite um JWT sem passar pelo Google, para o quickstart e
-    /// para os testes HTTP. Fora desse ambiente responde 404 (research §2, constituição §VI).
+    /// <b>Somente em Development e Homolog.</b> Emite um JWT sem passar pelo Google, para o
+    /// quickstart e para os testes HTTP. Em Production responde 404 (research §2, constituição §VI).
     /// </summary>
     /// <param name="info">E-mail e nome do usuário de desenvolvimento.</param>
     /// <response code="200">Token do Ambrosia.</response>
@@ -71,7 +72,7 @@ public class AuthController : ApiControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DevLogin([FromBody] DevLoginInfo info)
     {
-        if (!_environment.IsDevelopment())
+        if (!_environment.IsDevLoginEnabled())
         {
             return NotFound();
         }
