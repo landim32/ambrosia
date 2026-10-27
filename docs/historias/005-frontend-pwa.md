@@ -1,13 +1,13 @@
-# 004 — Frontend como PWA
+# 005 — Frontend como PWA
 
-> Documento da história de usuário 004: transformar o frontend da HU 002 em Progressive Web App instalável, com leitura offline e atualização de versão controlada.
+> Documento da história de usuário 005: transformar o frontend da HU 002 em Progressive Web App instalável, com leitura offline e atualização de versão controlada.
 
 **Created:** 2026-10-25
 **Last Updated:** 2026-10-25
 
 | Campo | Valor |
 |---|---|
-| ID | 004 |
+| ID | 005 |
 | Status | Planejada |
 | Spec | — |
 | Depende de | [002](002-frontend-web-perfil-cliente-pedidos.md) (frontend). Usa a [003](003-armazenamento-imagens-s3.md) para o cache de imagens |
@@ -64,7 +64,7 @@
 | 6 | Online, os dados da API vêm da rede. O cache só entra quando a rede falha ou demora mais que o limite (padrão 4 s) | Throttling no DevTools |
 | 7 | Uma imagem já vista aparece offline, mesmo que a URL pré-assinada original já tenha expirado | Esperar a expiração e desligar a rede |
 | 8 | Online, uma imagem com URL nova, mas do mesmo objeto, não é baixada de novo | Aba Network mostra resposta do service worker |
-| 9 | Rotas `/api/auth/*` (login da 001), `/auth/*` (authorization server da 007) e qualquer método diferente de `GET` nunca são cacheados | Inspecionar o Cache Storage |
+| 9 | Rotas `/api/auth/*` (login da 001), `/auth/*` (authorization server da 008) e qualquer método diferente de `GET` nunca são cacheados | Inspecionar o Cache Storage |
 | 10 | O logout apaga os caches de dados e de imagens. Outro usuário no mesmo aparelho não vê nada do anterior | Logar com Ana, sair, logar com Bia, ficar offline |
 | 11 | Com uma versão nova publicada, o app mostra "Nova versão disponível" e só recarrega quando a usuária clica em "Atualizar" | Dois deploys seguidos |
 | 12 | O service worker não trata `/api/*`, `/auth/*`, `/mcp*` nem `/.well-known/*` como navegação: `navigateFallbackDenylist` inclui `/^\/api\//`, `/^\/auth\//`, `/^\/mcp/` e `/^\/\.well-known\//`, então o Swagger (`/api/swagger`), as telas do authorization server e os documentos de descoberta vêm do servidor, nunca como `index.html` | Com o app instalado, abrir `https://ambrosiaai.site/api/swagger`, `https://ambrosiaai.site/auth/connect/authorize` e `https://ambrosiaai.site/.well-known/oauth-protected-resource/mcp` |
@@ -81,7 +81,7 @@
 | `GET /api/orders`, `/api/orders/{id}` | `NetworkFirst` (timeout 4 s) | `api-data` | 7 dias, máx. 300 entradas | Idem |
 | Imagens pré-assinadas do storage | `CacheFirst` com plugin `cacheKeyWillBeUsed` | `images` | 30 dias, máx. 300 entradas | A chave do cache é a URL **sem** os parâmetros `X-Amz-*`, então a mesma imagem tem a mesma chave mesmo quando a assinatura muda |
 | Imagens dos itens vindas do +Vendas | `StaleWhileRevalidate` | `external-images` | 7 dias, máx. 200 | Respostas opacas, se não houver CORS. Ver riscos |
-| `/api/auth/*`, `/auth/*`, `/mcp*`, `/.well-known/*`, `POST`, `PUT` | `NetworkOnly` | — | — | Nunca cacheados. `/api/auth/*` é o login da 001; `/auth/*` é o authorization server da 007; `/mcp` é o servidor MCP da 006 |
+| `/api/auth/*`, `/auth/*`, `/mcp*`, `/.well-known/*`, `POST`, `PUT` | `NetworkOnly` | — | — | Nunca cacheados. `/api/auth/*` é o login da 001; `/auth/*` é o authorization server da 008; `/mcp` é o servidor MCP da 007 |
 
 ```mermaid
 flowchart TD

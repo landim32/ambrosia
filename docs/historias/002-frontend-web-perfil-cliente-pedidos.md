@@ -8,10 +8,10 @@
 | Campo | Valor |
 |---|---|
 | ID | 002 |
-| Status | Planejada |
-| Spec | — |
+| Status | Implementada |
+| Spec | [`specs/002-frontend-web-clientes-pedidos/`](../../specs/002-frontend-web-clientes-pedidos/) |
 | Depende de | [001](001-api-cadastro-clientes-pedidos.md) (API e autenticação) |
-| Habilita | [004](004-frontend-pwa.md) (PWA) e a exibição de fotos da [010](010-banco-imagens-clientes-chatgpt.md) |
+| Habilita | [005](005-frontend-pwa.md) (PWA) e a exibição de fotos da [010](010-banco-imagens-clientes-chatgpt.md) |
 | Código previsto | `frontend/` (novo) |
 
 > **Nota (003):** a entrada descrita neste documento é o registro do que foi planejado na época. Foi
@@ -32,9 +32,9 @@
 ## 2. Contexto e objetivo
 
 - A HU 001 entregou só a API. Hoje a consulta exige Swagger ou `curl`.
-- Esta HU cria o primeiro frontend, **somente para exibição**. Não há telas de cadastro nem de edição: os dados entram pela API, pelo bot ([009](009-bot-migracao-mais-vendas.md)) ou pelo MCP ([006](006-mcp-servidor-completo.md)).
+- Esta HU cria o primeiro frontend, **somente para exibição**. Não há telas de cadastro nem de edição: os dados entram pela API, pelo bot ([004](004-bot-migracao-mais-vendas.md)) ou pelo MCP ([007](007-mcp-servidor-completo.md)).
 - O +Vendas é mobile-first, com listas de cards ([doc 01, seção 1](../01-analise-sistema-mais-vendas.md#1-visão-geral)). O Ambrosia segue a mesma linha, porque a vendedora usa o celular na loja.
-- O frontend consome a API REST atual. O GraphQL ([005](005-graphql-clientes-pedidos.md)) fica para depois e não é pré-requisito.
+- O frontend consome a API REST atual. O GraphQL ([006](006-graphql-clientes-pedidos.md)) fica para depois e não é pré-requisito.
 - A stack visual (Tailwind CSS 4.x e shadcn/ui) já está na constituição 3.0.0 (Princípio II, emendada em 25/10/2026). Não há emenda pendente para esta HU.
 - Endereços de produção: o frontend fica em `https://ambrosiaai.site` e a API numa subpasta do mesmo domínio, `https://ambrosiaai.site/api`. Como os dois ficam na **mesma origem**, o navegador não faz chamadas *cross-origin* e não há CORS em produção.
 
@@ -54,14 +54,14 @@
 | Detalhe do pedido | `/pedidos/:id` | `GET /orders/{id}` | Cliente (CPF mascarado), status, datas (venda original e cancelamento, quando houver) e itens (`lineNo`, nome, `skuRef`, tamanho, preço e imagem) |
 | Erros e vazios | (todas) | — | Estados de carregando, lista vazia, 404 ("não encontrado") e falha de rede |
 
-As rotas da coluna "Fonte na API" são relativas à base da API (`VITE_API_URL`). Em produção, `POST /auth/google` fica em `https://ambrosiaai.site/api/auth/google`. Essas rotas `/api/auth/*` são do login da 001 e não colidem com o authorization server OAuth da [007](007-oauth-mcp-chatgpt.md), que fica em `https://ambrosiaai.site/auth` (sem o prefixo `/api`).
+As rotas da coluna "Fonte na API" são relativas à base da API (`VITE_API_URL`). Em produção, `POST /auth/google` fica em `https://ambrosiaai.site/api/auth/google`. Essas rotas `/api/auth/*` são do login da 001 e não colidem com o authorization server OAuth da [008](008-oauth-mcp-chatgpt.md), que fica em `https://ambrosiaai.site/auth` (sem o prefixo `/api`).
 
 ### Fora do escopo
 
 - Telas de cadastro e edição de clientes ou pedidos.
 - Upload de fotos. As fotos chegam pela [010](010-banco-imagens-clientes-chatgpt.md) e são guardadas pela [003](003-armazenamento-imagens-s3.md).
-- PWA, instalação e uso offline ([004](004-frontend-pwa.md)).
-- Consumo do GraphQL ([005](005-graphql-clientes-pedidos.md)).
+- PWA, instalação e uso offline ([005](005-frontend-pwa.md)).
+- Consumo do GraphQL ([006](006-graphql-clientes-pedidos.md)).
 - Dashboards de cota, supercota, PA, VA e TMA. A API da 001 não tem `sales_period` nem `period_kpi` ([doc 02](../02-modelo-de-dados.md)).
 - Outros idiomas além de PT-BR. O i18next é configurado, mas só com `pt-BR`.
 
@@ -115,7 +115,7 @@ As rotas da coluna "Fonte na API" são relativas à base da API (`VITE_API_URL`)
 | Login Google | Google Identity Services no navegador. `VITE_GOOGLE_CLIENT_ID` precisa ser o mesmo valor de `Auth:GoogleClientId` da API, que valida a audiência. No cliente OAuth do Google Cloud, `https://ambrosiaai.site` precisa estar entre as origens JavaScript autorizadas |
 | Variáveis | `VITE_API_URL` (produção: `https://ambrosiaai.site/api`, ou só `/api`, relativo à origem), `VITE_GOOGLE_CLIENT_ID`, `VITE_SITE_BASENAME` (opcional; em produção o app fica na raiz). Prefixo `VITE_` obrigatório |
 | Design | Direção visual pela skill `frontend-design` ou pelo agente `ux-designer`. Tema claro e escuro via tokens do shadcn |
-| Hospedagem | Build estático (`dist/`) servido por nginx em `https://ambrosiaai.site`. O mesmo nginx faz o *reverse proxy* de `/api/` para a API, de `/auth/` para o authorization server da [007](007-oauth-mcp-chatgpt.md), de `/mcp` para o servidor MCP da [006](006-mcp-servidor-completo.md) e de cada documento em `/.well-known/` para o serviço dono dele. Mesma origem, então sem CORS em produção (ver dependências) |
+| Hospedagem | Build estático (`dist/`) servido por nginx em `https://ambrosiaai.site`. O mesmo nginx faz o *reverse proxy* de `/api/` para a API, de `/auth/` para o authorization server da [008](008-oauth-mcp-chatgpt.md), de `/mcp` para o servidor MCP da [007](007-mcp-servidor-completo.md) e de cada documento em `/.well-known/` para o serviço dono dele. Mesma origem, então sem CORS em produção (ver dependências) |
 | Dev | Em `vite dev`, o `server.proxy` do Vite repassa `/api` para a API local, reproduzindo a mesma origem de produção. Assim o CORS `AllowAnyOrigin` de Development deixa de ser necessário para o frontend |
 
 ### Roteamento em produção
@@ -125,8 +125,8 @@ flowchart LR
     N[Navegador] --> X[nginx - ambrosiaai.site]
     X -->|/| F[dist/ do frontend]
     X -->|/api/*| A[Ambrosia.API - UsePathBase /api]
-    X -->|/auth/*| S[Ambrosia.Auth - HU 007]
-    X -->|/mcp| MS[Ambrosia.McpServer - HU 006]
+    X -->|/auth/*| S[Ambrosia.Auth - HU 008]
+    X -->|/mcp| MS[Ambrosia.McpServer - HU 007]
     X -->|/.well-known/oauth-authorization-server/auth| S
     X -->|/.well-known/oauth-protected-resource/mcp| MS
 ```
@@ -165,7 +165,7 @@ flowchart LR
 |---|---|---|
 | A chave do localStorage na constituição (mantida na 3.0.0) é `"login-with-metamask:auth"`, herdada de outro projeto | Nome confuso. O risco de colisão é baixo, porque o localStorage é por origem e `https://ambrosiaai.site` é exclusiva do Ambrosia | Usar a chave da constituição ou propor `ambrosia:auth` numa emenda futura (ver perguntas) |
 | `PathBase` ou *forwarded headers* mal configurados | Rotas 404 atrás do proxy, redirecionamentos para `http://` ou Swagger apontando para a raiz | Teste de fumaça em homologação com `https://ambrosiaai.site/api/swagger` e `GET /api/users/me` |
-| O fallback do SPA (`try_files … /index.html`) captura `/api`, `/auth`, `/mcp` ou `/.well-known` | A API, o MCP ou a descoberta OAuth devolvem HTML em vez de JSON, e o ChatGPT não conecta | `location` desses prefixos declarados antes do fallback, e o mesmo cuidado no service worker da [004](004-frontend-pwa.md) |
+| O fallback do SPA (`try_files … /index.html`) captura `/api`, `/auth`, `/mcp` ou `/.well-known` | A API, o MCP ou a descoberta OAuth devolvem HTML em vez de JSON, e o ChatGPT não conecta | `location` desses prefixos declarados antes do fallback, e o mesmo cuidado no service worker da [005](005-frontend-pwa.md) |
 | Token em localStorage fica exposto a XSS | Sequestro de sessão por 480 minutos. Na mesma origem, um XSS no SPA também consegue fazer requisições às páginas do authorization server em `/auth` e ao MCP em `/mcp` | CSP restritiva (`connect-src 'self'` e os serviços do Google), nada de `dangerouslySetInnerHTML` e dependências auditadas |
 | As imagens dos itens vêm do domínio do +Vendas | Podem exigir sessão, expirar ou ser bloqueadas por hotlink. Também têm direito autoral da marca ([doc 02](../02-modelo-de-dados.md#armazenamento-de-fotos)) | Placeholder em caso de falha. Copiar para o S3 numa HU futura ([003](003-armazenamento-imagens-s3.md)) |
 | `GET /customers/{id}` devolve o CPF completo | Exposição de dado pessoal na tela | Mascarar por padrão (ver perguntas) |

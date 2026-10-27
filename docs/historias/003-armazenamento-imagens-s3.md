@@ -8,10 +8,10 @@
 | Campo | Valor |
 |---|---|
 | ID | 003 |
-| Status | Planejada |
-| Spec | — |
+| Status | Implementada |
+| Spec | [`specs/004-s3-image-storage/`](../../specs/004-s3-image-storage/) |
 | Depende de | [001](001-api-cadastro-clientes-pedidos.md) (API, usuários e isolamento) |
-| Habilita | [004](004-frontend-pwa.md) (cache de imagens) e [010](010-banco-imagens-clientes-chatgpt.md) (banco de fotos) |
+| Habilita | [005](005-frontend-pwa.md) (cache de imagens) e [010](010-banco-imagens-clientes-chatgpt.md) (banco de fotos) |
 | Código previsto | `backend/` (Infra, Domain e Application) e `docker-compose` de dev com MinIO |
 
 ---
@@ -25,7 +25,7 @@
 - O [doc 02](../02-modelo-de-dados.md#armazenamento-de-fotos) já decidiu que o banco guarda **só metadados e o `storage_key`**, com deduplicação por `sha256`. Ele sugeria começar com disco local e migrar depois para S3.
 - **Mudança registrada:** o Ambrosia passa a usar storage S3 compatível desde o início. Disco local fica descartado, inclusive em dev, onde o MinIO faz o papel do S3.
 - O provedor provável é o **DigitalOcean Spaces**, mas o código não pode depender dele: só o SDK S3 com endpoint configurável.
-- Esta HU entrega a **infraestrutura** (abstração, configuração, tabela de metadados, URLs pré-assinadas e validação). Quem usa são as HUs [010](010-banco-imagens-clientes-chatgpt.md) (fotos de clientes) e, no futuro, as imagens de produto do bot ([009](009-bot-migracao-mais-vendas.md)).
+- Esta HU entrega a **infraestrutura** (abstração, configuração, tabela de metadados, URLs pré-assinadas e validação). Quem usa são as HUs [010](010-banco-imagens-clientes-chatgpt.md) (fotos de clientes) e, no futuro, as imagens de produto do bot ([004](004-bot-migracao-mais-vendas.md)).
 
 ---
 
@@ -120,7 +120,7 @@ erDiagram
 | Upload pelo navegador | Fluxo em duas etapas: `POST /images/uploads` (o cliente declara mime, tamanho e sha256 e recebe `uploadUrl` e `imageId`). Depois, `POST /images/uploads/{imageId}/confirm`, em que o servidor faz `HeadObject`, baixa o início do arquivo para conferir os *magic bytes* e marca `available` |
 | Upload pelo servidor | `PutObject` com stream, depois de validar tipo, tamanho e hash em memória ou em arquivo temporário |
 | Leitura | O DTO de quem usa a imagem (por exemplo, a foto do cliente na 010) devolve `url` pré-assinada e `expiresAt`. Não há endpoint público de proxy |
-| CORS do bucket | Liberar `GET` e `PUT` só para a origem exata do frontend: `https://ambrosiaai.site` em produção e a origem local do Vite em dev. Necessário para o cache da [004](004-frontend-pwa.md) (resposta não opaca) |
+| CORS do bucket | Liberar `GET` e `PUT` só para a origem exata do frontend: `https://ambrosiaai.site` em produção e a origem local do Vite em dev. Necessário para o cache da [005](005-frontend-pwa.md) (resposta não opaca) |
 | Endpoint público | Sem domínio próprio nem CDN nesta fase. Com bucket privado e URL pré-assinada, o endpoint do provedor basta (por exemplo, `https://ambrosia-prod.nyc3.digitaloceanspaces.com`). Um domínio como `img.ambrosiaai.site` só faria sentido com CDN, e CDN com bucket privado exige URL assinada pelo próprio CDN, o que muda o fluxo desta HU. Fica para quando o custo de egress pedir |
 | CSP do frontend | O `img-src` (e o `connect-src`, para o `PUT`) da CSP de `https://ambrosiaai.site` precisa incluir o endpoint do bucket |
 | Limpeza | Job periódico que apaga objetos `pending` com mais de 1 hora (upload nunca confirmado) |
@@ -194,7 +194,7 @@ sequenceDiagram
 | URL `PUT` pré-assinada não limita o tamanho do corpo | Alguém sobe um arquivo enorme dentro do prazo | Prazo curto, confirmação obrigatória com `HeadObject` e exclusão do que não confere, além do job de limpeza |
 | Vazamento de URL pré-assinada | Acesso à foto enquanto a URL vale | Validade curta e nunca registrar URLs completas em log |
 | Credencial com permissão ampla demais | Acesso a outros buckets da conta | Chave limitada ao bucket (Spaces permite chaves com escopo por bucket, a confirmar no painel) |
-| Custos de egress | Conta cresce com o uso do PWA | Cache de imagens na [004](004-frontend-pwa.md) e miniaturas no futuro |
+| Custos de egress | Conta cresce com o uso do PWA | Cache de imagens na [005](005-frontend-pwa.md) e miniaturas no futuro |
 
 ---
 

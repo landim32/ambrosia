@@ -1,17 +1,17 @@
-# 006 — Servidor MCP completo (REST e GraphQL como tools)
+# 007 — Servidor MCP completo (REST e GraphQL como tools)
 
-> Documento da história de usuário 006: servidor MCP remoto (HTTP streamable) que expõe como tools todos os recursos da API REST e a consulta flexível do GraphQL, com leitura e escrita.
+> Documento da história de usuário 007: servidor MCP remoto (HTTP streamable) que expõe como tools todos os recursos da API REST e a consulta flexível do GraphQL, com leitura e escrita.
 
 **Created:** 2026-10-25
 **Last Updated:** 2026-10-25
 
 | Campo | Valor |
 |---|---|
-| ID | 006 |
+| ID | 007 |
 | Status | Planejada |
 | Spec | — |
-| Depende de | [001](001-api-cadastro-clientes-pedidos.md) (domínio e REST) e [005](005-graphql-clientes-pedidos.md) (GraphQL) |
-| Habilita | [007](007-oauth-mcp-chatgpt.md), [008](008-mcp-app-chatgpt.md) e [010](010-banco-imagens-clientes-chatgpt.md) |
+| Depende de | [001](001-api-cadastro-clientes-pedidos.md) (domínio e REST) e [006](006-graphql-clientes-pedidos.md) (GraphQL) |
+| Habilita | [008](008-oauth-mcp-chatgpt.md), [009](009-mcp-app-chatgpt.md) e [010](010-banco-imagens-clientes-chatgpt.md) |
 | Código previsto | `backend/Ambrosia.Mcp/` (tools) e `backend/Ambrosia.McpServer/` (host ASP.NET Core) |
 
 ---
@@ -24,11 +24,11 @@
 
 - O [doc 04](../04-mcp-consultas-llm.md) previa um MCP **somente leitura**, em TypeScript, via **stdio**, lendo a base direto com um usuário de banco `SELECT`-only.
 - Esta HU amplia esse escopo: **todos** os recursos da API (clientes, pedidos, itens e usuário atual) e a consulta flexível do GraphQL viram tools, com transporte **HTTP streamable** para uso remoto.
-- A autenticação OAuth 2.1 exigida pelo ChatGPT fica na [007](007-oauth-mcp-chatgpt.md). Nesta HU o MCP aceita o JWT atual do Ambrosia, para desenvolvimento e testes.
+- A autenticação OAuth 2.1 exigida pelo ChatGPT fica na [008](008-oauth-mcp-chatgpt.md). Nesta HU o MCP aceita o JWT atual do Ambrosia, para desenvolvimento e testes.
 
 ### Mudança de escopo em relação ao doc 04
 
-| Tema | Doc 04 (previsto) | HU 006 (novo) | Motivo |
+| Tema | Doc 04 (previsto) | HU 007 (novo) | Motivo |
 |---|---|---|---|
 | Operações | Somente leitura | Leitura e escrita (cadastro e atualização) | Pedido do usuário: todos os recursos da API |
 | Transporte | stdio (local) | HTTP streamable (remoto). stdio fica opcional para dev | Uso no ChatGPT e em clientes remotos |
@@ -49,17 +49,17 @@
 - Tool de consulta GraphQL (somente `query`) e tools curadas a partir do [doc 04](../04-mcp-consultas-llm.md#tools-sugeridas).
 - Anotações em todas as tools (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`, `title`).
 - Confirmação antes de qualquer escrita.
-- Autenticação Bearer com o JWT atual (temporária, até a 007).
+- Autenticação Bearer com o JWT atual (temporária, até a 008).
 - Validação do header `Origin`, HTTPS fora de dev, *rate limiting* e log de auditoria das escritas.
 
 ### Fora do escopo
 
-- OAuth 2.1, metadata de recurso protegido e descoberta ([007](007-oauth-mcp-chatgpt.md)).
-- Registro e publicação no ChatGPT, `securitySchemes` e `_meta` específicos da OpenAI ([008](008-mcp-app-chatgpt.md)).
+- OAuth 2.1, metadata de recurso protegido e descoberta ([008](008-oauth-mcp-chatgpt.md)).
+- Registro e publicação no ChatGPT, `securitySchemes` e `_meta` específicos da OpenAI ([009](009-mcp-app-chatgpt.md)).
 - Tools de imagem ([010](010-banco-imagens-clientes-chatgpt.md)).
 - Exclusão de clientes ou pedidos. A API da 001 não tem esses endpoints.
 - Widgets de UI e *resources* MCP com HTML.
-- Tool `status_coleta` do doc 04, que depende do bot ([009](009-bot-migracao-mais-vendas.md)).
+- Tool `status_coleta` do doc 04, que depende do bot ([004](004-bot-migracao-mais-vendas.md)).
 
 ---
 
@@ -75,7 +75,7 @@
 | 6 | Nenhuma tool devolve CPF completo. `obter_cliente` devolve `cpfMasked` | Revisão das saídas |
 | 7 | Uma escrita sem confirmação não altera nada e devolve uma prévia do que seria gravado | Chamar `cadastrar_pedido` sem `confirmar` |
 | 8 | As escritas aplicam as mesmas validações e mensagens da API (CPF inválido, 409 de duplicidade, sinal do total) | Comparar com o REST |
-| 9 | `consultar_graphql` recusa `mutation` e `subscription`, e respeita os limites de profundidade e custo da [005](005-graphql-clientes-pedidos.md) | Enviar uma mutation |
+| 9 | `consultar_graphql` recusa `mutation` e `subscription`, e respeita os limites de profundidade e custo da [006](006-graphql-clientes-pedidos.md) | Enviar uma mutation |
 | 10 | Listas devolvem no máximo 200 linhas e informam se há mais resultados | `listar_pedidos` com período longo |
 | 11 | Requisições com `Origin` fora da lista permitida são recusadas | `curl -H "Origin: https://evil.example"` |
 | 12 | Toda escrita fica registrada em log de auditoria (usuário, tool, argumentos sem dados sensíveis, resultado) | Log |
@@ -104,13 +104,13 @@
 
 | Tool | Base | Leitura | Observações |
 |---|---|---|---|
-| `consultar_graphql` | `/graphql` da [005](005-graphql-clientes-pedidos.md) | Sim | Recebe `query` e `variables`. Só `query`. A descrição traz o resumo do schema e exemplos |
+| `consultar_graphql` | `/graphql` da [006](006-graphql-clientes-pedidos.md) | Sim | Recebe `query` e `variables`. Só `query`. A descrição traz o resumo do schema e exemplos |
 | `buscar_cliente` | GraphQL `customers` | Sim | Por nome. Por CPF: o servidor normaliza, calcula o hash e busca, sem devolver o CPF |
 | `historico_cliente` | GraphQL `customer { orders { items } }` | Sim | Pedidos, itens, ticket médio e última compra |
 | `clientes_inativos` | GraphQL `customers(where: summary…)` | Sim | `dias`, `min_compras?`, `min_total?` |
 | `resumo_periodo` | GraphQL `salesSummary` | Sim | Total, atendimentos, peças, PA e VA. Sem % da cota (fora do modelo atual) |
 | `devolucoes_cancelamentos` | GraphQL `orders(where: kind in [RETURN, CANCELLATION])` | Sim | Totais por tipo. "Motivos" não existem no modelo atual |
-| `top_produtos` | — | — | Fica como pergunta em aberto: exige agregação por `sku_ref` que a 005 não prevê |
+| `top_produtos` | — | — | Fica como pergunta em aberto: exige agregação por `sku_ref` que a 006 não prevê |
 
 Os nomes em português seguem o [doc 04](../04-mcp-consultas-llm.md#tools-sugeridas). Os nomes dos parâmetros também ficam em português, porque são lidos pelo modelo.
 
@@ -134,7 +134,7 @@ Os nomes em português seguem o [doc 04](../04-mcp-consultas-llm.md#tools-sugeri
 
 1. Evita o *token passthrough*, que a especificação MCP proíbe, e evita criar *token exchange* só para isso.
 2. Um único conjunto de regras e validações para REST, GraphQL e MCP.
-3. Mantém o MCP como serviço separado da API, com escala e *rate limit* próprios, mesmo no mesmo domínio: o nginx roteia `https://ambrosiaai.site/mcp` (o `resource` da [007](007-oauth-mcp-chatgpt.md)) para o `Ambrosia.McpServer` e `https://ambrosiaai.site/api` para a `Ambrosia.API`.
+3. Mantém o MCP como serviço separado da API, com escala e *rate limit* próprios, mesmo no mesmo domínio: o nginx roteia `https://ambrosiaai.site/mcp` (o `resource` da [008](008-oauth-mcp-chatgpt.md)) para o `Ambrosia.McpServer` e `https://ambrosiaai.site/api` para a `Ambrosia.API`.
 
 ### Demais decisões
 
@@ -142,11 +142,11 @@ Os nomes em português seguem o [doc 04](../04-mcp-consultas-llm.md#tools-sugeri
 |---|---|
 | SDK | `ModelContextProtocol` e `ModelContextProtocol.AspNetCore` (C#). Tools com `[McpServerToolType]` e `[McpServerTool]`, anotações pelos parâmetros do atributo (`ReadOnly`, `Destructive`, `Idempotent`, `OpenWorld`, `Title`) |
 | Transporte | HTTP streamable em `/mcp`. Avaliar o modo *stateless* do SDK (sem sessão no servidor), que simplifica a escala horizontal |
-| Autenticação (provisória) | `AddJwtBearer` com os mesmos parâmetros da API (HS256, `iss` e `aud` = `ambrosia`). A [007](007-oauth-mcp-chatgpt.md) troca por tokens do authorization server `https://ambrosiaai.site/auth` com `aud` = `https://ambrosiaai.site/mcp` |
-| Publicação | Mesmo domínio, serviço separado: o `Ambrosia.McpServer` roda como processo próprio e o nginx de `ambrosiaai.site` repassa `/mcp` sem reescrever o caminho (por isso o `MapMcp("/mcp")` dispensa `PathBase`). O nginx também repassa ao MCP o Protected Resource Metadata da 007 (`/.well-known/oauth-protected-resource/mcp`), que fica na raiz do domínio, fora de `/mcp` |
+| Autenticação (provisória) | `AddJwtBearer` com os mesmos parâmetros da API (HS256, `iss` e `aud` = `ambrosia`). A [008](008-oauth-mcp-chatgpt.md) troca por tokens do authorization server `https://ambrosiaai.site/auth` com `aud` = `https://ambrosiaai.site/mcp` |
+| Publicação | Mesmo domínio, serviço separado: o `Ambrosia.McpServer` roda como processo próprio e o nginx de `ambrosiaai.site` repassa `/mcp` sem reescrever o caminho (por isso o `MapMcp("/mcp")` dispensa `PathBase`). O nginx também repassa ao MCP o Protected Resource Metadata da 008 (`/.well-known/oauth-protected-resource/mcp`), que fica na raiz do domínio, fora de `/mcp` |
 | Confirmação de escrita | Em camadas: (1) anotações, para o cliente pedir aprovação (ChatGPT e Claude pedem confirmação em tools que não são somente leitura); (2) parâmetro `confirmar` (padrão `false`), em que a primeira chamada devolve uma prévia e só a chamada com `confirmar: true` grava; (3) *elicitation* do MCP, quando o cliente suportar |
 | Formato de saída | `structuredContent` (JSON tipado) e um `content` de texto curto em português para o modelo. Valores em `R$` e datas `dd/mm/aaaa` no texto |
-| Data dos dados | Toda saída inclui `consultado_em`. Quando o bot existir ([009](009-bot-migracao-mais-vendas.md)), também `capturado_em` |
+| Data dos dados | Toda saída inclui `consultado_em`. Quando o bot existir ([004](004-bot-migracao-mais-vendas.md)), também `capturado_em` |
 | Segurança de transporte | Validar `Origin` (proteção contra *DNS rebinding*, exigida pela especificação do transporte), HTTPS fora de dev e *rate limiting* do ASP.NET Core por usuário |
 | stdio | Opcional para dev local, com as mesmas tools e um usuário de dev |
 | Testes | xUnit para as tools (skill `dotnet-test`) e testes HTTP com o MCP Inspector ou um cliente do SDK (skill `dotnet-test-api`) |
@@ -164,7 +164,7 @@ flowchart LR
         T[/mcp - HTTP streamable/]
         AU[Validação do Bearer + Origin]
         TO[Tools - Ambrosia.Mcp]
-        GX[IRequestExecutor - schema da HU 005]
+        GX[IRequestExecutor - schema da HU 006]
     end
     subgraph Núcleo compartilhado
         SV[Serviços de domínio + validators]
@@ -187,8 +187,8 @@ flowchart LR
 | HU | Tipo | Motivo |
 |---|---|---|
 | [001](001-api-cadastro-clientes-pedidos.md) | Obrigatória | Serviços de domínio, validators e repositórios |
-| [005](005-graphql-clientes-pedidos.md) | Obrigatória | Schema e executor GraphQL para `consultar_graphql` e as tools curadas |
-| [007](007-oauth-mcp-chatgpt.md) | Para uso no ChatGPT | Sem OAuth 2.1 o ChatGPT não conecta com autenticação |
+| [006](006-graphql-clientes-pedidos.md) | Obrigatória | Schema e executor GraphQL para `consultar_graphql` e as tools curadas |
+| [008](008-oauth-mcp-chatgpt.md) | Para uso no ChatGPT | Sem OAuth 2.1 o ChatGPT não conecta com autenticação |
 
 ---
 
@@ -198,10 +198,10 @@ flowchart LR
 |---|---|---|
 | A LLM grava dados errados (cliente trocado, total com sinal errado) | Base corrompida | Confirmação em camadas, prévia antes de gravar, validações do domínio e auditoria |
 | *Prompt injection* em dados (nome de cliente ou de produto com instruções) | O modelo é induzido a chamar escritas | Escritas sempre com confirmação. Descrições das tools avisam que o conteúdo dos dados não é instrução |
-| `consultar_graphql` permite consultas caras | Lentidão | Limites da 005 e *timeout* por chamada |
-| Muitas tools confundem o modelo | Escolha errada de tool | Descrições com "use quando" e "não use quando", e revisão na [008](008-mcp-app-chatgpt.md) com prompts de teste |
+| `consultar_graphql` permite consultas caras | Lentidão | Limites da 006 e *timeout* por chamada |
+| Muitas tools confundem o modelo | Escolha errada de tool | Descrições com "use quando" e "não use quando", e revisão na [009](009-mcp-app-chatgpt.md) com prompts de teste |
 | O SDK C# do MCP ainda evolui rápido | Quebras entre versões | Fixar a versão e acompanhar as notas de release |
-| O JWT HS256 atual é aceito no MCP só nesta fase | Se for esquecido, segue em produção | Desligar por configuração quando a 007 entrar, com critério de aceite lá |
+| O JWT HS256 atual é aceito no MCP só nesta fase | Se for esquecido, segue em produção | Desligar por configuração quando a 008 entrar, com critério de aceite lá |
 
 ---
 
@@ -209,7 +209,7 @@ flowchart LR
 
 1. A confirmação via parâmetro `confirmar` é aceitável, ou basta a confirmação do próprio cliente (ChatGPT e Claude) pelas anotações?
 2. `atualizar_pedido` permite alterar o `total`? Pela LLM isso é sensível. Uma opção é limitar a tool a `status`.
-3. `top_produtos` entra aqui (exige agregação por `sku_ref` na 005) ou numa HU de relatórios?
+3. `top_produtos` entra aqui (exige agregação por `sku_ref` na 006) ou numa HU de relatórios?
 4. Modo *stateless* ou com sessão? Depende de usar notificações e *elicitation*.
 
 Resolvida em 25/10/2026 (host separado ou mesmo host): mesmo domínio, serviço separado. O MCP fica em `https://ambrosiaai.site/mcp`, atrás do mesmo nginx da API, mas o `Ambrosia.McpServer` continua como processo próprio, com escala e *rate limit* independentes.

@@ -10,7 +10,7 @@
 | ID | 010 |
 | Status | Planejada |
 | Spec | — |
-| Depende de | [003](003-armazenamento-imagens-s3.md) (storage), [006](006-mcp-servidor-completo.md) (MCP), [007](007-oauth-mcp-chatgpt.md) (OAuth e escopo `images:write`) e [008](008-mcp-app-chatgpt.md) (app no ChatGPT) |
+| Depende de | [003](003-armazenamento-imagens-s3.md) (storage), [007](007-mcp-servidor-completo.md) (MCP), [008](008-oauth-mcp-chatgpt.md) (OAuth e escopo `images:write`) e [009](009-mcp-app-chatgpt.md) (app no ChatGPT) |
 | Exibição | [002](002-frontend-web-perfil-cliente-pedidos.md) (perfil do cliente) |
 | Código previsto | `backend/` (entidades, serviço e endpoints REST de leitura) e `backend/Ambrosia.Mcp/` (tools) |
 | Referência | Documentação do Apps SDK da OpenAI (`_meta["openai/fileParams"]`), consultada em 25/10/2026 |
@@ -24,7 +24,7 @@
 ## 2. Contexto e objetivo
 
 - O storage S3, os metadados e as URLs pré-assinadas vêm da [003](003-armazenamento-imagens-s3.md).
-- As tools ficam no servidor MCP em `https://ambrosiaai.site/mcp` ([006](006-mcp-servidor-completo.md)), e os endpoints de leitura para o frontend ficam na API, em `https://ambrosiaai.site/api`.
+- As tools ficam no servidor MCP em `https://ambrosiaai.site/mcp` ([007](007-mcp-servidor-completo.md)), e os endpoints de leitura para o frontend ficam na API, em `https://ambrosiaai.site/api`.
 - O ChatGPT entrega arquivos a uma tool quando ela declara `_meta["openai/fileParams"]` com o nome dos campos de arquivo. Cada campo recebe um objeto `{ download_url, file_id, mime_type, file_name }` (`download_url` e `file_id` obrigatórios) e pode ser um array, para vários arquivos.
 - A `download_url` é **temporária**: o servidor precisa baixar o arquivo na hora da chamada e gravar no S3.
 - A documentação **não informa** o tamanho máximo nem o prazo de validade da `download_url`.
@@ -39,7 +39,7 @@
 
 - Tool `anexar_fotos_cliente` com `_meta["openai/fileParams"]`, que baixa, valida, deduplica e grava as fotos de **uma** cliente por chamada.
 - Tools `listar_fotos_cliente`, `definir_foto_principal`, `atualizar_foto` (descrição e tags) e `excluir_foto`, além de `excluir_todas_fotos_cliente` para pedidos de exclusão (LGPD).
-- Desambiguação: o modelo usa `buscar_cliente` ([006](006-mcp-servidor-completo.md#5-tools)) e confirma com a usuária quando houver mais de uma cliente com o nome.
+- Desambiguação: o modelo usa `buscar_cliente` ([007](007-mcp-servidor-completo.md#5-tools)) e confirma com a usuária quando houver mais de uma cliente com o nome.
 - Várias imagens por cliente, foto principal, descrição e tags.
 - Deduplicação por `sha256`.
 - Validação de mime pelos *magic bytes* e de tamanho.
@@ -75,7 +75,7 @@
 | 11 | O EXIF (incluindo GPS) é removido do arquivo guardado | `exiftool` no objeto baixado |
 | 12 | Uma cliente sem consentimento registrado não recebe fotos: a tool pede ao modelo para confirmar o consentimento com a usuária | Cliente nova |
 | 13 | `excluir_foto` e `excluir_todas_fotos_cliente` removem o objeto do S3 e os metadados, com confirmação | `HeadObject` responde 404 |
-| 14 | Sem o escopo `images:write`, as tools de escrita disparam a religação (`_meta["mcp/www_authenticate"]`, [008](008-mcp-app-chatgpt.md)) | Token sem o escopo |
+| 14 | Sem o escopo `images:write`, as tools de escrita disparam a religação (`_meta["mcp/www_authenticate"]`, [009](009-mcp-app-chatgpt.md)) | Token sem o escopo |
 | 15 | Fotos de uma cliente de outro usuário nunca são listadas nem alteradas (404) | Ana e Bia |
 | 16 | O perfil do cliente na [002](002-frontend-web-perfil-cliente-pedidos.md) mostra a foto principal e a galeria, com URLs pré-assinadas | Navegador |
 | 17 | A `download_url` e o `file_id` não aparecem em log de nível informativo | Revisão de log |
@@ -231,11 +231,11 @@ Rotas relativas à base da API (`https://ambrosiaai.site/api` em produção). As
 | Natureza do dado | Foto de pessoa é **dado pessoal**. Se usada para identificar a pessoa por características faciais, vira **dado biométrico** (sensível). Por isso o reconhecimento facial fica explicitamente fora do escopo |
 | Base legal | Consentimento da cliente, registrado em `customer_photo_consents` (data e forma). A tool só grava com consentimento registrado |
 | Finalidade | Uso interno da vendedora para atendimento. Sem compartilhamento e sem uso em marketing sem novo consentimento |
-| Operadores | As fotos passam pelo ChatGPT (OpenAI) antes de chegar ao Ambrosia. Isso precisa constar na política de privacidade ([008](008-mcp-app-chatgpt.md#10-perguntas-em-aberto)) |
+| Operadores | As fotos passam pelo ChatGPT (OpenAI) antes de chegar ao Ambrosia. Isso precisa constar na política de privacidade ([009](009-mcp-app-chatgpt.md#10-perguntas-em-aberto)) |
 | Minimização | Remoção de EXIF e GPS. Sem guardar a `download_url` |
 | Exclusão | `excluir_todas_fotos_cliente` e revogação do consentimento apagam objetos e metadados. Backups seguem a política da [003](003-armazenamento-imagens-s3.md#9-perguntas-em-aberto) |
 | Acesso | URLs pré-assinadas curtas, isolamento por usuário e escopo `images:write` para escrita |
-| Cache local | O PWA ([004](004-frontend-pwa.md)) guarda imagens no aparelho e limpa no logout |
+| Cache local | O PWA ([005](005-frontend-pwa.md)) guarda imagens no aparelho e limpa no logout |
 
 ---
 
@@ -248,7 +248,7 @@ Rotas relativas à base da API (`https://ambrosiaai.site/api` em produção). As
 | Processamento | Validação de *magic bytes*, cálculo do `sha256` sobre o arquivo **depois** da remoção de EXIF (para deduplicar o que de fato é guardado) e regravação sem metadados com uma biblioteca de imagem .NET (a definir na spec) |
 | Gravação | `IObjectStorageAppService.PutAsync` da 003, com `source = chatgpt` |
 | Erros parciais | Cada foto tem resultado próprio (`gravada`, `duplicada`, `recusada` com motivo). A chamada só falha inteira se a cliente não existir ou não houver consentimento |
-| Confirmação | Mesmo padrão da [006](006-mcp-servidor-completo.md#demais-decisões): `confirmar` e anotações. No anexo, a confirmação pode vir da própria desambiguação |
+| Confirmação | Mesmo padrão da [007](007-mcp-servidor-completo.md#demais-decisões): `confirmar` e anotações. No anexo, a confirmação pode vir da própria desambiguação |
 | Resposta ao modelo | Texto curto em português e `structuredContent` com os resultados por foto, sem a URL pré-assinada (o modelo não precisa dela) |
 
 ---
@@ -258,9 +258,9 @@ Rotas relativas à base da API (`https://ambrosiaai.site/api` em produção). As
 | HU | Tipo | Motivo |
 |---|---|---|
 | [003](003-armazenamento-imagens-s3.md) | Obrigatória | Storage, `stored_images`, validação e URLs pré-assinadas |
-| [006](006-mcp-servidor-completo.md) | Obrigatória | Servidor MCP e `buscar_cliente` |
-| [007](007-oauth-mcp-chatgpt.md) | Obrigatória | Escopo `images:write` |
-| [008](008-mcp-app-chatgpt.md) | Obrigatória | App no ChatGPT, `securitySchemes` e `_meta` |
+| [007](007-mcp-servidor-completo.md) | Obrigatória | Servidor MCP e `buscar_cliente` |
+| [008](008-oauth-mcp-chatgpt.md) | Obrigatória | Escopo `images:write` |
+| [009](009-mcp-app-chatgpt.md) | Obrigatória | App no ChatGPT, `securitySchemes` e `_meta` |
 | [002](002-frontend-web-perfil-cliente-pedidos.md) | Para exibição | Perfil com foto e galeria |
 
 ---
@@ -275,7 +275,7 @@ Rotas relativas à base da API (`https://ambrosiaai.site/api` em produção). As
 | O modelo tenta passar base64 nos argumentos | Truncamento | Descrição da tool proíbe e o schema só aceita o objeto de arquivo |
 | `openai/fileParams` só funciona no ChatGPT | Outros clientes MCP não conseguem anexar | Aceitável no escopo. Avaliar depois um fluxo com URL de upload pré-assinada da 003 |
 | Fotos de menores ou de terceiros | Risco jurídico maior | Orientação na política e na descrição da tool. Consentimento do responsável |
-| O SDK C# não repassa `_meta` personalizado no descritor | `fileParams` não chega ao ChatGPT | Mesmo filtro de `tools/list` proposto na [008](008-mcp-app-chatgpt.md#6-decisões-técnicas-propostas) |
+| O SDK C# não repassa `_meta` personalizado no descritor | `fileParams` não chega ao ChatGPT | Mesmo filtro de `tools/list` proposto na [009](009-mcp-app-chatgpt.md#6-decisões-técnicas-propostas) |
 
 ---
 
@@ -287,4 +287,4 @@ Rotas relativas à base da API (`https://ambrosiaai.site/api` em produção). As
 4. `openai/fileParams` aceita campos aninhados, ou só campos de primeiro nível (o que impede um array `[{ cliente_id, foto }]` numa chamada só)?
 5. Como o consentimento é coletado na prática: a vendedora declara na conversa ("ela autorizou"), ou é preciso um termo assinado com registro?
 6. Aceitar HEIC (fotos de iPhone) convertendo no servidor?
-7. A leitura de fotos fica em `customers:read` ou ganha um `images:read` próprio ([007](007-oauth-mcp-chatgpt.md#10-perguntas-em-aberto))?
+7. A leitura de fotos fica em `customers:read` ou ganha um `images:read` próprio ([008](008-oauth-mcp-chatgpt.md#10-perguntas-em-aberto))?

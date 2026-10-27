@@ -1,17 +1,17 @@
-# 007 — OAuth 2.1 para usar o MCP no ChatGPT
+# 008 — OAuth 2.1 para usar o MCP no ChatGPT
 
-> Documento da história de usuário 007: authorization server OAuth 2.1 e validação de tokens no MCP, conforme a especificação de autorização do MCP e os requisitos do ChatGPT.
+> Documento da história de usuário 008: authorization server OAuth 2.1 e validação de tokens no MCP, conforme a especificação de autorização do MCP e os requisitos do ChatGPT.
 
 **Created:** 2026-10-25
 **Last Updated:** 2026-10-25
 
 | Campo | Valor |
 |---|---|
-| ID | 007 |
+| ID | 008 |
 | Status | Planejada |
 | Spec | — |
-| Depende de | [006](006-mcp-servidor-completo.md) (MCP, que vira o resource server) e [001](001-api-cadastro-clientes-pedidos.md) (usuários e login Google) |
-| Habilita | [008](008-mcp-app-chatgpt.md) e [010](010-banco-imagens-clientes-chatgpt.md) |
+| Depende de | [007](007-mcp-servidor-completo.md) (MCP, que vira o resource server) e [001](001-api-cadastro-clientes-pedidos.md) (usuários e login Google) |
+| Habilita | [009](009-mcp-app-chatgpt.md) e [010](010-banco-imagens-clientes-chatgpt.md) |
 | Código previsto | `backend/Ambrosia.Auth/` (authorization server, novo) e ajustes em `backend/Ambrosia.McpServer/` |
 | Fonte dos requisitos | Documentação da OpenAI, [Apps SDK: Authentication](https://developers.openai.com/apps-sdk/build/auth), consultada em 25/10/2026, e especificação de autorização do MCP (revisão 2025-11-25) |
 
@@ -23,10 +23,10 @@
 
 ## 2. Contexto e objetivo
 
-- A [006](006-mcp-servidor-completo.md) aceita, provisoriamente, o JWT HS256 da API. O ChatGPT não funciona assim: ele exige OAuth 2.1 com authorization code e PKCE.
+- A [007](007-mcp-servidor-completo.md) aceita, provisoriamente, o JWT HS256 da API. O ChatGPT não funciona assim: ele exige OAuth 2.1 com authorization code e PKCE.
 - O ChatGPT **não** suporta client credentials, JWT bearer assertion nem API key customizada.
 - Papéis: o **servidor MCP** é o resource server, o **authorization server** (AS) emite os tokens e o **ChatGPT** é o client.
-- Esta HU é separada da [008](008-mcp-app-chatgpt.md) a pedido do usuário: aqui fica só a autorização; o registro do app e as descrições das tools ficam lá.
+- Esta HU é separada da [009](009-mcp-app-chatgpt.md) a pedido do usuário: aqui fica só a autorização; o registro do app e as descrições das tools ficam lá.
 - A constituição ainda tem `TODO(AUTH_SCHEME)` (Princípio VI). Esta HU propõe uma decisão que pode encerrar esse TODO.
 
 ### Endereços canônicos (definidos em 25/10/2026)
@@ -48,7 +48,7 @@ Tudo fica no domínio principal, em subpastas, com cada serviço como processo p
 | Protected Resource Metadata (RFC 9728) | `https://ambrosiaai.site/.well-known/oauth-protected-resource/mcp` (o caminho do `resource` vai depois do `/.well-known/…`). Publicar também em `https://ambrosiaai.site/.well-known/oauth-protected-resource`, sem o caminho, por compatibilidade |
 | `authorization_servers` no PRM | `["https://ambrosiaai.site/auth"]` |
 
-Os documentos da raiz `/.well-known/*` são servidos pelo nginx, que roteia cada um para o serviço dono dele: `oauth-authorization-server/auth` vai para o AS e `oauth-protected-resource` (com e sem `/mcp`) vai para o MCP. Nenhum deles pode cair no fallback do SPA nem no service worker do PWA ([004](004-frontend-pwa.md)).
+Os documentos da raiz `/.well-known/*` são servidos pelo nginx, que roteia cada um para o serviço dono dele: `oauth-authorization-server/auth` vai para o AS e `oauth-protected-resource` (com e sem `/mcp`) vai para o MCP. Nenhum deles pode cair no fallback do SPA nem no service worker do PWA ([005](005-frontend-pwa.md)).
 
 As rotas de login da API — `/auth/google`, da 001, e `/auth/register` e `/auth/login`, da spec [`003-email-password-jwt-auth`](../../specs/003-email-password-jwt-auth/) — passam a ficar sob a API, em `https://ambrosiaai.site/api/auth/*`. Elas não colidem com o AS, que ocupa `https://ambrosiaai.site/auth/*` sem o prefixo `/api`.
 
@@ -88,7 +88,7 @@ A entrada de desenvolvimento `/auth/dev-login` não existe mais: a 003 a removeu
 
 ### Fora do escopo
 
-- Registro do app no ChatGPT, `securitySchemes` por tool e `_meta["mcp/www_authenticate"]` ([008](008-mcp-app-chatgpt.md)).
+- Registro do app no ChatGPT, `securitySchemes` por tool e `_meta["mcp/www_authenticate"]` ([009](009-mcp-app-chatgpt.md)).
 - Migrar o frontend ([002](002-frontend-web-perfil-cliente-pedidos.md)) e a API REST para os tokens do AS. Pode virar uma HU futura.
 - Login por senha.
 - Tela de gestão das conexões autorizadas (só o endpoint de revogação entra).
@@ -114,13 +114,13 @@ A entrada de desenvolvimento `/auth/dev-login` não existe mais: a 003 a removeu
 | 13 | `userinfo` devolve `sub`, `email`, `email_verified: true` e `name` | `curl` com o token |
 | 14 | O refresh token gira a cada uso. Um refresh token reutilizado invalida a família inteira | Reusar o refresh antigo |
 | 15 | Em produção o MCP não aceita mais o JWT HS256 da API | Chamar com token da API |
-| 16 | O fluxo completo funciona no ChatGPT em modo desenvolvedor (conectar, usar tool, desconectar, religar) | Teste manual na [008](008-mcp-app-chatgpt.md) |
+| 16 | O fluxo completo funciona no ChatGPT em modo desenvolvedor (conectar, usar tool, desconectar, religar) | Teste manual na [009](009-mcp-app-chatgpt.md) |
 
 ---
 
 ## 6. Escopos
 
-| Escopo | Permite | Tools ([006](006-mcp-servidor-completo.md) e [010](010-banco-imagens-clientes-chatgpt.md)) |
+| Escopo | Permite | Tools ([007](007-mcp-servidor-completo.md) e [010](010-banco-imagens-clientes-chatgpt.md)) |
 |---|---|---|
 | `openid`, `email`, `profile` | Identidade OIDC e `userinfo` | — |
 | `offline_access` | Emissão de refresh token | — |
@@ -262,7 +262,7 @@ sequenceDiagram
 
 | HU | Tipo | Motivo |
 |---|---|---|
-| [006](006-mcp-servidor-completo.md) | Obrigatória | O MCP é o resource server que valida os tokens |
+| [007](007-mcp-servidor-completo.md) | Obrigatória | O MCP é o resource server que valida os tokens |
 | [001](001-api-cadastro-clientes-pedidos.md) | Obrigatória | Tabela `users` e regra de login Google |
 | DNS, TLS e nginx de `ambrosiaai.site` | Obrigatória | Issuer e URL do MCP precisam ser HTTPS públicos e estáveis (o `issuer` não pode mudar). O nginx roteia `/auth/`, `/mcp` e os documentos de `/.well-known/` antes do fallback do SPA ([002](002-frontend-web-perfil-cliente-pedidos.md#roteamento-em-produção)) |
 | Projeto Google Cloud | Obrigatória | Cliente OAuth do Google com o redirect do AS sob `https://ambrosiaai.site/auth` (por exemplo, `https://ambrosiaai.site/auth/signin-google`, com o caminho padrão do handler Google do ASP.NET Core sob o `PathBase`; o definitivo sai da spec) |
@@ -277,8 +277,8 @@ sequenceDiagram
 | SSRF pelo `client_id` em URL (CIMD) | O AS faz requisições para destinos internos | Proteções do handler (só `https`, sem IP privado, limites de tempo e tamanho) e, opcionalmente, lista de hosts permitidos (`chatgpt.com`) |
 | `issuer` ou URL do MCP mudam depois de publicados | Todas as conexões quebram (`aud` e `iss` deixam de bater) | Domínios definidos em 25/10/2026 (seção 2, "Endereços canônicos"). Tratar os dois valores como imutáveis |
 | Diferença de uma barra no final (`https://ambrosiaai.site/auth` contra `https://ambrosiaai.site/auth/`, ou `https://ambrosiaai.site/mcp` contra `https://ambrosiaai.site/mcp/`) | O ChatGPT ou o MCP recusam o `iss` ou o `aud`, e a conexão falha sem mensagem clara | Decisão "Issuer com caminho no OpenIddict" e critérios 3 e 8 |
-| Não se sabe qual URL de metadata do AS o ChatGPT consulta para um issuer com caminho (RFC 8414 com inserção do caminho ou OIDC com o caminho antes do `/.well-known`) | A descoberta do AS falha e o ChatGPT não conecta | Publicar as duas variantes com o mesmo conteúdo, confirmar no log do nginx durante o teste em modo desenvolvedor ([008](008-mcp-app-chatgpt.md)) e, se falhar, aplicar o plano de contingência (subdomínios `auth.` e `mcp.`). O PRM tem risco menor, porque o ChatGPT segue o `resource_metadata` do 401 |
-| `/.well-known/*` ou `/mcp` engolidos pelo fallback do SPA ou pelo service worker do PWA | A descoberta recebe HTML e falha | Rotas do nginx antes do fallback ([002](002-frontend-web-perfil-cliente-pedidos.md)) e `navigateFallbackDenylist` da [004](004-frontend-pwa.md) |
+| Não se sabe qual URL de metadata do AS o ChatGPT consulta para um issuer com caminho (RFC 8414 com inserção do caminho ou OIDC com o caminho antes do `/.well-known`) | A descoberta do AS falha e o ChatGPT não conecta | Publicar as duas variantes com o mesmo conteúdo, confirmar no log do nginx durante o teste em modo desenvolvedor ([009](009-mcp-app-chatgpt.md)) e, se falhar, aplicar o plano de contingência (subdomínios `auth.` e `mcp.`). O PRM tem risco menor, porque o ChatGPT segue o `resource_metadata` do 401 |
+| `/.well-known/*` ou `/mcp` engolidos pelo fallback do SPA ou pelo service worker do PWA | A descoberta recebe HTML e falha | Rotas do nginx antes do fallback ([002](002-frontend-web-perfil-cliente-pedidos.md)) e `navigateFallbackDenylist` da [005](005-frontend-pwa.md) |
 | AS, MCP e SPA na mesma origem | Um XSS no SPA pode fazer requisições às telas do AS com o cookie de sessão dele | Cookie do AS com `HttpOnly`, `Secure`, `SameSite=Lax` e `Path=/auth`, tela de consentimento com proteção antiforgery e a CSP restritiva da [002](002-frontend-web-perfil-cliente-pedidos.md#8-riscos) |
 | Confusão entre `/api/auth/*` (login da 001) e `/auth/*` (AS) | Rota errada no proxy ou no cliente | Prefixos distintos no nginx (`/api/` vai para a API inteira, `/auth/` para o AS) e testes de fumaça das duas rotas |
 | Implementação própria de OAuth com falha | Acesso indevido | Testes de conformidade, revisão de segurança (skill `security-review`) e uso só de fluxos do OpenIddict, sem criptografia caseira |

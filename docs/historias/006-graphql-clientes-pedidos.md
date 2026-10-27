@@ -1,17 +1,17 @@
-# 005 — GraphQL para consultas de clientes e pedidos
+# 006 — GraphQL para consultas de clientes e pedidos
 
-> Documento da história de usuário 005: endpoint GraphQL (HotChocolate), somente consultas, com filtros, ordenação, paginação por cursor, projeções e campos calculados, sempre isolado por usuário.
+> Documento da história de usuário 006: endpoint GraphQL (HotChocolate), somente consultas, com filtros, ordenação, paginação por cursor, projeções e campos calculados, sempre isolado por usuário.
 
 **Created:** 2026-10-25
 **Last Updated:** 2026-10-25
 
 | Campo | Valor |
 |---|---|
-| ID | 005 |
+| ID | 006 |
 | Status | Planejada |
 | Spec | — |
 | Depende de | [001](001-api-cadastro-clientes-pedidos.md) (modelo, repositórios, JWT) |
-| Habilita | [006](006-mcp-servidor-completo.md) (consulta flexível no MCP) |
+| Habilita | [007](007-mcp-servidor-completo.md) (consulta flexível no MCP) |
 | Código previsto | `backend/Ambrosia.GraphQL/` (novo), registrado no `Ambrosia.API` |
 
 ---

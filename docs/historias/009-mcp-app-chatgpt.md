@@ -1,16 +1,16 @@
-# 008 — MCP do Ambrosia como app no ChatGPT
+# 009 — MCP do Ambrosia como app no ChatGPT
 
-> Documento da história de usuário 008: disponibilizar o MCP como app/conector no ChatGPT (o "plug-in"), do modo desenvolvedor até a publicação.
+> Documento da história de usuário 009: disponibilizar o MCP como app/conector no ChatGPT (o "plug-in"), do modo desenvolvedor até a publicação.
 
 **Created:** 2026-10-25
 **Last Updated:** 2026-10-25
 
 | Campo | Valor |
 |---|---|
-| ID | 008 |
+| ID | 009 |
 | Status | Planejada |
 | Spec | — |
-| Depende de | [006](006-mcp-servidor-completo.md) (MCP) e [007](007-oauth-mcp-chatgpt.md) (OAuth 2.1) |
+| Depende de | [007](007-mcp-servidor-completo.md) (MCP) e [008](008-oauth-mcp-chatgpt.md) (OAuth 2.1) |
 | Habilita | [010](010-banco-imagens-clientes-chatgpt.md) |
 | Código previsto | `backend/Ambrosia.Mcp/` (metadados das tools), infraestrutura de publicação (proxy, TLS e DNS) |
 | Referência | Documentação do [Apps SDK da OpenAI](https://developers.openai.com/apps-sdk/build/auth), consultada em 25/10/2026 |
@@ -23,7 +23,7 @@
 
 ## 2. Contexto e objetivo
 
-- A [006](006-mcp-servidor-completo.md) entrega o servidor e as tools. A [007](007-oauth-mcp-chatgpt.md) entrega a autorização.
+- A [007](007-mcp-servidor-completo.md) entrega o servidor e as tools. A [008](008-oauth-mcp-chatgpt.md) entrega a autorização.
 - Esta HU cuida do que é específico do ChatGPT: declarar `securitySchemes` por tool, disparar a UI de vinculação de conta, escrever as descrições pensando no modelo, publicar em HTTPS público e testar no ChatGPT.
 - O caminho é em duas fases: **modo desenvolvedor** (uso próprio, sem revisão) e depois **publicação** (revisão da OpenAI).
 - Widgets de UI (componentes HTML renderizados na conversa) são opcionais e ficam **fora do escopo inicial**.
@@ -34,7 +34,7 @@
 
 ### Dentro do escopo
 
-- `securitySchemes` em cada tool: `oauth2` com os escopos da [007](007-oauth-mcp-chatgpt.md#6-escopos), ou `noauth` quando a tool não acessa dados.
+- `securitySchemes` em cada tool: `oauth2` com os escopos da [008](008-oauth-mcp-chatgpt.md#6-escopos), ou `noauth` quando a tool não acessa dados.
 - Gatilho da UI de vinculação: quando falta token ou escopo, a tool devolve `isError: true` com `_meta["mcp/www_authenticate"]` contendo o desafio `WWW-Authenticate`.
 - Revisão das descrições, títulos, parâmetros e anotações das tools para o modelo.
 - Publicação do MCP em HTTPS público, com proxy reverso compatível com respostas em streaming.
@@ -59,7 +59,7 @@
 | 3 | Toda tool declara `securitySchemes`. As de dados usam `oauth2` com os escopos mínimos da tabela da seção 5 | `tools/list` |
 | 4 | Chamar uma tool sem vínculo de conta faz o ChatGPT mostrar a UI de conectar conta | Conversa nova sem conexão |
 | 5 | Chamar uma tool com escopo insuficiente devolve `isError: true` e `_meta["mcp/www_authenticate"]` com `error="insufficient_scope"` e o escopo faltante, e o ChatGPT oferece a religação | Conectar só com `customers:read` e pedir um cadastro |
-| 6 | O app aparece no ChatGPT em modo desenvolvedor, conecta pelo fluxo OAuth da 007 e lista as tools | Painel do ChatGPT |
+| 6 | O app aparece no ChatGPT em modo desenvolvedor, conecta pelo fluxo OAuth da 008 e lista as tools | Painel do ChatGPT |
 | 7 | Nos prompts de teste (seção 7), o modelo escolhe a tool certa em pelo menos 90% dos casos | Planilha de resultados |
 | 8 | Escritas pedem confirmação antes de gravar | Prompt "cadastre a cliente…" |
 | 9 | Nenhuma resposta mostra CPF completo | Revisão das conversas de teste |
@@ -122,7 +122,7 @@ sequenceDiagram
     CG->>MCP: tools/call cadastrar_cliente (token só com customers:read)
     MCP-->>CG: isError true + _meta mcp/www_authenticate (insufficient_scope, customers:write)
     CG->>U: Mostra a UI para conectar ou ampliar o acesso
-    U->>CG: Autoriza (fluxo OAuth da HU 007)
+    U->>CG: Autoriza (fluxo OAuth da HU 008)
     CG->>MCP: tools/call cadastrar_cliente (novo token)
     MCP-->>CG: Prévia do cadastro (confirmar = false)
     CG->>U: Pede confirmação
@@ -151,7 +151,7 @@ sequenceDiagram
 | `securitySchemes` no SDK C# | Verificar se o SDK `ModelContextProtocol` permite campos extras no descritor de tool. Se não permitir, usar um filtro de `tools/list` que acrescenta `securitySchemes` (e o espelho em `_meta`, se a documentação vigente pedir) |
 | Desafio por tool | Um *filter* comum às tools que confere o escopo antes de executar e monta o resultado com `_meta["mcp/www_authenticate"]` |
 | Publicação | VPS ou App Platform com nginx (ou Caddy) na frente: TLS com Let's Encrypt, e na `location /mcp` `proxy_buffering off`, `proxy_read_timeout` alto e HTTP/1.1 com *keep-alive*. Pipeline de deploy pela skill `deploy-prod` |
-| Endereços | Tudo em `ambrosiaai.site`, em subpastas: MCP em `https://ambrosiaai.site/mcp` (URL informada no cadastro do app), AS da [007](007-oauth-mcp-chatgpt.md) em `https://ambrosiaai.site/auth`, API em `https://ambrosiaai.site/api` e frontend na raiz. Se a descoberta com caminho falhar no teste em modo desenvolvedor, vale o plano de contingência da 007 (subdomínios `auth.` e `mcp.`) |
+| Endereços | Tudo em `ambrosiaai.site`, em subpastas: MCP em `https://ambrosiaai.site/mcp` (URL informada no cadastro do app), AS da [008](008-oauth-mcp-chatgpt.md) em `https://ambrosiaai.site/auth`, API em `https://ambrosiaai.site/api` e frontend na raiz. Se a descoberta com caminho falhar no teste em modo desenvolvedor, vale o plano de contingência da 008 (subdomínios `auth.` e `mcp.`) |
 | Política e termos | Proposta: `https://ambrosiaai.site/privacidade` e `https://ambrosiaai.site/termos`, servidas pelo frontend (critério 11) |
 | Observabilidade | Log estruturado por chamada de tool (tool, usuário, duração, erro) sem dados pessoais, para medir o critério 7 |
 | Ambientes | Um app de desenvolvimento apontando para homologação e o app publicado apontando para produção |
@@ -179,8 +179,8 @@ sequenceDiagram
 
 | HU | Tipo | Motivo |
 |---|---|---|
-| [006](006-mcp-servidor-completo.md) | Obrigatória | Servidor e tools |
-| [007](007-oauth-mcp-chatgpt.md) | Obrigatória | OAuth 2.1, escopos e metadata |
+| [007](007-mcp-servidor-completo.md) | Obrigatória | Servidor e tools |
+| [008](008-oauth-mcp-chatgpt.md) | Obrigatória | OAuth 2.1, escopos e metadata |
 | Conta ChatGPT com modo desenvolvedor | Obrigatória | Registro do app em desenvolvimento |
 
 ---
@@ -193,7 +193,7 @@ sequenceDiagram
 | Revisão da OpenAI reprova por tratar dados pessoais (CPF, compras) | Publicação atrasa | Política de privacidade clara, CPF sempre mascarado e escopos mínimos |
 | O modelo escolhe a tool errada ou inventa parâmetros | Respostas erradas | Descrições revisadas, roteiro de testes e critério 7 |
 | Proxy derruba conexões de streaming | Tools falham de forma intermitente | Critério 2 e configuração de *timeouts* |
-| Descoberta OAuth com caminho (`/auth` e `/mcp`) não funciona no ChatGPT | O app não conecta | Teste logo no início do modo desenvolvedor, conferindo no log do nginx quais URLs de `/.well-known/` o ChatGPT consulta. Se falhar, plano de contingência da [007](007-oauth-mcp-chatgpt.md#9-riscos) |
+| Descoberta OAuth com caminho (`/auth` e `/mcp`) não funciona no ChatGPT | O app não conecta | Teste logo no início do modo desenvolvedor, conferindo no log do nginx quais URLs de `/.well-known/` o ChatGPT consulta. Se falhar, plano de contingência da [008](008-oauth-mcp-chatgpt.md#9-riscos) |
 | Uso por outras vendedoras após a publicação | Volume e suporte | *Rate limit* por usuário e canal de suporte na página do app |
 
 ---
