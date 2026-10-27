@@ -58,6 +58,25 @@ const loadGoogleIdentity = (): Promise<void> => {
 }
 
 /**
+ * Estica o botão oficial (no máximo 400×40) até cobrir o contêiner inteiro, para
+ * que nenhuma borda do botão visível do site fique sem área de toque. A escala é
+ * aplicada depois que o GIS termina de desenhar o botão.
+ */
+const coverContainer = (container: HTMLDivElement): void => {
+  requestAnimationFrame(() => {
+    const button = container.firstElementChild
+    if (!(button instanceof HTMLElement)) return
+
+    const target = container.getBoundingClientRect()
+    const drawn = button.getBoundingClientRect()
+    if (drawn.width === 0 || drawn.height === 0) return
+
+    button.style.transformOrigin = 'center'
+    button.style.transform = `scale(${String(target.width / drawn.width)}, ${String(target.height / drawn.height)})`
+  })
+}
+
+/**
  * useGoogleIdentity - botão "Entrar com Google" sem dependência de terceiros.
  *
  * Recebe o callback que recebe o `credential` (o ID token que vai a
@@ -94,14 +113,19 @@ export const useGoogleIdentity = (
             }
           },
         })
+        // O botão oficial fica transparente sobre o botão do site
+        // (`GoogleSignInButton`): ocupa a largura do contêiner, até o máximo de
+        // 400px que o GIS aceita, para a área de toque cobrir o botão visível.
         identity.renderButton(containerRef.current, {
           type: 'standard',
-          theme: 'outline',
+          theme: 'filled_black',
           size: 'large',
+          shape: 'rectangular',
           locale: 'pt-BR',
           text: 'signin_with',
-          width: Math.min(320, Math.max(200, containerRef.current.offsetWidth || 320)),
+          width: Math.min(400, Math.max(200, containerRef.current.offsetWidth || 320)),
         })
+        coverContainer(containerRef.current)
       })
       .catch(() => {
         /* Sem rede para o GIS: a tela segue com as outras formas de entrada. */

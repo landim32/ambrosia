@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react'
 import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
+import { GoogleSignInButton } from '@/components/common/GoogleSignInButton'
 import { PasswordInput } from '@/components/common/PasswordInput'
 import { AuthMascot } from '@/components/layout/AuthMascot'
 import { BrandLogo } from '@/components/layout/BrandLogo'
@@ -146,11 +147,7 @@ export const LoginPage = () => {
 
           {hasGoogle ? (
             <>
-              <div
-                ref={googleButtonRef}
-                data-testid="google-button"
-                className="flex min-h-11 justify-center"
-              />
+              <GoogleSignInButton ref={googleButtonRef} />
               <div className="flex items-center gap-3">
                 <Separator className="flex-1" />
                 <span className="text-xs uppercase text-muted-foreground">{t('login.or')}</span>
