@@ -1,17 +1,17 @@
-# 006 — GraphQL para consultas de clientes e pedidos
+# 007 — GraphQL para consultas de clientes e pedidos
 
-> Documento da história de usuário 006: endpoint GraphQL (HotChocolate), somente consultas, com filtros, ordenação, paginação por cursor, projeções e campos calculados, sempre isolado por usuário.
+> Documento da história de usuário 007: endpoint GraphQL (HotChocolate), somente consultas, com filtros, ordenação, paginação por cursor, projeções e campos calculados, sempre isolado por usuário.
 
 **Created:** 2026-10-25
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-10-27
 
 | Campo | Valor |
 |---|---|
-| ID | 006 |
+| ID | 007 |
 | Status | Planejada |
 | Spec | — |
-| Depende de | [001](001-api-cadastro-clientes-pedidos.md) (modelo, repositórios, JWT) |
-| Habilita | [007](007-mcp-servidor-completo.md) (consulta flexível no MCP) |
+| Depende de | [001](001-api-cadastro-clientes-pedidos.md) (modelo, repositórios, JWT) e [005](005-plugin-chatgpt-mcp.md) (servidor MCP, que recebe a tool `consultar_graphql`) |
+| Habilita | Consulta flexível no MCP da [005](005-plugin-chatgpt-mcp.md) (tool `consultar_graphql`) |
 | Código previsto | `backend/Ambrosio.GraphQL/` (novo), registrado no `Ambrosio.API` |
 
 ---
@@ -41,6 +41,7 @@
 - Ocultação de campos sensíveis e internos.
 - Limites de profundidade, custo e tamanho de página.
 - Mensagens de erro em português e log de erros.
+- Tool MCP `consultar_graphql` no servidor da [005](005-plugin-chatgpt-mcp.md) (que é desenvolvida antes): recebe `query` e `variables`, executa em processo com o `IRequestExecutor` e o usuário do token, e a descrição traz o resumo do schema e exemplos. Pela regra de paridade da 005, o GraphQL só fica pronto com a tool.
 
 ### Fora do escopo
 
@@ -72,6 +73,7 @@
 | 14 | Mutations não existem no schema | Introspecção |
 | 15 | O IDE do GraphQL (Nitro) só fica disponível em Development | Abrir `https://ambrosiaai.site/api/graphql` no navegador em Production |
 | 16 | Uma consulta típica (lista de 20 clientes com resumo) responde em menos de 1 s com 10.000 pedidos | Mesma base de carga prevista na 001 (T095) |
+| 17 | A tool MCP `consultar_graphql` existe no servidor da 005, recusa `mutation` e `subscription` e respeita os limites de profundidade e custo | MCP Inspector, enviando uma mutation |
 
 ---
 
@@ -183,6 +185,7 @@ sequenceDiagram
 | HU | Tipo | Motivo |
 |---|---|---|
 | [001](001-api-cadastro-clientes-pedidos.md) | Obrigatória | Entidades, `DbContext`, repositórios e JWT |
+| [005](005-plugin-chatgpt-mcp.md) | Obrigatória | Servidor MCP onde entra a tool `consultar_graphql` |
 | Pendências da 001 (T087, T088) | Recomendada | Testes de isolamento e o teste de contrato por reflexão também devem cobrir o GraphQL |
 
 ---

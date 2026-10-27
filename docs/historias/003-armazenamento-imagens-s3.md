@@ -11,7 +11,7 @@
 | Status | Implementada |
 | Spec | [`specs/004-s3-image-storage/`](../../specs/004-s3-image-storage/) |
 | Depende de | [001](001-api-cadastro-clientes-pedidos.md) (API, usuários e isolamento) |
-| Habilita | [005](005-frontend-pwa.md) (cache de imagens) e [010](010-banco-imagens-clientes-chatgpt.md) (banco de fotos) |
+| Habilita | [006](006-frontend-pwa.md) (cache de imagens) e [010](010-banco-imagens-clientes-chatgpt.md) (banco de fotos) |
 | Código previsto | `backend/` (Infra, Domain e Application) e `docker-compose` de dev com MinIO |
 
 ---
@@ -120,7 +120,7 @@ erDiagram
 | Upload pelo navegador | Fluxo em duas etapas: `POST /images/uploads` (o cliente declara mime, tamanho e sha256 e recebe `uploadUrl` e `imageId`). Depois, `POST /images/uploads/{imageId}/confirm`, em que o servidor faz `HeadObject`, baixa o início do arquivo para conferir os *magic bytes* e marca `available` |
 | Upload pelo servidor | `PutObject` com stream, depois de validar tipo, tamanho e hash em memória ou em arquivo temporário |
 | Leitura | O DTO de quem usa a imagem (por exemplo, a foto do cliente na 010) devolve `url` pré-assinada e `expiresAt`. Não há endpoint público de proxy |
-| CORS do bucket | Liberar `GET` e `PUT` só para a origem exata do frontend: `https://ambrosiaai.site` em produção e a origem local do Vite em dev. Necessário para o cache da [005](005-frontend-pwa.md) (resposta não opaca) |
+| CORS do bucket | Liberar `GET` e `PUT` só para a origem exata do frontend: `https://ambrosiaai.site` em produção e a origem local do Vite em dev. Necessário para o cache da [006](006-frontend-pwa.md) (resposta não opaca) |
 | Endpoint público | Sem domínio próprio nem CDN nesta fase. Com bucket privado e URL pré-assinada, o endpoint do provedor basta (por exemplo, `https://ambrosia-prod.nyc3.digitaloceanspaces.com`). Um domínio como `img.ambrosiaai.site` só faria sentido com CDN, e CDN com bucket privado exige URL assinada pelo próprio CDN, o que muda o fluxo desta HU. Fica para quando o custo de egress pedir |
 | CSP do frontend | O `img-src` (e o `connect-src`, para o `PUT`) da CSP de `https://ambrosiaai.site` precisa incluir o endpoint do bucket |
 | Limpeza | Job periódico que apaga objetos `pending` com mais de 1 hora (upload nunca confirmado) |
@@ -194,7 +194,7 @@ sequenceDiagram
 | URL `PUT` pré-assinada não limita o tamanho do corpo | Alguém sobe um arquivo enorme dentro do prazo | Prazo curto, confirmação obrigatória com `HeadObject` e exclusão do que não confere, além do job de limpeza |
 | Vazamento de URL pré-assinada | Acesso à foto enquanto a URL vale | Validade curta e nunca registrar URLs completas em log |
 | Credencial com permissão ampla demais | Acesso a outros buckets da conta | Chave limitada ao bucket (Spaces permite chaves com escopo por bucket, a confirmar no painel) |
-| Custos de egress | Conta cresce com o uso do PWA | Cache de imagens na [005](005-frontend-pwa.md) e miniaturas no futuro |
+| Custos de egress | Conta cresce com o uso do PWA | Cache de imagens na [006](006-frontend-pwa.md) e miniaturas no futuro |
 
 ---
 

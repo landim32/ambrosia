@@ -8,7 +8,7 @@
 | Campo | Valor |
 |---|---|
 | ID | 004 |
-| Status | Implementada (aguardando validação manual do quickstart e primeira execução real em simulação) |
+| Status | Implementada (primeira importação real validada em 27/10/2026) |
 | Spec | [`006-mais-vendas-import`](../../specs/006-mais-vendas-import/) |
 | Depende de | [001](001-api-cadastro-clientes-pedidos.md) (API, modelo e proteção do CPF), [002](002-frontend-web-perfil-cliente-pedidos.md) (frontend e sessão) e [003](003-armazenamento-imagens-s3.md) (storage de imagens, spec [`004-s3-image-storage`](../../specs/004-s3-image-storage/)) |
 | Base | [Doc 01](../01-analise-sistema-mais-vendas.md) (análise do +Vendas), [doc 02](../02-modelo-de-dados.md) (modelo) e [doc 03](../03-bot-playwright.md) (bot) |
@@ -277,7 +277,7 @@ sequenceDiagram
 | [003](003-armazenamento-imagens-s3.md) | Obrigatória | Storage das fotos (`StoreFromServerAsync`, `ImageSource.Bot`) |
 | Spec [`003-email-password-jwt-auth`](../../specs/003-email-password-jwt-auth/) | Obrigatória | JWT da sessão que autentica a tela e os endpoints |
 
-A [008](008-oauth-mcp-chatgpt.md) deixou de ser dependência: a importação usa a sessão normal da usuária, não um token de bot.
+O OAuth do plugin ([005](005-plugin-chatgpt-mcp.md), que incorporou a antiga 008) não é dependência: a importação usa a sessão normal da usuária, não um token de bot.
 
 ---
 
