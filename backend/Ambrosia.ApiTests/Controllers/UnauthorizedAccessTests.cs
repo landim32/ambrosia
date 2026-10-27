@@ -38,7 +38,15 @@ public class UnauthorizedAccessTests
         { "GET", "/orders" },
         { "POST", "/orders" },
         { "GET", "/orders/1" },
-        { "PUT", "/orders/1" }
+        { "PUT", "/orders/1" },
+
+        // Feature 004: as cinco rotas de imagem são autenticadas. Sem o token ninguém declara envio,
+        // confirma, consulta, grava pelo servidor nem apaga — nem descobrindo que o id existe.
+        { "POST", "/images/uploads" },
+        { "POST", "/images/uploads/1/confirm" },
+        { "GET", "/images/1" },
+        { "POST", "/images" },
+        { "DELETE", "/images/1" }
     };
 
     private readonly ApiTestFixture _fixture;
@@ -150,6 +158,7 @@ public class UnauthorizedAccessTests
             "GET" => await request.AllowAnyHttpStatus().GetAsync(),
             "POST" => await request.AllowAnyHttpStatus().PostJsonAsync(new { }),
             "PUT" => await request.AllowAnyHttpStatus().PutJsonAsync(new { }),
+            "DELETE" => await request.AllowAnyHttpStatus().DeleteAsync(),
             _ => throw new InvalidOperationException($"Verbo não coberto pelo teste: {method}")
         };
 

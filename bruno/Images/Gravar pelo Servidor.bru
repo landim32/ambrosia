@@ -1,0 +1,50 @@
+meta {
+  name: Gravar pelo Servidor
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/images
+  body: multipart-form
+  auth: inherit
+}
+
+body:multipart-form {
+  file @file(../../backend/Ambrosia.ApiTests/Fixtures/Images/small.jpg)
+}
+
+docs {
+  Caminho em que o binário passa pelo servidor (HU 004 e HU 010 vão usar isto): o arquivo
+  é validado pelo conteúdo, tem a orientação EXIF aplicada, perde EXIF/IPTC/XMP (o ICC fica,
+  para não alterar as cores), é re-codificado no mesmo formato e só então sobe — `source`
+  vem `server`.
+
+  201 = imagem gravada; 200 = o mesmo conteúdo final já estava disponível para você
+  (deduplicação pelo hash do arquivo já sanitizado). 400 para arquivo ausente ou vazio,
+  tipo não aceito (um PDF com nome `.jpg` cai aqui) ou tamanho acima de `MaxUploadBytes`.
+
+  Ajuste o caminho do arquivo no corpo se quiser testar outra foto. Para conferir a
+  sanitização, baixe a `url` devolvida e compare com o original: o marcador `Exif` some.
+}
+
+script:post-response {
+  if (res.status === 200 || res.status === 201) {
+    bru.setEnvVar("imageId", res.body.imageId);
+    bru.setEnvVar("imageUrl", res.body.url);
+  }
+}
+
+tests {
+  test("status 200 ou 201", function () {
+    expect([200, 201]).to.include(res.status);
+  });
+
+  test("imagem chega disponível e com dimensão lida", function () {
+    if (res.status === 200 || res.status === 201) {
+      expect(res.body.status).to.equal("available");
+      expect(res.body.source).to.equal("server");
+      expect(res.body.width).to.be.a('number');
+    }
+  });
+}

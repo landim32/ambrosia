@@ -1,0 +1,35 @@
+meta {
+  name: Excluir Imagem
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/images/{{imageId}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  Remove o objeto no storage **e** o metadado (qualquer status). A URL de leitura assinada
+  antes da exclusão passa a responder 404 (`NoSuchKey`), distinguindo-se do 403 de "sem
+  assinatura" — é assim que o cliente sabe que o conteúdo sumiu.
+
+  Excluir imagem de outro usuário responde 404 e não toca em nada. Não existe rota para
+  "apagar todas as imagens da conta": isso é uso interno do fluxo de exclusão de conta.
+}
+
+tests {
+  test("status 204 ou 404", function () {
+    expect([204, 404]).to.include(res.status);
+  });
+
+  test("204 não devolve corpo", function () {
+    if (res.status === 204) {
+      expect(res.body).to.satisfy(function (body) {
+        return body === undefined || body === null || body === "" ||
+          (typeof body === "object" && Object.keys(body).length === 0);
+      });
+    }
+  });
+}

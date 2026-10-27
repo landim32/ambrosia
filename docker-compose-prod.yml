@@ -11,6 +11,11 @@ x-api-environment: &api-environment
   Auth__GoogleClientId: ${AUTH_GOOGLE_CLIENT_ID}
   CpfProtection__Pepper: ${CPF_PEPPER}
   CpfProtection__EncryptionKey: ${CPF_ENCRYPTION_KEY}
+  # Storage de imagens (feature 004, T054): só o par de chaves e segredo e entra aqui;
+  # endpoint, regiao, bucket e ForcePathStyle ficam no appsettings.Production.json
+  # (skill dotnet-env). Os prazos ficam os de producao (15/5/60/15) do appsettings base.
+  ObjectStorage__AccessKey: ${OBJECT_STORAGE_ACCESS_KEY}
+  ObjectStorage__SecretKey: ${OBJECT_STORAGE_SECRET_KEY}
 
 services:
   migrator:
@@ -53,6 +58,11 @@ services:
     image: ambrosia-frontend:prod
     container_name: ambrosia-frontend
     restart: unless-stopped
+    # CSP do container (feature 004, T054): a origem publica do bucket entra por variavel
+    # de RUNTIME e o nginx faz envsubst do template no startup, entao a imagem nao casa
+    # nenhuma origem de storage (FR-023).
+    environment:
+      STORAGE_ORIGIN: ${OBJECT_STORAGE_PUBLIC_ORIGIN}
     networks:
       - ambrosia-network
 

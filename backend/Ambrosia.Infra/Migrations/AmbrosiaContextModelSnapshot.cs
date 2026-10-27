@@ -233,6 +233,89 @@ namespace Ambrosia.Infra.Migrations
                     b.ToTable("order_items", (string)null);
                 });
 
+            modelBuilder.Entity("Ambrosia.Domain.Models.StoredImage", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("stored_image_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int?>("Height")
+                        .HasColumnType("integer")
+                        .HasColumnName("height");
+
+                    b.Property<string>("MimeType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("mime_type");
+
+                    b.Property<string>("Sha256")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("sha256");
+
+                    b.Property<long>("SizeBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("size_bytes");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("integer")
+                        .HasColumnName("source");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("status");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(260)
+                        .HasColumnType("character varying(260)")
+                        .HasColumnName("storage_key");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.Property<int?>("Width")
+                        .HasColumnType("integer")
+                        .HasColumnName("width");
+
+                    b.HasKey("Id")
+                        .HasName("stored_images_pkey");
+
+                    b.HasIndex("StorageKey")
+                        .IsUnique()
+                        .HasDatabaseName("ux_stored_images_storage_key_active")
+                        .HasFilter("status IN (1, 2)");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_stored_images_user");
+
+                    b.HasIndex("Status", "CreatedAt")
+                        .HasDatabaseName("ix_stored_images_status_created_at");
+
+                    b.HasIndex("UserId", "Sha256")
+                        .IsUnique()
+                        .HasDatabaseName("ux_stored_images_user_sha256_active")
+                        .HasFilter("status IN (1, 2)");
+
+                    b.ToTable("stored_images", (string)null);
+                });
+
             modelBuilder.Entity("Ambrosia.Domain.Models.User", b =>
                 {
                     b.Property<long>("Id")
@@ -327,6 +410,17 @@ namespace Ambrosia.Infra.Migrations
                     b.Navigation("Order");
                 });
 
+            modelBuilder.Entity("Ambrosia.Domain.Models.StoredImage", b =>
+                {
+                    b.HasOne("Ambrosia.Domain.Models.User", "User")
+                        .WithMany("StoredImages")
+                        .HasForeignKey("UserId")
+                        .IsRequired()
+                        .HasConstraintName("fk_user_stored_image");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Ambrosia.Domain.Models.Customer", b =>
                 {
                     b.Navigation("Orders");
@@ -340,6 +434,8 @@ namespace Ambrosia.Infra.Migrations
             modelBuilder.Entity("Ambrosia.Domain.Models.User", b =>
                 {
                     b.Navigation("Customers");
+
+                    b.Navigation("StoredImages");
                 });
 #pragma warning restore 612, 618
         }

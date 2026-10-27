@@ -18,7 +18,7 @@ namespace Ambrosia.API.Controllers;
 public abstract class ApiControllerBase : ControllerBase
 {
     /// <summary>Mensagem geral das respostas 400.</summary>
-    private const string InvalidDataMessage = "Dados inválidos.";
+    protected const string InvalidDataMessage = "Dados inválidos.";
 
     /// <summary>
     /// HTTP 400 com o detalhamento por campo de um <see cref="ValidationException"/>
@@ -73,6 +73,38 @@ public abstract class ApiControllerBase : ControllerBase
     protected IActionResult InvalidCredentialsError(InvalidCredentialsException ex)
     {
         return Unauthorized(new ErrorResult
+        {
+            Sucesso = false,
+            Mensagem = ex.Message,
+            Erros = []
+        });
+    }
+
+    /// <summary>
+    /// HTTP 400 (feature 004): a confirmação de envio descobriu que o binário no storage não confere
+    /// com o declarado — tamanho, tipo ou hash — ou que o objeto ainda não foi enviado, ou que o envio
+    /// já tinha sido recusado. A mensagem vem pronta na exceção, exatamente como no contrato
+    /// <c>specs/004-s3-image-storage/contracts/images-api.md</c>. <c>erros</c> vazio: não é falha de
+    /// formato de campo, e o motivo já está na mensagem.
+    /// </summary>
+    protected IActionResult ImageRejectedError(ImageRejectedException ex)
+    {
+        return BadRequest(new ErrorResult
+        {
+            Sucesso = false,
+            Mensagem = ex.Message,
+            Erros = []
+        });
+    }
+
+    /// <summary>
+    /// HTTP 503 (FR-021): o storage de imagens está inalcançável ou recusou a operação. A mensagem é a
+    /// constante fixa da exceção — nunca o <c>Message</c> do SDK, que traria endpoint, bucket e chave do
+    /// objeto para dentro da resposta. <c>erros</c> vazio pelo mesmo motivo do 401.
+    /// </summary>
+    protected IActionResult StorageUnavailableError(StorageUnavailableException ex)
+    {
+        return StatusCode(StatusCodes.Status503ServiceUnavailable, new ErrorResult
         {
             Sucesso = false,
             Mensagem = ex.Message,

@@ -1,0 +1,55 @@
+meta {
+  name: Declarar Envio
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/images/uploads
+  body: json
+  auth: inherit
+}
+
+docs {
+  Declaração de um envio pelo cliente (HU 003). O `sha256` abaixo é do fixture
+  `small.jpg` (3082 bytes) — troque pelos valores do seu arquivo, recalculando com
+  `certutil -hashfile <arquivo> SHA256`.
+
+  201 = há um `PUT` a fazer; 200 + `alreadyExists` = esse conteúdo já está
+  disponível para você e não há nada a enviar. Depois da resposta, suba o binário na
+  `uploadUrl` (veja o fluxo em `folder.bru`) e chame `Confirmar Envio`.
+}
+
+body:json {
+  {
+    "mimeType": "image/jpeg",
+    "sizeBytes": 3082,
+    "sha256": "c56ba75cf970164af4420cf816231a052c5973840bd8c7bf65cdc9c4fe005ba9"
+  }
+}
+
+script:post-response {
+  if (res.status === 200 || res.status === 201) {
+    bru.setEnvVar("imageId", res.body.imageId);
+    if (res.body.uploadUrl) {
+      bru.setEnvVar("uploadUrl", res.body.uploadUrl);
+      console.log("Suba o binário antes de confirmar:\n" +
+        "curl -X PUT -H \"Content-Type: " + res.body.contentType + "\" --data-binary @small.jpg \"" +
+        res.body.uploadUrl + "\"");
+    }
+  }
+}
+
+tests {
+  test("status 200 ou 201", function () {
+    expect([200, 201]).to.include(res.status);
+  });
+
+  test("declaração nova traz URL de PUT assinada", function () {
+    if (res.status === 201) {
+      expect(res.body.uploadUrl).to.be.a('string');
+      expect(res.body.uploadMethod).to.equal("PUT");
+      expect(res.body.contentType).to.equal("image/jpeg");
+    }
+  });
+}

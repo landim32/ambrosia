@@ -1,0 +1,44 @@
+meta {
+  name: Confirmar Envio
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/images/uploads/{{imageId}}/confirm
+  body: none
+  auth: inherit
+}
+
+docs {
+  Conferência obrigatória do que chegou ao storage: tamanho (no cabeçalho do objeto,
+  antes de baixar qualquer byte), tipo detectado pelo conteúdo e SHA-256 recalculado.
+
+  200 = `available` com `url` de leitura. 400 com uma das cinco mensagens do contrato
+  (ainda não enviado, tamanho, tipo, hash, já recusado); nos três últimos o objeto é
+  apagado e o registro vira `failed`. Repetir a confirmação de uma imagem já
+  disponível é idempotente e só troca a URL assinada.
+
+  O `imageId` vem de `Declarar Envio`.
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setEnvVar("imageUrl", res.body.url);
+  }
+}
+
+tests {
+  test("status 200, 400 ou 404", function () {
+    expect([200, 400, 404]).to.include(res.status);
+  });
+
+  test("imagem aprovada fica disponível e legível", function () {
+    if (res.status === 200) {
+      expect(res.body.status).to.equal("available");
+      expect(res.body.url).to.be.a('string');
+      expect(res.body.urlExpiresAt).to.be.a('string');
+      expect(res.body.width).to.be.a('number');
+    }
+  });
+}

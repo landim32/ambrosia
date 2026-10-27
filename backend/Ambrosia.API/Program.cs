@@ -21,7 +21,10 @@ var settings = new AmbrosiaSettings
             ?? new Ambrosia.DTO.Settings.AuthSettings(),
     CpfProtection = builder.Configuration.GetSection("CpfProtection")
             .Get<Ambrosia.DTO.Settings.CpfProtectionSettings>()
-            ?? new Ambrosia.DTO.Settings.CpfProtectionSettings()
+            ?? new Ambrosia.DTO.Settings.CpfProtectionSettings(),
+    ObjectStorage = builder.Configuration.GetSection("ObjectStorage")
+            .Get<Ambrosia.DTO.Settings.ObjectStorageSettings>()
+            ?? new Ambrosia.DTO.Settings.ObjectStorageSettings()
 };
 
 // Falha no startup em vez de rodar com chave vazia: CPFs cifrados com chave errada são
@@ -41,6 +44,22 @@ builder.Services.ConfigureServices(opt =>
     opt.Auth.GoogleClientId = settings.Auth.GoogleClientId;
     opt.CpfProtection.Pepper = settings.CpfProtection.Pepper;
     opt.CpfProtection.EncryptionKey = settings.CpfProtection.EncryptionKey;
+
+    // Storage de imagens (feature 004): a seção inteira vai adiante como IOptions; o validation
+    // abaixo já recusou startup com configuração incompleta (FR-020).
+    opt.ObjectStorage.ServiceUrl = settings.ObjectStorage.ServiceUrl;
+    opt.ObjectStorage.PublicServiceUrl = settings.ObjectStorage.PublicServiceUrl;
+    opt.ObjectStorage.Region = settings.ObjectStorage.Region;
+    opt.ObjectStorage.Bucket = settings.ObjectStorage.Bucket;
+    opt.ObjectStorage.ForcePathStyle = settings.ObjectStorage.ForcePathStyle;
+    opt.ObjectStorage.AccessKey = settings.ObjectStorage.AccessKey;
+    opt.ObjectStorage.SecretKey = settings.ObjectStorage.SecretKey;
+    opt.ObjectStorage.PresignedReadMinutes = settings.ObjectStorage.PresignedReadMinutes;
+    opt.ObjectStorage.PresignedUploadMinutes = settings.ObjectStorage.PresignedUploadMinutes;
+    opt.ObjectStorage.MaxUploadBytes = settings.ObjectStorage.MaxUploadBytes;
+    opt.ObjectStorage.AllowedMimeTypes = settings.ObjectStorage.AllowedMimeTypes;
+    opt.ObjectStorage.PendingTtlMinutes = settings.ObjectStorage.PendingTtlMinutes;
+    opt.ObjectStorage.CleanupIntervalMinutes = settings.ObjectStorage.CleanupIntervalMinutes;
 });
 
 // ---------------------------------------------------------------------------
@@ -92,7 +111,12 @@ builder.Services.AddSwaggerGen(options =>
         Description = "API de cadastro e consulta de clientes e pedidos (feature 001). " +
                       "Todas as rotas exceto `/auth/*` exigem `Authorization: Bearer <token>`. " +
                       "Cada usuário enxerga apenas os próprios clientes e pedidos; recursos de " +
-                      "outro usuário respondem 404."
+                      "outro usuário respondem 404. " +
+                      "Rotas de imagem (feature 004): `POST /images/uploads` declara um envio e devolve " +
+                      "a URL pré-assinada de `PUT`, `POST /images/uploads/{imageId}/confirm` confere o " +
+                      "binário que chegou ao storage, `POST /images` grava pelo servidor (multipart, " +
+                      "sem EXIF), `GET /images/{imageId}` consulta e `DELETE /images/{imageId}` exclui. " +
+                      "As URLs de leitura são temporárias e o bucket é privado."
     });
 
     // T094: o wrapper paginado saía como "CustomerInfoPagedResult"; o contrato
@@ -226,10 +250,93 @@ static void ValidateSettings(AmbrosiaSettings settings)
         errors.Add("CpfProtection__EncryptionKey precisa ser base64 de exatamente 32 bytes.");
     }
 
+    ValidateObjectStorage(settings.ObjectStorage, errors);
+
     if (errors.Count > 0)
     {
         throw new InvalidOperationException(
             "Configuração inválida da API Ambrosia: " + string.Join(" ", errors) +
             " Defina as variáveis de ambiente ou o appsettings antes de iniciar.");
+    }
+}
+
+// Storage de imagens (feature 004, FR-020/FR-021, research §12): a API não sobe com configuração
+// incompleta ou fora das faixas. Cada mensagem nomeia a VARIÁVEL e nunca mostra o valor — os valores
+// podem ser segredo (AccessKey/SecretKey) e o texto do InvalidOperationException vai para o log e para
+// o stderr do container.
+static void ValidateObjectStorage(Ambrosia.DTO.Settings.ObjectStorageSettings storage, List<string> errors)
+{
+    if (!IsHttpUri(storage.ServiceUrl))
+    {
+        errors.Add("ObjectStorage__ServiceUrl deve ser uma URL absoluta http ou https.");
+    }
+
+    // PublicServiceUrl é opcional: quando informada, tem de ser URL válida (research §3).
+    if (!string.IsNullOrWhiteSpace(storage.PublicServiceUrl) && !IsHttpUri(storage.PublicServiceUrl))
+    {
+        errors.Add("ObjectStorage__PublicServiceUrl deve ser uma URL absoluta http ou https.");
+    }
+
+    if (string.IsNullOrWhiteSpace(storage.Region))
+    {
+        errors.Add("ObjectStorage__Region está vazia.");
+    }
+
+    if (string.IsNullOrWhiteSpace(storage.Bucket))
+    {
+        errors.Add("ObjectStorage__Bucket está vazio.");
+    }
+
+    if (string.IsNullOrWhiteSpace(storage.AccessKey))
+    {
+        errors.Add("ObjectStorage__AccessKey está vazio.");
+    }
+
+    if (string.IsNullOrWhiteSpace(storage.SecretKey))
+    {
+        errors.Add("ObjectStorage__SecretKey está vazio.");
+    }
+
+    AddIfOutOfRange(errors, "ObjectStorage__PresignedReadMinutes", storage.PresignedReadMinutes, 1, 60);
+    AddIfOutOfRange(errors, "ObjectStorage__PresignedUploadMinutes", storage.PresignedUploadMinutes, 1, 15);
+    AddIfOutOfRange(errors, "ObjectStorage__PendingTtlMinutes", storage.PendingTtlMinutes, 1, 1440);
+    AddIfOutOfRange(errors, "ObjectStorage__CleanupIntervalMinutes", storage.CleanupIntervalMinutes, 1, 60);
+
+    if (storage.MaxUploadBytes <= 0)
+    {
+        errors.Add("ObjectStorage__MaxUploadBytes deve ser maior que zero.");
+    }
+
+    // Só se aceita tipo que o processador reconhece (research §12): listar outro mime abriria uma
+    // porta de entrada que a sanitização não fecha.
+    string[] supportedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
+
+    if (storage.AllowedMimeTypes.Count == 0)
+    {
+        errors.Add("ObjectStorage__AllowedMimeTypes está vazio.");
+    }
+    else
+    {
+        foreach (var mimeType in storage.AllowedMimeTypes)
+        {
+            if (!supportedMimeTypes.Contains(mimeType, StringComparer.OrdinalIgnoreCase))
+            {
+                errors.Add(
+                    $"ObjectStorage__AllowedMimeTypes aceita apenas {string.Join(", ", supportedMimeTypes)}.");
+                break;
+            }
+        }
+    }
+
+    static bool IsHttpUri(string? value) =>
+        Uri.TryCreate(value, UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    static void AddIfOutOfRange(List<string> errors, string name, int value, int min, int max)
+    {
+        if (value < min || value > max)
+        {
+            errors.Add($"{name} deve estar entre {min} e {max} minutos (valor atual não é mostrado).");
+        }
     }
 }

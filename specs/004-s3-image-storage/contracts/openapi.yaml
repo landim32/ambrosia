@@ -1,0 +1,346 @@
+openapi: 3.0.3
+info:
+  title: Ambrosia API — imagens (feature 004)
+  version: 1.0.0
+  description: |
+    Fragmento de caminho de `/images*`, no mesmo formato do contrato da 001
+    (`specs/001-api-cadastro-clientes-pedidos/contracts/openapi.yaml`) e da 003.
+    Origem: `specs/004-s3-image-storage/contracts/images-api.md`.
+
+    Todas as rotas exigem `Authorization: Bearer <token>`. O dono da imagem é sempre o
+    claim `sub` do token — nenhum corpo transporta `userId`. Imagem de outro usuário
+    responde 404 com a mesma mensagem de "não existe" (FR-014, SC-008).
+
+    Erros usam `ErrorResult` (`sucesso`, `mensagem`, `erros`). Storage indisponível é o
+    único 503 da API e tem mensagem fixa, sem detalhe do provedor (FR-021).
+
+    Atrás do gateway, as rotas ficam em `/api/images/...`.
+servers:
+  - url: http://localhost:5000
+    description: Desenvolvimento local
+  - url: http://localhost:8080/api
+    description: Homologação pelo gateway
+  - url: https://ambrosiaai.site/api
+    description: Produção
+
+tags:
+  - name: Images
+
+security:
+  - bearerAuth: []
+
+paths:
+  /images/uploads:
+    post:
+      tags: [Images]
+      summary: Declara um envio e devolve a URL pré-assinada onde o navegador sobe o arquivo
+      description: |
+        O cliente calcula o SHA-256 do arquivo local e declara tipo, tamanho e hash. Nada aqui
+        transporta binário: o `PUT` vai direto ao bucket privado com a URL assinada, que expira em
+        `ObjectStorage:PresignedUploadMinutes`. O `Content-Type` está dentro da assinatura, então um
+        `PUT` com outro tipo é recusado pelo storage com 403 antes de qualquer confirmação (FR-003).
+
+        O mesmo conteúdo para o mesmo usuário não sobe duas vezes: se já existe imagem `available`
+        com aquele hash, a resposta é 200 com `alreadyExists: true` e nenhum envio (FR-011). Se existe
+        apenas um envio `pending` do mesmo hash, ele é reaproveitado — 201 com `imageId` igual e URL
+        nova (critério 8 da HU 003). Uma recusa anterior não bloqueia o reenvio: `failed` fica fora da
+        unicidade (clarificação 5 da spec).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ImageUploadInsertInfo' }
+            example:
+              mimeType: "image/jpeg"
+              sizeBytes: 245812
+              sha256: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+      responses:
+        '201':
+          description: Há um envio a fazer (registro novo, ou pendente reaproveitado com URL nova)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImageUploadResult' }
+              example:
+                imageId: 42
+                alreadyExists: false
+                uploadUrl: "https://ambrosio.nyc3.digitaloceanspaces.com/users/7/images/9f86...a08.jpg?X-Amz-Algorithm=...&X-Amz-Signature=..."
+                uploadMethod: "PUT"
+                contentType: "image/jpeg"
+                uploadExpiresAt: "2026-10-26T15:05:00Z"
+                image: null
+        '200':
+          description: Já existe imagem disponível com este conteúdo para o usuário — nada a enviar
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImageUploadResult' }
+              example:
+                imageId: 40
+                alreadyExists: true
+                uploadUrl: null
+                uploadMethod: null
+                contentType: null
+                uploadExpiresAt: null
+                image: { imageId: 40, status: "available", url: "https://...?X-Amz-..." }
+        '400':
+          description: Tipo fora da lista, tamanho ≤ 0 ou acima do limite, hash mal formado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
+              example:
+                sucesso: false
+                mensagem: "Dados inválidos."
+                erros:
+                  - { campo: "sha256", mensagem: "O campo sha256 deve ter exatamente 64 caracteres hexadecimais." }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '503': { $ref: '#/components/responses/StorageUnavailable' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /images/uploads/{imageId}/confirm:
+    post:
+      tags: [Images]
+      summary: Confere o binário que chegou ao storage e aprova o envio
+      description: |
+        Sem corpo. A conferência é obrigatória e acontece antes de qualquer URL de leitura: compara o
+        `ContentLength` do objeto com o tamanho declarado (sem baixar nada), depois baixa com cópia
+        limitada, detecta o tipo pelo conteúdo e recalcula o SHA-256 (FR-006, research §6).
+
+        Recusou, o objeto é apagado e o registro vira `failed` (FR-007). Confirmar de novo uma imagem
+        já `available` é idempotente e devolve o mesmo com URL nova (critério 3 da HU 003). Os quatro
+        motivos de 400 têm mensagens distintas, mas nenhum deles revela o conteúdo do objeto.
+      parameters:
+        - $ref: '#/components/parameters/ImageId'
+      responses:
+        '200':
+          description: Imagem disponível, com URL de leitura assinada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImageInfo' }
+        '400':
+          description: Envio recusado — um dos quatro motivos abaixo
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
+              examples:
+                naoEnviado:
+                  description: continua pending, o cliente ainda pode enviar
+                  value: { sucesso: false, mensagem: "O arquivo da imagem ainda não foi enviado.", erros: [] }
+                tamanho:
+                  description: objeto apagado, status failed
+                  value: { sucesso: false, mensagem: "O tamanho do arquivo enviado não confere com o declarado ou excede o limite.", erros: [] }
+                tipo:
+                  description: objeto apagado, status failed
+                  value: { sucesso: false, mensagem: "O conteúdo do arquivo não é uma imagem de tipo aceito.", erros: [] }
+                hash:
+                  description: objeto apagado, status failed
+                  value: { sucesso: false, mensagem: "O conteúdo do arquivo não confere com o hash declarado.", erros: [] }
+                jaRecusado:
+                  description: recusa final, exige declarar um envio novo
+                  value: { sucesso: false, mensagem: "Este envio foi recusado. Declare um novo envio.", erros: [] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/ImageNotFound' }
+        '503': { $ref: '#/components/responses/StorageUnavailable' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /images:
+    post:
+      tags: [Images]
+      summary: Grava uma imagem passando pelo servidor, sem metadado de privacidade
+      description: |
+        `multipart/form-data` com o campo `file`, limitado a `MaxUploadBytes` (padrão 10 MB). É o
+        caminho de quem não pode fazer `PUT` direto no storage (foto baixada de uma conversa, imagem
+        gerada pela conversa), e o único que o backend sabe criar (FR-008 a FR-010).
+
+        O servidor detecta o tipo pelas assinaturas de bytes — um PDF com nome `.jpg` cai aqui — lê a
+        dimensão pelo cabeçalho, corrige a orientação pela tag EXIF, remove EXIF, IPTC e XMP (mantém o
+        perfil ICC para não alterar as cores), re-codifica no mesmo formato e calcula o SHA-256 do
+        conteúdo final. A deduplicação usa esse hash final, e `source` vem `server`.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: JPEG, PNG ou WebP até MaxUploadBytes
+      responses:
+        '201':
+          description: Imagem gravada e disponível
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImageInfo' }
+        '200':
+          description: O mesmo conteúdo final já estava disponível para o usuário
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImageInfo' }
+        '400':
+          description: Arquivo ausente ou vazio, tipo não aceito, tamanho acima do limite
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
+              example: { sucesso: false, mensagem: "Dados inválidos.", erros: [ { campo: "file", mensagem: "O campo file é obrigatório." } ] }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '413':
+          description: Corpo acima do limite da requisição
+        '503': { $ref: '#/components/responses/StorageUnavailable' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /images/{imageId}:
+    get:
+      tags: [Images]
+      summary: Consulta uma imagem do usuário
+      description: |
+        Metadados e, quando `status` é `available`, uma URL pré-assinada de leitura **gerada nesta
+        resposta** (FR-012): o mesmo id consultado duas vezes seguidas devolve duas URLs diferentes, e
+        nenhuma delas é persistida. Fora de `available`, `url` e `urlExpiresAt` vêm `null` (FR-015).
+      parameters:
+        - $ref: '#/components/parameters/ImageId'
+      responses:
+        '200':
+          description: Imagem do usuário
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImageInfo' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/ImageNotFound' }
+        '503': { $ref: '#/components/responses/StorageUnavailable' }
+        '500': { $ref: '#/components/responses/ServerError' }
+    delete:
+      tags: [Images]
+      summary: Exclui a imagem definitivamente (objeto e metadado)
+      description: |
+        Vale para qualquer status. Apaga o objeto no storage e remove o metadado (FR-016): a URL de
+        leitura assinada antes da exclusão passa a responder **404** (`NoSuchKey`), o que a distingue
+        do 403 de "sem assinatura" (critério 10 da HU 003). Excluir imagem de outro usuário responde
+        404 e não toca nada (SC-006).
+
+        A remoção de todas as imagens da conta (`DeleteAllForUserAsync`, FR-017) não tem rota: é uso
+        interno do futuro fluxo de exclusão de conta.
+      parameters:
+        - $ref: '#/components/parameters/ImageId'
+      responses:
+        '204': { description: Imagem removida }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/ImageNotFound' }
+        '503': { $ref: '#/components/responses/StorageUnavailable' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    ImageId:
+      name: imageId
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+
+  responses:
+    Unauthorized:
+      description: Token ausente, inválido ou expirado (corpo vazio)
+    ImageNotFound:
+      description: Imagem inexistente ou de outro usuário — mensagem única, sem distinguir os dois
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResult' }
+          example: { sucesso: false, mensagem: "Imagem não encontrada.", erros: [] }
+    StorageUnavailable:
+      description: Storage de imagens indisponível — mensagem fixa, sem endpoint, bucket ou chave
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/ErrorResult' }
+          example: { sucesso: false, mensagem: "Armazenamento de imagens indisponível.", erros: [] }
+    ServerError:
+      description: Erro interno (mensagem da exceção como texto)
+      content:
+        text/plain:
+          schema: { type: string }
+
+  schemas:
+    ImageStatus:
+      type: string
+      enum: [pending, available, failed]
+      description: |
+        `pending` declarado e aguardando o binário; `available` conferido e legível; `failed` recusado
+        na confirmação, com o objeto apagado (estado final).
+    ImageSource:
+      type: string
+      enum: [upload, server, chatGpt, bot]
+      description: |
+        `upload` veio direto do navegador ao storage (bytes exatamente como o cliente os enviou);
+        `server` passou pelo servidor e foi sanitizado; `chatGpt` e `bot` são reservados às histórias
+        consumidoras (HU 010 e HU 004).
+
+    ImageUploadInsertInfo:
+      type: object
+      required: [mimeType, sizeBytes, sha256]
+      properties:
+        mimeType:
+          type: string
+          maxLength: 100
+          description: Um dos tipos de `ObjectStorage:AllowedMimeTypes`
+        sizeBytes:
+          type: integer
+          format: int64
+          minimum: 1
+          description: Tamanho do arquivo local, até `ObjectStorage:MaxUploadBytes`
+        sha256:
+          type: string
+          pattern: '^[0-9a-fA-F]{64}$'
+          description: SHA-256 do arquivo em hex, maiúsculas ou minúsculas
+    ImageUploadResult:
+      type: object
+      properties:
+        imageId: { type: integer, format: int64 }
+        alreadyExists: { type: boolean }
+        uploadUrl:
+          type: string
+          nullable: true
+          description: Pré-assinatura de PUT; temporária, nunca persistida nem logada (FR-013)
+        uploadMethod: { type: string, nullable: true, example: PUT }
+        contentType:
+          type: string
+          nullable: true
+          description: Valor exato do cabeçalho a enviar — está assinado
+        uploadExpiresAt: { type: string, format: date-time, nullable: true }
+        image:
+          allOf: [ { $ref: '#/components/schemas/ImageInfo' } ]
+          nullable: true
+          description: Preenchido só quando `alreadyExists` é true
+    ImageInfo:
+      type: object
+      properties:
+        imageId: { type: integer, format: int64 }
+        mimeType: { type: string }
+        sizeBytes: { type: integer, format: int64 }
+        sha256: { type: string, description: Hex minúsculo do binário no storage }
+        width: { type: integer, nullable: true }
+        height: { type: integer, nullable: true }
+        status: { $ref: '#/components/schemas/ImageStatus' }
+        source: { $ref: '#/components/schemas/ImageSource' }
+        url:
+          type: string
+          nullable: true
+          description: Pré-assinatura de leitura gerada nesta resposta; null fora de available
+        urlExpiresAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
+
+    FieldError:
+      type: object
+      properties:
+        campo: { type: string }
+        mensagem: { type: string }
+    ErrorResult:
+      type: object
+      properties:
+        sucesso: { type: boolean, example: false }
+        mensagem: { type: string }
+        erros: { type: array, items: { $ref: '#/components/schemas/FieldError' } }

@@ -62,11 +62,26 @@ jobs:
           AUTH_GOOGLE_CLIENT_ID=${{ secrets.AUTH_GOOGLE_CLIENT_ID }}
           CPF_PEPPER=${{ secrets.CPF_PEPPER }}
           CPF_ENCRYPTION_KEY=${{ secrets.CPF_ENCRYPTION_KEY }}
+          OBJECT_STORAGE_ACCESS_KEY=${{ secrets.OBJECT_STORAGE_ACCESS_KEY }}
+          OBJECT_STORAGE_SECRET_KEY=${{ secrets.OBJECT_STORAGE_SECRET_KEY }}
+          OBJECT_STORAGE_PUBLIC_ORIGIN=${{ secrets.OBJECT_STORAGE_PUBLIC_ORIGIN }}
           ENVEOF
 
           sed -i 's/^[[:space:]]*//' .env.prod
           chmod 600 .env.prod
           echo ".env.prod written successfully"
+
+          # Falha rápida: a API recusa startup com qualquer um destes vazia (a validação de
+          # configuração da feature 004 passou a exigir também o par de chaves do Spaces, FR-020), mas
+          # é melhor parar aqui do que derrubar o container depois do build. Não se faz `source` do
+          # arquivo: senha de banco com espaço viraria "comando", e o conteúdo é segredo.
+          for var in DB_CONNECTION_STRING AUTH_JWT_SECRET CPF_PEPPER CPF_ENCRYPTION_KEY OBJECT_STORAGE_ACCESS_KEY OBJECT_STORAGE_SECRET_KEY OBJECT_STORAGE_PUBLIC_ORIGIN; do
+            if ! grep -Eq "^${var}=.+" .env.prod; then
+              echo "::error::O secret $var não está configurado (GitHub Secrets). O deploy parou antes do build."
+              exit 1
+            fi
+          done
+          echo "Todos os segredos obrigatórios estão presentes"
 
   inject-certificates:
     runs-on: ubuntu-latest

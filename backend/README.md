@@ -35,8 +35,36 @@ Sobrescrevem `appsettings*.json` (separador `__`). Em Development, `appsettings.
 | `Auth__ExpirationMinutes` | Duração do token (padrão 480) |
 | `CpfProtection__Pepper` | Pepper do HMAC do CPF (obrigatório) |
 | `CpfProtection__EncryptionKey` | Chave AES: base64 de exatamente 32 bytes |
+| `ObjectStorage__AccessKey` / `ObjectStorage__SecretKey` | Par de chaves do storage de imagens (obrigatório em **todos** os ambientes, inclusive Development — é credencial de conta, nunca valor de appsettings) |
+| `ObjectStorage__ServiceUrl`, `ObjectStorage__Region`, `ObjectStorage__Bucket`, `ObjectStorage__ForcePathStyle` | Onde ficam as imagens; os valores não-secretos estão no `appsettings.<Ambiente>.json` e estas variáveis só servem para apontar para outro storage |
+| `ObjectStorage__PresignedReadMinutes` (1-60), `ObjectStorage__PresignedUploadMinutes` (1-15) | Validade das URLs pré-assinadas |
+| `ObjectStorage__MaxUploadBytes` (>0), `ObjectStorage__AllowedMimeTypes` | Limite de tamanho e tipos aceitos |
+| `ObjectStorage__PendingTtlMinutes` (1-1440), `ObjectStorage__CleanupIntervalMinutes` (1-60) | Prazo do job que remove envio abandonado (FR-018) |
 
-A API **recusa subir** com configuração incompleta. Nunca versione segredos reais; em produção use chaves aleatórias.
+A API **recusa subir** com configuração incompleta — inclusive sem as chaves do storage (FR-020): a
+mensagem diz qual variável falta e nunca mostra valor nenhum. Nunca versione segredos reais; em
+produção use chaves aleatórias.
+
+### Storage de imagens (feature 004)
+
+As imagens vão para um storage compatível com S3, privado, e o binário **não passa pela API** no
+caminho do cliente: `POST /images/uploads` devolve uma URL pré-assinada de `PUT`, o navegador sobe
+direto no bucket, e `POST /images/uploads/{id}/confirm` confere tamanho, tipo pelo conteúdo e SHA-256
+antes de aprovar. Os três ambientes usam DigitalOcean Spaces (não há container de storage no compose —
+ver [`deploy/README.md`](../deploy/README.md)).
+
+Em Development, exporte as chaves antes de rodar:
+
+```powershell
+$env:ObjectStorage__AccessKey = '<spaces access key>'
+$env:ObjectStorage__SecretKey = '<spaces secret key>'
+```
+
+O `AWSSDK.S3` e o `SixLabors.ImageSharp` ficam restritos ao `Ambrosia.Infra`, atrás de
+`IObjectStorageAppService` e `IImageProcessingAppService`, e o primeiro `BackgroundService` do projeto
+(`PendingImageCleanupService`, na `Ambrosia.Application`) roda a limpeza. O ImageSharp 3.2.0 exige
+licença da Six Labors no build **Release** (em `Debug` é só aviso): veja a seção de licença em
+[`deploy/README.md`](../deploy/README.md).
 
 ## Comandos
 
