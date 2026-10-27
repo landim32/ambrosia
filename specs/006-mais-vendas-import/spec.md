@@ -222,7 +222,7 @@ A importação continua no servidor mesmo que a vendedora feche a aba. Ao voltar
 
 - **FR-021**: Um pedido importado DEVE ser identificado pela chave natural (vendedora, número do pedido, data do pedido, tipo), a mesma unicidade já vigente no Ambrosia.
 - **FR-022**: O sistema DEVE detectar mudanças por uma impressão digital do conteúdo normalizado do pedido (campos do pedido, identificação protegida do cliente e itens em ordem fixa), que NÃO inclui a data da captura nem a imagem gravada.
-- **FR-023**: Na gravação, pedido inexistente DEVE ser inserido; pedido existente com o mesmo conteúdo DEVE ter apenas a data da última captura atualizada e contar como "inalterado"; pedido existente com conteúdo diferente DEVE ser atualizado, com os itens substituídos pelos da origem, registrando a data da mudança e a lista de campos alterados, e contar como "atualizado". Em pedidos de origem "+Vendas", a origem prevalece sobre edições manuais feitas no Ambrosia nos campos vindos da origem (inclusive os itens); os campos que só existem no Ambrosia são preservados. A comparação é feita entre o conteúdo da origem e o conteúdo atualmente gravado, de modo que uma edição manual nesses campos é revertida na reimportação seguinte.
+- **FR-023**: Na gravação, pedido inexistente DEVE ser inserido; pedido existente com o mesmo conteúdo DEVE ter apenas a data da última captura atualizada e contar como "inalterado"; pedido existente com conteúdo diferente DEVE ser atualizado, com os itens substituídos pelos da origem, registrando a data da mudança e a lista de campos alterados, e contar como "atualizado". Em pedidos de origem "+Vendas", a origem prevalece sobre edições manuais feitas no Ambrosia nos campos vindos da origem (inclusive os itens); os campos que só existem no Ambrosia são preservados. Uma edição manual, no Ambrosia, de um pedido de origem "+Vendas" invalida a impressão digital gravada. Na reimportação seguinte, o pedido volta a receber os valores da origem e conta como "atualizado", com a lista de campos alterados comparada com o conteúdo gravado.
 - **FR-024**: Repetir a mesma importação sem mudança na origem NÃO DEVE criar nem alterar nenhum pedido, item, cliente ou imagem; todos os pedidos contam como "inalterados".
 - **FR-025**: Repetir um bloco que falhou DEVE completar a importação sem duplicar nada, com resultado final idêntico ao de uma execução sem falha.
 - **FR-026**: O relatório de uma execução com bloco falho DEVE oferecer "Repetir este bloco", que abre a tela com as datas do bloco preenchidas e exige login e senha de novo.
@@ -249,14 +249,14 @@ A importação continua no servidor mesmo que a vendedora feche a aba. Ao voltar
 - **FR-038**: A mesma foto em vários pedidos DEVE ser gravada uma única vez.
 - **FR-039**: Falha ao baixar uma foto, tipo fora dos aceitos pelo storage ou tamanho acima do limite NÃO DEVEM falhar o bloco: o pedido e o item são gravados, o item fica sem imagem, e a foto é listada no relatório como "imagem com erro"; uma nova importação tenta de novo.
 - **FR-040**: O sistema NÃO DEVE baixar nem gravar de novo a foto de um item que já tem imagem ligada e cuja URL de origem não mudou.
-- **FR-041**: Fotos gravadas antes da falha do pedido correspondente DEVEM ser reaproveitadas pela deduplicação na repetição do bloco, sem novo download ou upload.
+- **FR-041**: Fotos gravadas antes da falha do pedido correspondente DEVEM ser reaproveitadas pela deduplicação por conteúdo na repetição do bloco: a foto pode ser baixada de novo, mas NÃO DEVE gerar novo objeto no storage nem nova imagem.
 
 **Segurança da coleta**
 
 - **FR-042**: A coleta DEVE ser somente leitura na origem: NUNCA acionar ações que criem, alterem ou excluam dados (ex.: "Novo carrinho", "Sair") e NUNCA acessar rotas ou acionar elementos fora de uma lista explícita de permitidos; o menu BOX não é seguido.
 - **FR-043**: A coleta DEVE respeitar o ritmo máximo de 1 a 2 requisições por segundo à origem, com pausas aleatórias; o download de fotos conta no mesmo limite.
 - **FR-044**: A coleta DEVE usar uma sessão nova por execução, sem reaproveitar sessão ou cookies entre execuções e sem persistir a sessão em disco; a sessão é encerrada ao fim da execução.
-- **FR-045**: Erros transitórios da origem DEVEM ser tratados com novas tentativas e espera crescente; o bloco é abortado após 3 falhas consecutivas.
+- **FR-045**: Erros transitórios da origem DEVEM ser tratados com novas tentativas e espera crescente; o bloco é abortado após 3 falhas consecutivas. Falhas no download de fotos seguem a FR-039 e não abortam o bloco.
 - **FR-046**: Login da origem que exija segundo fator ou captcha DEVE encerrar a execução como "falhou", com mensagem clara, sem gravar nada.
 
 **Relatório, histórico e registro**

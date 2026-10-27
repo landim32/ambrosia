@@ -24,7 +24,7 @@ Cada seção fecha uma decisão técnica do plano. Nenhum "NEEDS CLARIFICATION" 
 - **Decisão**: o Domain só conhece a abstração `IMaisVendasCollectorAppService` (Infra.Interfaces). A Infra tem **duas** implementações, escolhidas por `MaisVendas:Collector`:
   - `PlaywrightMaisVendasCollectorAppService` (`Playwright`) — produção e uso real em Development;
   - `FakeMaisVendasCollectorAppService` (`Fake`) — **Homolog**, determinística, sem rede, guiada pelo login e pela senha:
-    - login no formato `conta+cenario` (ex.: `s482+ok`). A parte antes do `+` é o **identificador da conta** (vira o hash do vínculo, FR-008b); o sufixo escolhe o cenário: `ok`, `vazio`, `falha-bloco3` (falha no 15º pedido do 3º bloco), `contador-divergente`, `total-divergente`, `foto-erro`, `foto-gif`, `cpf-invalido`, `sem-ano`, `2fa` (login exige etapa não suportada), `instavel` (erro transitório que o retry supera);
+    - login no formato `conta+cenario` (ex.: `s482+ok`). A parte antes do `+` é o **identificador da conta** (vira o hash do vínculo, FR-008b); o sufixo escolhe o cenário: `ok`, `vazio`, `falha-bloco3` (falha de gravação do 15º pedido do 3º bloco), `contador-divergente`, `total-divergente`, `foto-erro`, `foto-gif`, `cpf-invalido`, `sem-ano`, `2fa` (login exige etapa não suportada), `instavel` (erro transitório que o retry supera);
     - senha `recusada` → credenciais recusadas; qualquer outra senha é a **versão do conteúdo** (`v1`, `v2`…): com `v2` o fake altera valor/status de alguns pedidos e o nome de um cliente, para provar "atualizado", "campos alterados" e "nome atualizado" (US3/US5);
     - fotos vêm de bytes embutidos (JPEG/PNG/WebP pequenos, os mesmos fixtures de `Ambrosia.ApiTests/Fixtures/Images`), com uma URL por SKU para provar a deduplicação; `foto-erro` falha a URL de um item; `foto-gif` devolve `image/gif`;
     - o atraso entre pedidos é `MaisVendas:Fake:DelayMs` (padrão 50 ms) para a suíte terminar em minutos.
@@ -55,6 +55,7 @@ Cada seção fecha uma decisão técnica do plano. Nenhum "NEEDS CLARIFICATION" 
   - inexistente → insere com `source = mais_vendas`, `source_hash`, `captured_at = source_changed_at = now` → **inserido**;
   - existe com `source = manual` → não toca; registra **conflito** (FR-028);
   - existe com o mesmo hash → só `captured_at` → **inalterado**;
+  - existe com `source_hash` nulo (pedido `maisVendas` editado à mão; o `OrderService` zera o hash na edição) → tratado como hash diferente → **atualizado**;
   - existe com hash diferente → aplica campos da origem (inclusive os itens, substituídos), `source_changed_at = now`, lista de campos alterados (comparação campo a campo + `items`) → **atualizado** (FR-023, clarificação 2). Os campos que só existem no Ambrosia (`created_at`, `customer_id` do mesmo CPF, ligações de imagem de itens que mantiveram `image_url`) são preservados.
 - **Alternativas consideradas**: comparar campo a campo sem hash — mais consultas e sem rastro compacto; guardar o payload bruto — contém CPF e foi excluído do escopo.
 
@@ -94,7 +95,7 @@ Cada seção fecha uma decisão técnica do plano. Nenhum "NEEDS CLARIFICATION" 
 ## §12. Fotos dos itens
 
 - **Decisão**: no coletor Playwright, a foto é baixada por `context.APIRequest.GetAsync(url)` (mesmos cookies da sessão, FR-037/edge case), com `Content-Length` conferido antes e leitura limitada a `ObjectStorage:MaxUploadBytes`; o `Content-Type` da resposta é o `mimeType` passado a `IImageService.StoreFromServerAsync(userId, stream, mimeType, ImageSource.Bot)`, que já recusa tipo fora de `AllowedMimeTypes` (`ImageRejectedException`) e deduplica por SHA-256 por usuário (FR-037/FR-038). O item recebe `image_id`; `image_url` continua com a URL de origem.
-  - Pular download quando o item já gravado tem `image_id` e a mesma `image_url` (FR-040). Falha de download, tipo recusado ou tamanho excedido → item sem imagem, contagem `images_failed`, pedido gravado (FR-039). A foto é gravada **antes** do pedido; se o pedido falhar, a dedup reaproveita na repetição (FR-041).
+  - Pular download quando o item já gravado tem `image_id` e a mesma `image_url` (FR-040). Falha de download, tipo recusado ou tamanho excedido → item sem imagem, contagem `images_failed`, pedido gravado (FR-039). A foto é gravada **antes** do pedido; se o pedido falhar, na repetição a foto é baixada de novo e a dedup por SHA-256 devolve a imagem existente, sem novo objeto (FR-041).
   - Em **simulação** nada é baixado nem gravado: `images_stored` conta URLs distintas ainda não ligadas a um item com a mesma URL (FR-032).
 - **Alternativas consideradas**: baixar com `HttpClient` separado — perderia a sessão quando a URL exige cookies.
 
