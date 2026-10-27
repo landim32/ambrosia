@@ -27,7 +27,7 @@ public class ImageInfo
     [JsonPropertyName("sha256")]
     public string Sha256 { get; set; } = string.Empty;
 
-    /// <summary>Largura em pixels; <c>null</c> enquanto pendente ou se o cabeçalho não permitiu ler.</summary>
+    /// <summary>Largura em pixels; <c>null</c> quando desconhecida (o servidor não lê as dimensões).</summary>
     [JsonPropertyName("width")]
     public int? Width { get; set; }
 

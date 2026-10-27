@@ -16,6 +16,6 @@ OBJECT_STORAGE_BUCKET=ambrosio
 OBJECT_STORAGE_PUBLIC_ORIGIN=https://ambrosio.nyc3.digitaloceanspaces.com
 ```
 
-Sem as duas chaves a API recusa subir. Bucket, regra CORS e licença do ImageSharp estão explicados em
+Sem as duas chaves a API recusa subir. Bucket e regra CORS estão explicados em
 [`deploy/README.md`](deploy/README.md); o guia ponta a ponta é o
 [`quickstart.md`](specs/004-s3-image-storage/quickstart.md).

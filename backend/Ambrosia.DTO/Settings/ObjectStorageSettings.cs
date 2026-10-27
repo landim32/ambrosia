@@ -61,7 +61,7 @@ public class ObjectStorageSettings
     /// <summary>
     /// Tipos aceitos (FR-005). Vazia por padrão no objeto — quem preenche é o appsettings, para que
     /// a recusa de um tipo não suportado seja decisão de configuração, não de código. Só podem
-    /// entrar tipos que o processador reconhece (research §12).
+    /// entrar tipos com extensão mapeada na chave do objeto (research §12).
     /// </summary>
     public List<string> AllowedMimeTypes { get; set; } = [];
 

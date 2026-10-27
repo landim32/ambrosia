@@ -6,7 +6,7 @@ namespace Ambrosia.Domain.Interfaces;
 /// <summary>
 /// Regras de vida da imagem (feature 004): declarar envio, confirmar o binário que chegou ao
 /// storage, gravar pelo servidor, consultar, excluir e limpar abandonos. As regras ficam aqui; o
-/// contato com AWS SDK e ImageSharp fica atrás das abstrações da Infra (plan.md, Project Structure).
+/// contato com o AWS SDK fica atrás das abstrações da Infra (plan.md, Project Structure).
 /// <para>
 /// Todo método recebe <c>userId</c> extraído do claim <c>sub</c> pelo controller: nenhuma entrada
 /// transporta o dono, e recurso de outro usuário é <c>NotFoundException</c> — nunca uma resposta que
@@ -24,17 +24,18 @@ public interface IImageService
     Task<(ImageUploadResult Result, bool Created)> RequestUploadAsync(long userId, ImageUploadInsertInfo info);
 
     /// <summary>
-    /// Conferência obrigatória do que chegou ao storage: tamanho, tipo real e SHA-256 (FR-006, FR-007).
+    /// Conferência obrigatória do que chegou ao storage: tamanho e SHA-256 (FR-006, FR-007).
     /// Aprova para <c>available</c> ou recusa apagando o objeto.
     /// </summary>
     Task<ImageInfo> ConfirmUploadAsync(long userId, long imageId);
 
     /// <summary>
-    /// Gravação pelo próprio servidor (FR-008 a FR-010): valida pelo conteúdo, remove os metadados de
-    /// privacidade, re-codifica, calcula o hash do resultado e aplica a deduplicação.
+    /// Gravação pelo próprio servidor (FR-008, FR-009): confere tamanho e tipo informado, calcula o
+    /// hash do conteúdo e aplica a deduplicação. O binário é gravado como chegou.
     /// </summary>
+    /// <param name="mimeType">Tipo informado pelo cliente; precisa estar entre os aceitos.</param>
     /// <returns>A imagem (nova ou existente) e <c>true</c> quando o registro foi criado agora.</returns>
-    Task<(ImageInfo Image, bool Created)> StoreFromServerAsync(long userId, Stream content, ImageSource source);
+    Task<(ImageInfo Image, bool Created)> StoreFromServerAsync(long userId, Stream content, string mimeType, ImageSource source);
 
     /// <summary>Consulta uma imagem do usuário, com URL de leitura nova quando disponível (FR-012, FR-015).</summary>
     Task<ImageInfo> GetByIdAsync(long userId, long imageId);

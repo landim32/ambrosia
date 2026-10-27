@@ -162,8 +162,8 @@ public class ImagesController : ApiControllerBase
     }
 
     /// <summary>
-    /// Grava uma imagem passando pelo servidor (FR-008 a FR-010): o arquivo é validado pelo conteúdo,
-    /// tem a orientação corrigida, perde EXIF/IPTC/XMP e é re-codificado antes de subir. É o caminho de
+    /// Grava uma imagem passando pelo servidor (FR-008, FR-009): o tipo informado no multipart tem de
+    /// estar entre os aceitos e o tamanho dentro do limite; o binário sobe como chegou. É o caminho de
     /// quem não pode fazer um <c>PUT</c> direto ao storage (foto baixada de uma conversa).
     /// </summary>
     /// <param name="file">Arquivo no campo <c>file</c> do multipart.</param>
@@ -207,7 +207,7 @@ public class ImagesController : ApiControllerBase
             await using var stream = file.OpenReadStream();
 
             var (image, created) = await _imageService.StoreFromServerAsync(
-                User.GetUserId(), stream, ImageSource.Server);
+                User.GetUserId(), stream, file.ContentType ?? string.Empty, ImageSource.Server);
 
             return created
                 ? StatusCode(StatusCodes.Status201Created, image)

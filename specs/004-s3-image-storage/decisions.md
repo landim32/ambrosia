@@ -238,6 +238,27 @@ e nenhum método de `ImagesController` a alcança. Há teste que cobre a ausênc
 (`DeleteAllForUser_ShouldNotBeReachableByAnyRoute` varre os caminhos do documento OpenAPI), rodando quando
 o ambiente estiver de pé.
 
+## remoção do ImageSharp (2026-10-27)
+
+Decisão do usuário: o `SixLabors.ImageSharp` saiu do projeto **sem substituto**. O 3.2.0 exige licença
+da Six Labors no build `Release`, o que travava o `docker compose build`. Consequências:
+
+- **Sem detecção de tipo pelo conteúdo** (FR-005/FR-006 na parte "tipo real"): no envio direto, o tipo
+  fica garantido pela declaração (só tipos aceitos) e pelo `Content-Type` assinado na URL de `PUT`; o
+  storage recusa outro tipo. Um arquivo que não é imagem, mas enviado como `image/jpeg`, **passa**. Na
+  gravação pelo servidor vale o `Content-Type` do multipart, conferido contra `AllowedMimeTypes`.
+- **Sem dimensões**: `width`/`height` ficam sempre `null` (o contrato já os permitia nulos).
+- **Sem sanitização** (FR-010 retirado): EXIF/GPS, IPTC e XMP permanecem nos arquivos gravados pelo
+  servidor, e não há re-codificação contra arquivos "poliglotas". O binário é gravado como chegou.
+- Removidos: `IImageProcessingAppService`, `ImageProcessingAppService`, `ImageInspection`,
+  `ProcessedImage`, `backend/Directory.Build.props` e o fixture `fake.jpg`; os testes de API
+  `Confirm_FakeJpeg_ShouldReturn400ByType` e o de remoção de EXIF deixaram de existir.
+- `Program.ValidateSettings` deixou de rodar no design time do EF: o `dotnet ef migrations bundle` do
+  Dockerfile monta o host sem as chaves do storage e era recusado (o erro ficava escondido atrás do
+  da licença).
+
+As seções "tasks · licença ImageSharp" e os desvios 4, 5 e 9 abaixo ficam como histórico.
+
 ## desvios aceitos e mudanças de escopo (T068)
 
 Além dos dois já registrados no Complexity Tracking do plan.md (pré-assinatura a cada resposta; EXIF

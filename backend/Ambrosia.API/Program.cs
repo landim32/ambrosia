@@ -29,7 +29,12 @@ var settings = new AmbrosiaSettings
 
 // Falha no startup em vez de rodar com chave vazia: CPFs cifrados com chave errada são
 // irrecuperáveis e tokens assinados por segredo fraco não dão autenticidade (research §16).
-ValidateSettings(settings);
+// No design time do EF (ex.: `dotnet ef migrations bundle` no docker build) o host só é montado para
+// obter o DbContext, sem os segredos de runtime — a validação vale para a API rodando.
+if (!Microsoft.EntityFrameworkCore.EF.IsDesignTime)
+{
+    ValidateSettings(settings);
+}
 
 // ---------------------------------------------------------------------------
 // DI do backend (composition root na camada Application — skill dotnet-architecture).
@@ -307,8 +312,7 @@ static void ValidateObjectStorage(Ambrosia.DTO.Settings.ObjectStorageSettings st
         errors.Add("ObjectStorage__MaxUploadBytes deve ser maior que zero.");
     }
 
-    // Só se aceita tipo que o processador reconhece (research §12): listar outro mime abriria uma
-    // porta de entrada que a sanitização não fecha.
+    // Só se aceita tipo que tem extensão mapeada na chave do objeto (StoredImage.BuildStorageKey).
     string[] supportedMimeTypes = ["image/jpeg", "image/png", "image/webp"];
 
     if (storage.AllowedMimeTypes.Count == 0)

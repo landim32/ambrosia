@@ -76,15 +76,15 @@ public class StoredImage
         };
 
     /// <summary>
-    /// Imagem gravada e validada pelo próprio servidor (FR-008 a FR-010): nasce direto em
-    /// <c>available</c>, porque o conteúdo já foi decodificado, sanitizado e medido antes de subir.
+    /// Imagem gravada e validada pelo próprio servidor (FR-008, FR-009): nasce direto em
+    /// <c>available</c>, porque tamanho, tipo e hash já foram conferidos antes de subir.
     /// </summary>
     /// <param name="userId">Dono, do claim <c>sub</c>.</param>
-    /// <param name="sha256">Hash do conteúdo <b>final</b> (já sanitizado), em hex minúsculo.</param>
-    /// <param name="mimeType">Tipo detectado pelo conteúdo.</param>
-    /// <param name="sizeBytes">Tamanho do conteúdo final.</param>
-    /// <param name="width">Largura após a correção de orientação.</param>
-    /// <param name="height">Altura após a correção de orientação.</param>
+    /// <param name="sha256">Hash do conteúdo, em hex minúsculo.</param>
+    /// <param name="mimeType">Tipo informado, já conferido contra os aceitos.</param>
+    /// <param name="sizeBytes">Tamanho do conteúdo.</param>
+    /// <param name="width">Largura em pixels, quando conhecida.</param>
+    /// <param name="height">Altura em pixels, quando conhecida.</param>
     /// <param name="source">Origem do binário.</param>
     /// <param name="now">Instante UTC de <see cref="Interfaces.IClock"/>.</param>
     public static StoredImage CreateAvailable(
