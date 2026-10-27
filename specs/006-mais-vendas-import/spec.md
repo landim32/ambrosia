@@ -16,6 +16,15 @@ Esta feature entrega uma **tela de importação** no Ambrosia: a vendedora infor
 
 A feature reaproveita o modelo e a proteção do CPF da feature 001, o frontend e a sessão da 002, a autenticação por e-mail e senha da 003 e o storage de imagens da 004 (`004-s3-image-storage`). A análise do +Vendas (doc 01), o modelo de dados (doc 02) e as regras de segurança da coleta (doc 03) continuam valendo; o que muda em relação à versão anterior da HU é que a importação deixa de ser um processo agendado com credenciais em arquivo e passa a ser **disparada pela própria vendedora**, a cada vez, com credenciais informadas na hora.
 
+## Clarifications
+
+### Session 2026-10-27
+
+- Q: Quando uma execução termina como "parcial" em vez de "concluída" ou "falhou"? → A: Quando todos os blocos terminaram sem falha, mas houve pelo menos um pedido "com erro", um conflito com pedido manual ou uma imagem com erro; "falhou" fica reservado para bloco falho, credenciais recusadas, login não suportado ou interrupção.
+- Q: O que acontece com a edição manual feita no Ambrosia de um pedido importado quando a origem muda e o período é reimportado? → A: A origem prevalece: os campos vindos do +Vendas são sobrescritos (o pedido conta como "atualizado", com a lista de campos alterados) e os campos que só existem no Ambrosia são preservados.
+- Q: O Ambrosia deve limitar tentativas seguidas com credenciais recusadas pelo +Vendas? → A: Sim; após 3 recusas seguidas da mesma vendedora, novos inícios ficam bloqueados por 15 minutos com mensagem clara; a contagem zera após um login aceito.
+- Q: O que fazer se a vendedora importar com uma conta do +Vendas diferente da usada antes? → A: Bloquear: na primeira importação com gravação, guarda-se só um hash com pepper do identificador da conta na origem; uma conta diferente depois faz a execução falhar antes de gravar, com mensagem clara.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Importar um período do +Vendas informando as credenciais na hora (Priority: P1)
@@ -54,7 +63,8 @@ A vendedora informa login e senha do +Vendas a cada execução. O Ambrosia usa a
 1. **Given** uma importação concluída, **When** se procura o login e a senha usados em todas as tabelas do banco, nos logs do servidor, nos arquivos do servidor e no storage de imagens, **Then** não há nenhuma ocorrência.
 2. **Given** qualquer endpoint de importação (iniciar, consultar execução atual, consultar relatório, listar histórico, cancelar), **When** ele responde, **Then** a resposta nunca contém o login ou a senha, inclusive em mensagens de erro de validação.
 3. **Given** a tela de importação em uso, **When** se inspeciona o armazenamento do navegador (local, de sessão e cookies), **Then** a senha não está em nenhum deles, o campo de senha não oferece preenchimento automático pelo app e é limpo assim que a execução é iniciada.
-4. **Given** uma execução que terminou (com sucesso, falha ou cancelamento) ou um servidor que reiniciou no meio, **When** se examina o que ficou guardado da execução, **Then** só existem o período, o modo, o status, os blocos, as contagens e as mensagens de erro, sem credenciais.
+4. **Given** uma execução que terminou (com sucesso, falha ou cancelamento) ou um servidor que reiniciou no meio, **When** se examina o que ficou guardado da execução, **Then** só existem o período, o modo, o status, os blocos, as contagens e as mensagens de erro, sem credenciais; da conta do +Vendas, guarda-se apenas o hash com pepper do identificador usado no vínculo.
+6. **Given** uma vendedora já vinculada a uma conta do +Vendas, **When** ela inicia uma importação com as credenciais de outra conta, **Then** a execução termina como "falhou" com o motivo "conta do +Vendas diferente da vinculada" e nada é gravado.
 5. **Given** um erro de validação na requisição de início, **When** o servidor registra o erro, **Then** o registro não contém o corpo da requisição.
 
 ---
@@ -76,7 +86,8 @@ Uma importação pode falhar no meio de um bloco (erro da origem, divergência d
 5. **Given** um pedido já importado cujo valor ou status mudou na origem, **When** o período é importado de novo, **Then** o pedido é atualizado, aparece no relatório como "atualizado" e o relatório lista os campos que mudaram.
 6. **Given** um bloco cujo contador de pedidos exibido pela origem não bate com as linhas lidas, ou cujo total exibido não bate com a soma dos pedidos lidos, **When** a coleta do bloco termina, **Then** o bloco falha **antes** de gravar qualquer pedido dele, e a execução para.
 7. **Given** um pedido que existia na origem numa importação anterior e sumiu dentro do período numa nova importação, **When** o bloco que o contém termina sem falha, **Then** o pedido **não** é apagado e aparece no relatório como "não encontrado nesta execução"; pedidos de blocos que falharam não entram nessa conta.
-8. **Given** um pedido cadastrado manualmente no Ambrosia com a mesma chave natural de um pedido do +Vendas, **When** o período é importado, **Then** o pedido manual não é sobrescrito e o relatório mostra um conflito para aquele pedido.
+8. **Given** um pedido importado do +Vendas cujo valor a vendedora editou à mão no Ambrosia, **When** o período é importado de novo, **Then** o valor volta a ser o da origem, o pedido aparece como "atualizado" com o campo alterado listado, e os campos que só existem no Ambrosia continuam intactos.
+9. **Given** um pedido cadastrado manualmente no Ambrosia com a mesma chave natural de um pedido do +Vendas, **When** o período é importado, **Then** o pedido manual não é sobrescrito e o relatório mostra um conflito para aquele pedido.
 
 ---
 
@@ -165,6 +176,7 @@ A importação continua no servidor mesmo que a vendedora feche a aba. Ao voltar
 - **Pedido sem CPF ou com CPF inválido na origem**: o pedido é reportado como "com erro" naquele bloco e os demais pedidos do bloco seguem; a execução não para por isso.
 - **Devolução** (tipo ainda não inspecionado em detalhe na origem): tratada como pedido de tipo "devolução" com valor negativo; a primeira execução recomendada é em modo simulação.
 - **Origem instável** ("Erro ao carregar…"): a coleta tenta de novo com espera crescente e aborta o bloco depois de 3 falhas consecutivas, marcando-o como falho.
+- **Credenciais recusadas repetidamente**: na 3ª recusa seguida, a vendedora fica 15 minutos sem poder iniciar nova importação, com mensagem indicando o horário de liberação; isso evita bloquear a conta dela no +Vendas e impede o uso da tela para testar senhas.
 - **Origem com segundo fator ou captcha no login**: a execução falha com mensagem clara indicando que o login exige uma etapa não suportada; nada é gravado.
 - **Servidor com limite global de execuções atingido** (outras vendedoras importando): a nova execução fica aguardando na fila e a tela informa "aguardando" até começar.
 - **Cancelamento pedido durante o último bloco**: o bloco termina normalmente e a execução é marcada como cancelada sem pedidos pendentes.
@@ -185,9 +197,11 @@ A importação continua no servidor mesmo que a vendedora feche a aba. Ao voltar
 **Credenciais**
 
 - **FR-005**: O sistema DEVE usar o login e a senha do +Vendas apenas em memória, durante a execução, e descartá-los ao fim dela (sucesso, falha ou cancelamento).
-- **FR-006**: O sistema NUNCA DEVE gravar o login ou a senha do +Vendas em banco, arquivo, log, relatório, storage, respostas de qualquer endpoint de importação (inclusive mensagens de erro de validação) ou armazenamento do navegador (local, de sessão ou cookies).
+- **FR-006**: O sistema NUNCA DEVE gravar o login ou a senha do +Vendas em banco, arquivo, log, relatório, storage, respostas de qualquer endpoint de importação (inclusive mensagens de erro de validação) ou armazenamento do navegador (local, de sessão ou cookies). A única informação derivada que pode ser guardada é o hash com pepper do identificador da conta (FR-008b), que não permite recuperar o login.
+- **FR-008b**: Na primeira execução em modo gravação com login aceito, o sistema DEVE vincular a vendedora à conta do +Vendas guardando apenas um hash com pepper do identificador da conta na origem (o código da vendedora exibido pelo +Vendas ou, se não houver, o login normalizado). Nas execuções seguintes, inclusive simulações, uma conta cujo hash não bate DEVE encerrar a execução como "falhou", com o motivo "conta do +Vendas diferente da vinculada", antes de gravar qualquer pedido, cliente ou imagem. Desfazer o vínculo fica a cargo do responsável técnico nesta entrega.
 - **FR-007**: A tela DEVE limpar o campo de senha assim que a execução é iniciada e NÃO DEVE oferecer preenchimento automático da senha pelo próprio aplicativo.
 - **FR-008**: Login ou senha recusados pelo +Vendas DEVEM encerrar a execução como "falhou", com o motivo "credenciais recusadas pelo +Vendas", sem gravar nenhum pedido, cliente ou imagem.
+- **FR-008a**: Após 3 execuções seguidas da mesma vendedora terminadas com "credenciais recusadas pelo +Vendas", o sistema DEVE recusar novos inícios por 15 minutos (valores configuráveis), na tela e no servidor, com mensagem que informe quando será possível tentar de novo; a contagem zera quando um login no +Vendas é aceito. O controle não guarda o login nem a senha.
 
 **Execução em blocos**
 
@@ -208,7 +222,7 @@ A importação continua no servidor mesmo que a vendedora feche a aba. Ao voltar
 
 - **FR-021**: Um pedido importado DEVE ser identificado pela chave natural (vendedora, número do pedido, data do pedido, tipo), a mesma unicidade já vigente no Ambrosia.
 - **FR-022**: O sistema DEVE detectar mudanças por uma impressão digital do conteúdo normalizado do pedido (campos do pedido, identificação protegida do cliente e itens em ordem fixa), que NÃO inclui a data da captura nem a imagem gravada.
-- **FR-023**: Na gravação, pedido inexistente DEVE ser inserido; pedido existente com o mesmo conteúdo DEVE ter apenas a data da última captura atualizada e contar como "inalterado"; pedido existente com conteúdo diferente DEVE ser atualizado, com os itens substituídos pelos da origem, registrando a data da mudança e a lista de campos alterados, e contar como "atualizado".
+- **FR-023**: Na gravação, pedido inexistente DEVE ser inserido; pedido existente com o mesmo conteúdo DEVE ter apenas a data da última captura atualizada e contar como "inalterado"; pedido existente com conteúdo diferente DEVE ser atualizado, com os itens substituídos pelos da origem, registrando a data da mudança e a lista de campos alterados, e contar como "atualizado". Em pedidos de origem "+Vendas", a origem prevalece sobre edições manuais feitas no Ambrosia nos campos vindos da origem (inclusive os itens); os campos que só existem no Ambrosia são preservados. A comparação é feita entre o conteúdo da origem e o conteúdo atualmente gravado, de modo que uma edição manual nesses campos é revertida na reimportação seguinte.
 - **FR-024**: Repetir a mesma importação sem mudança na origem NÃO DEVE criar nem alterar nenhum pedido, item, cliente ou imagem; todos os pedidos contam como "inalterados".
 - **FR-025**: Repetir um bloco que falhou DEVE completar a importação sem duplicar nada, com resultado final idêntico ao de uma execução sem falha.
 - **FR-026**: O relatório de uma execução com bloco falho DEVE oferecer "Repetir este bloco", que abre a tela com as datas do bloco preenchidas e exige login e senha de novo.
@@ -247,7 +261,8 @@ A importação continua no servidor mesmo que a vendedora feche a aba. Ao voltar
 
 **Relatório, histórico e registro**
 
-- **FR-047**: Cada execução DEVE ser registrada com identificador, modo (simulação ou gravação), período, tamanho do bloco, início, fim, duração, resultado (em andamento, concluída, falhou, parcial, cancelada), contagens totais (inseridos, atualizados, inalterados, não encontrados, com erro, clientes criados, imagens gravadas, imagens com erro) e mensagem de erro, sem credenciais.
+- **FR-047**: Cada execução DEVE ser registrada com identificador, modo (simulação ou gravação), período, tamanho do bloco, início, fim, duração, resultado (aguardando, em andamento, concluída, falhou, parcial, cancelada), contagens totais (inseridos, atualizados, inalterados, não encontrados, com erro, clientes criados, imagens gravadas, imagens com erro) e mensagem de erro, sem credenciais.
+- **FR-047a**: O resultado final DEVE seguir esta regra: "concluída" quando todos os blocos terminaram sem falha e não houve pedido com erro, conflito com pedido manual nem imagem com erro; "parcial" quando todos os blocos terminaram sem falha, mas houve pelo menos um desses casos; "falhou" quando um bloco falhou, as credenciais foram recusadas, a conta do +Vendas difere da vinculada, o login exigiu etapa não suportada ou a execução foi interrompida; "cancelada" quando a vendedora cancelou.
 - **FR-048**: Cada bloco DEVE ser registrado com número, período, resultado, contagens, mensagem de erro, início e fim; cada pedido inserido, atualizado ou não encontrado DEVE ser registrado com sua chave natural, a ação e, para atualizações, os campos alterados.
 - **FR-049**: O relatório DEVE ser consultável a qualquer momento depois da execução, com contagens por bloco, canal e tipo de pedido, e com links para os pedidos importados.
 - **FR-050**: A vendedora DEVE poder listar suas últimas execuções, paginadas, e abrir o relatório de cada uma; execuções "falhou" ou "parcial" aparecem em destaque na tela.
@@ -258,6 +273,7 @@ A importação continua no servidor mesmo que a vendedora feche a aba. Ao voltar
 ### Key Entities *(include if feature involves data)*
 
 - **Execução de importação**: um pedido da vendedora para importar um período, com modo (simulação ou gravação), período, tamanho de bloco, status (aguardando, em andamento, concluída, falhou, parcial, cancelada), início, fim, contagens totais, mensagem de erro e versão do coletor. Pertence a uma vendedora. Nunca guarda credenciais.
+- **Vínculo com a conta do +Vendas**: um por vendedora, com o hash com pepper do identificador da conta na origem e a data do vínculo; nunca guarda o login nem a senha. Também guarda a contagem de recusas seguidas de credenciais e o horário até o qual novos inícios ficam bloqueados (FR-008a).
 - **Bloco de importação**: uma fatia consecutiva de datas de uma execução, numerada, com status próprio, contagens (inseridos, atualizados, inalterados, não encontrados, com erro, clientes criados, imagens gravadas, imagens com erro), mensagem de erro, início e fim. Pertence a uma execução.
 - **Alteração registrada**: o rastro de cada pedido tocado por uma execução: chave natural do pedido, ação (inserido, atualizado, não encontrado, conflito com manual), campos alterados e, quando gravado, referência ao pedido. Pertence a uma execução e a um bloco; em simulação não aponta para pedido gravado.
 - **Pedido** (já existente): ganha a origem (manual ou +Vendas), a impressão digital do conteúdo normalizado, a data e hora da última captura e a da última mudança de conteúdo; identificado por (vendedora, número, data, tipo). Mantém a relação com cliente e itens.
