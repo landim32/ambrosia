@@ -30,6 +30,12 @@
   --brand-cyan: #19e6fe; /* pingo do "i" e curva do "A" */
   --brand-blue-soft: #5b9bff; /* azul da marca clareado para texto sobre o escuro */
 
+  /* Botão "Entrar com Google": o único destaque quente da interface, para o login social
+     não se confundir com a ação principal (azul). Branco sobre o gradiente: contraste de 4,4:1 a 5,6:1. */
+  --google-warm: #d84315;
+  --google-warm-deep: #bf360c;
+  --google-warm-foreground: #ffffff;
+
   --radius: 0.875rem;
 
   /* 2. Semânticas (shadcn) */
@@ -109,6 +115,9 @@
   --color-brand-soft: var(--brand-soft);
   --color-brand-cyan: var(--brand-cyan);
   --color-brand-navy: var(--brand-navy);
+  --color-google-warm: var(--google-warm);
+  --color-google-warm-deep: var(--google-warm-deep);
+  --color-google-warm-foreground: var(--google-warm-foreground);
   --color-bar: var(--bar);
   --color-bar-border: var(--bar-border);
   --color-chart-1: var(--chart-1);
