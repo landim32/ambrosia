@@ -6,17 +6,27 @@ auth:bearer {
   token: {{token}}
 }
 
+vars:pre-request {
+  baseUrl: http://localhost:8080/api
+  userEmail: homolog@ambrosia.test
+  userName: Homolog
+  customerId: 32
+  orderNumber: 23
+  orderId: 25
+}
+
 docs {
   # Ambrosia API
-
-  Collection de todos os endpoints da API (feature 001), apontada para a homologação
+  
+  Collection de todos os endpoints da API (features 001–003), apontada para a homologação
   (`docker compose` no WSL, gateway em `http://localhost:8080/api`).
-
-  1. Selecione o ambiente **Homolog**.
-  2. Rode **Auth / Dev Login**: o token vai para a variável `token`, usada por todas as
-     requisições (auth herdada da collection).
+  
+  1. Selecione o ambiente **Homolog** e preencha `userPassword` (variável secreta) uma vez.
+  2. Rode **Auth / Criar conta** na primeira execução (201 e o token vai para `token`); nas
+     seguintes ele responde 409 e você roda **Auth / Login com senha**, que grava o `token`
+     usado por todas as requisições (auth herdada da collection).
   3. Rode **Customers / Create Customer** (gera um CPF válido e guarda `customerId`) e depois
      **Orders / Create Sale Order** (guarda `orderId` e `orderNumber`).
-
+  
   Para rodar tudo em sequência: `bru run --env Homolog` dentro desta pasta.
 }

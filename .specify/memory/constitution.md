@@ -1,54 +1,68 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 3.0.0 → 3.1.0 (MINOR)
+Version change: 3.2.0 → 3.3.0 (MINOR)
 
-Bump rationale: new principle VII (environments and API tests): the Development / Homolog /
-Production environments are created with the `dotnet-env` skill, Homolog runs on local Docker
-(docker compose in WSL), and every development cycle ends with the API tests running against
-Homolog.
+Bump rationale: Princípio VI passa a descrever cadastro/login com e-mail e senha ao lado do
+Google e PROÍBE emissão de token sem credencial em qualquer ambiente (o dev-login, antes
+permitido em Development/Homolog, foi removido pela feature 003). Princípio VII esclarece
+que os testes de API criam seus próprios usuários. Novo quality gate correspondente.
 
 Modified principles:
-- I. Skills de Arquitetura Obrigatórias: `dotnet-env` and `dotnet-test-api` added to the
-  mandatory skills table.
+- VI. Autenticação e Segurança: linha "Esquema" reescrita (três rotas públicas devolvendo o
+  mesmo `LoginResult`); regra do dev-login substituída pela proibição de token sem credencial;
+  nova regra de hash de senha e de resposta uniforme em falha de login; rationale ampliado.
+- VII. Ambientes e Testes de API: esclarecimento — os testes de API criam seus próprios
+  usuários por cadastro + login, sem usuário pré-existente nem atalho sem senha.
 
-Added sections: VII. Ambientes e Testes de API
-Quality gates: added "ambientes seguem a skill `dotnet-env`" and "testes de API executados contra
-a homologação ao final do ciclo".
+Added sections: none
+Removed sections: none
+Quality gates: added "nenhuma rota/flag de emissão de token sem credencial; testes de API e
+coleções obtêm o token por cadastro + login".
+Templates/skills afetados: nenhum (`dotnet-test-api` já usa fixture com login real).
+Follow-up: histórias 007/009 (`docs/historias`) mencionavam o dev-login como possível
+bootstrap do bot/MCP — devem usar cadastro + login ou token próprio.
 
-Previous amendment (2.1.0 → 3.0.0, MAJOR). Bump rationale: Bootstrap 5 was removed from the fixed frontend stack and replaced by Tailwind CSS
-+ shadcn/ui (incompatible redefinition of a stack rule; no Bootstrap code exists yet). HotChocolate
-was added to the backend stack for GraphQL, with the `dotnet-graphql` skill made mandatory.
+Previous amendment (3.1.0 → 3.2.0, MINOR): new principle VIII (Estratégia de Testes) defining the
+project's testing policy — backend only through API tests, frontend only through unit tests, with
+Playwright and any browser E2E testing prohibited; matching stack rule added to Principle II. No
+existing principle was removed and no code was affected (no E2E/Playwright existed). Quality gate
+added: "frontend testado apenas com testes unitários (sem Playwright/E2E)".
+
+Previous amendment (3.0.0 → 3.1.0, MINOR): new principle VII (environments and API tests): the
+Development / Homolog / Production environments are created with the `dotnet-env` skill, Homolog
+runs on local Docker (docker compose in WSL), and every development cycle ends with the API tests
+running against Homolog. `dotnet-env` and `dotnet-test-api` added to the mandatory skills table.
+
+Previous amendment (2.1.0 → 3.0.0, MAJOR). Bump rationale: Bootstrap 5 was removed from the fixed
+frontend stack and replaced by Tailwind CSS + shadcn/ui (incompatible redefinition of a stack
+rule; no Bootstrap code exists yet). HotChocolate was added to the backend stack for GraphQL, with
+the `dotnet-graphql` skill made mandatory.
 
 Modified principles (3.0.0):
 - I. Skills de Arquitetura Obrigatórias: `dotnet-graphql` added to the mandatory skills table.
 - II. Stack Tecnológica Fixa: Bootstrap 5.x → Tailwind CSS 4.x + shadcn/ui; HotChocolate 14.x added;
   new rules: GraphQL only via HotChocolate, styling only via Tailwind (no Bootstrap or other CSS
   frameworks).
-
 - VI. Autenticação e Segurança: TODO(AUTH_SCHEME) resolved with the scheme implemented in feature
   001 (proposal specs/001-api-cadastro-clientes-pedidos/constitution-amendment.md, folded into
   this amendment); `/auth/dev-login` allowed in Development and Homolog.
 - Environment variables: `ASPNETCORE_ENVIRONMENT` values renamed to Development / Homolog /
   Production (the Docker environment became Homolog).
-
-Added sections (3.0.0): none
-Removed sections (3.0.0): none
 Quality gates (3.0.0): added "leituras de repositório filtram por `userId`".
 
-Previous amendment (2.0.0 → 2.1.0): local Docker prohibition lifted; `wsl-docker` skill added.
+Previous amendment (2.1.0): local Docker prohibition lifted; `wsl-docker` skill added.
 
-Previous amendment (1.0.0 → 2.0.0): NAuth and zTools removed from the stack; Principle VI
+Previous amendment (2.0.0): NAuth and zTools removed from the stack; Principle VI
 authentication scheme set to TODO(AUTH_SCHEME); nauth-guide and ztools-guide skills deleted.
 
 Follow-up TODOs:
-- Resolved: TODO(AUTH_SCHEME) (Principle VI), in 3.0.0.
 - Casing divergence (deferred by decision): Principle III requires `Contexts/` and `Services/`,
   but the `react-architecture` skill generates `src/contexts/` and `src/services/`. Decide which
   one prevails.
-- Resolved: duplicate skill `.claude/skills/react-arch/` deleted.
+- Verificar se o repositório já contém testes E2E/Playwright no frontend (dependências,
+  configuração, pastas) e removê-los em uma tarefa separada.
 - `{NomeDoProjeto}` is intentionally kept as a convention token (not a template placeholder).
-- Resolved: `dotnet-architecture` and `react-architecture` are installed in `.claude/skills/`.
 -->
 
 # Ambrosia Constitution
@@ -128,6 +142,8 @@ contribuidores.
   permitidos no ambiente local e DEVEM seguir a skill `wsl-docker` (o Docker Engine roda dentro
   do WSL2; não há `docker` no Windows).
 - Variáveis de ambiente do frontend DEVEM usar o prefixo `VITE_`. NÃO usar `REACT_APP_`.
+- NÃO usar Playwright, Cypress, Selenium ou qualquer outra ferramenta de teste E2E/de navegador
+  no frontend (ver Princípio VIII).
 
 **Rationale**: uma stack fixa reduz a carga cognitiva, mantém as skills aplicáveis e evita
 dependências redundantes.
@@ -204,7 +220,7 @@ cascata.
 
 | Aspecto | Padrão |
 |---|---|
-| Esquema | JWT Bearer emitido pela própria API após login OAuth/OIDC (Google): `POST /auth/google` troca o ID token do provedor por um JWT HS256 (`sub` = `user_id`, `email`, `name`; `iss`/`aud` configuráveis; expiração padrão de 8 h) |
+| Esquema | JWT Bearer HS256 emitido pela própria API (`sub` = `user_id`, `email`, `name`; `iss`/`aud` configuráveis; expiração padrão de 8 h), obtido por **uma** das rotas públicas: `POST /auth/register` (cadastro com nome, e-mail e senha — já devolve a sessão), `POST /auth/login` (e-mail e senha) ou `POST /auth/google` (troca do ID token do Google). As três devolvem o mesmo `LoginResult`. |
 | Storage (frontend) | localStorage, chave `"login-with-metamask:auth"` |
 | Proteção de rotas | Atributo `[Authorize]` nos controllers |
 
@@ -225,11 +241,20 @@ cascata.
 - Senhas e hashes de senha NUNCA são mapeados para DTO. Dados pessoais sensíveis (ex.: CPF) DEVEM
   ser gravados como hash com pepper (unicidade) e cifra autenticada (recuperação), exibidos
   mascarados em listagens.
-- `POST /auth/dev-login` (token sem provedor) é permitido SOMENTE em Development e Homolog: em
-  Production responde 404 e é omitido do Swagger.
+- É PROIBIDA qualquer rota, flag de build ou atalho que emita token sem credencial
+  (ex.: o antigo `POST /auth/dev-login`), em QUALQUER ambiente, inclusive Development e
+  Homolog. Testes de API, coleções HTTP e quickstarts DEVEM obter o token por
+  `POST /auth/register` + `POST /auth/login` com usuários criados pela própria execução.
+- Senhas DEVEM ser armazenadas apenas como hash com salt aleatório por senha, com algoritmo
+  de derivação lenta (PBKDF2-HMAC-SHA256 ≥ 600.000 iterações ou mais forte), nunca em texto
+  puro, em log ou em DTO. Falhas de login (e-mail inexistente, senha incorreta, conta sem
+  senha) DEVEM responder a MESMA mensagem genérica e status, em tempo equivalente.
 
 **Rationale**: regras explícitas de armazenamento e proteção impedem vazamento de credenciais
-e endpoints desprotegidos, independentemente do esquema de autenticação adotado.
+e endpoints desprotegidos, independentemente do esquema de autenticação adotado. O acesso sem
+senha, mesmo restrito a ambientes internos, é uma porta aberta em bancos com dados reais de
+homologação; o cadastro + login por senha cobre o mesmo uso (testes, Bruno, desenvolvimento
+local) sem o risco.
 
 ### VII. Ambientes e Testes de API
 
@@ -246,7 +271,9 @@ Os três ambientes DEVEM ser criados e mantidos com a skill `dotnet-env`:
 - Ao final de cada ciclo de desenvolvimento (feature, história ou correção que altere a API), a
   homologação DEVE ser reconstruída com o código do ciclo e os testes de API
   (`{NomeDoProjeto}.ApiTests`) DEVEM ser executados contra ela
-  (`ApiBaseUrl=http://localhost:8080/api`). O ciclo só termina com todos os testes passando.
+  (`ApiBaseUrl=http://localhost:8080/api`), **criando seus próprios usuários pelo cadastro e
+  login com senha** (sem usuário pré-existente nem atalho sem senha). O ciclo só termina com
+  todos os testes passando.
 - Endpoints novos ou alterados DEVEM ganhar ou atualizar testes de API, criados com a skill
   `dotnet-test-api`, no mesmo ciclo.
 - Falhas nos testes de API DEVEM ser corrigidas no código, não contornadas removendo ou
@@ -255,6 +282,27 @@ Os três ambientes DEVEM ser criados e mantidos com a skill `dotnet-env`:
 **Rationale**: a homologação reproduz a topologia de produção (gateway, prefixo `/api`, proxy
 reverso, banco em container). Testar a API ali ao fim de cada ciclo pega problemas de
 configuração e integração que os testes de unidade não veem.
+
+### VIII. Estratégia de Testes
+
+| Camada | Tipo de teste permitido | Ferramentas |
+|---|---|---|
+| Backend | Somente testes de API (Princípio VII) | xUnit + Flurl.Http + FluentAssertions (skill `dotnet-test-api`) |
+| Frontend | Somente testes unitários | Runner unitário compatível com Vite (ex.: Vitest) + Testing Library |
+
+- O frontend DEVE ser testado apenas com testes unitários (componentes, hooks, services e
+  utilitários isolados, com dependências externas simuladas).
+- Playwright, Cypress, Selenium e qualquer outro teste E2E ou de automação de navegador no
+  frontend são PROIBIDOS. NÃO adicionar suas dependências, configurações, pastas ou etapas de
+  pipeline.
+- O backend NÃO DEVE ter testes de unidade ou de integração paralelos aos testes de API; a
+  cobertura do backend vem dos testes de API executados contra a homologação.
+- Fluxos de ponta a ponta são cobertos indiretamente: a API pelos testes de API e a interface
+  pelos testes unitários do frontend.
+
+**Rationale**: testes E2E de navegador são lentos, frágeis e caros de manter. Testes de API
+validam o contrato e a integração real do backend, e testes unitários dão feedback rápido no
+frontend sem dependência de navegador ou ambiente.
 
 ## Restrições Adicionais
 
@@ -298,9 +346,12 @@ Antes de submeter qualquer código, o contribuidor DEVE verificar:
 - [ ] Variáveis de ambiente do frontend usam o prefixo `VITE_`.
 - [ ] Controllers com dados sensíveis possuem `[Authorize]`.
 - [ ] Leituras de repositório filtram por `userId`.
+- [ ] Nenhuma rota/flag de emissão de token sem credencial foi adicionada; testes de API e
+      coleções obtêm o token por cadastro + login.
 - [ ] Comandos Docker locais seguiram a skill `wsl-docker`.
 - [ ] Ambientes Dev, Homolog e Prod seguem a skill `dotnet-env`.
 - [ ] Ao final do ciclo, a homologação foi reconstruída e os testes de API passaram contra ela.
+- [ ] O frontend foi testado apenas com testes unitários (sem Playwright nem E2E).
 
 Code reviews DEVEM recusar alterações que não cumpram este checklist.
 
@@ -321,4 +372,4 @@ Code reviews DEVEM recusar alterações que não cumpram este checklist.
 - Para orientação detalhada de implementação, use as skills `dotnet-architecture`,
   `react-architecture`, `dotnet-graphql`, `wsl-docker`, `dotnet-env` e `dotnet-test-api`.
 
-**Version**: 3.1.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-26
+**Version**: 3.3.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-26

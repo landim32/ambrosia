@@ -66,6 +66,21 @@ public abstract class ApiControllerBase : ControllerBase
     }
 
     /// <summary>
+    /// HTTP 401 (FR-008): credencial recusada no login com e-mail e senha. A mensagem vem
+    /// pronta na exceção e é sempre a mesma — nunca revela se o e-mail existe, se a senha está
+    /// errada ou se a conta não tem senha. <c>erros</c> vazio: não é falha de formato de campo.
+    /// </summary>
+    protected IActionResult InvalidCredentialsError(InvalidCredentialsException ex)
+    {
+        return Unauthorized(new ErrorResult
+        {
+            Sucesso = false,
+            Mensagem = ex.Message,
+            Erros = []
+        });
+    }
+
+    /// <summary>
     /// HTTP 400 no formato <see cref="ErrorResult"/> para falhas de binding/desserialização.
     /// Necessário porque <c>SuppressModelStateInvalidFilter = true</c> (T025) desliga o
     /// ProblemDetails automático do <c>[ApiController]</c>.

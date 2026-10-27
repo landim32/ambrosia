@@ -27,15 +27,17 @@ public class UsersControllerTests
         // Act
         var response = await _fixture.GetAsync(ME, _fixture.TokenA);
 
-        // Assert: nenhuma chave contendo "password" aparece no JSON bruto (FR-003).
+        // Assert: nenhuma CHAVE contendo "password" aparece no JSON bruto (FR-003, SC-007).
+        // Não dá para procurar a string "password" no corpo: desde a 003 o valor de
+        // `user.provider` é exatamente "password" — a checagem é por nome de chave.
         response.StatusCode.Should().Be(200);
-        response.Body.Should().NotContain("password", "o hash de senha nunca pode ser mapeado para um DTO");
+        AuthBodyAssertions.ShouldHaveNoPasswordKey(response.Body);
 
         var user = response.As<UserInfo>();
         user.Id.Should().Be(_fixture.UserIdA);
         user.Email.Should().Be(_fixture.EmailA);
         user.Name.Should().Be("Ana");
-        user.Provider.Should().Be(AuthProvider.Dev);
+        user.Provider.Should().Be(AuthProvider.Password);
         user.CreatedAt.Should().NotBe(default);
     }
 

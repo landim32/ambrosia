@@ -121,10 +121,15 @@ public class UnauthorizedAccessTests
     [Fact]
     public async Task ThePublicLoginRoutes_ShouldStayAnonymous()
     {
-        // Contrato inverso: /auth/dev-login segue acessível sem token — é a única exceção da API
-        // (research §1). Se um filtro global quebrar isso, todos os testes HTTP falham aqui primeiro.
-        var response = await _fixture.PostAsync("/auth/dev-login", string.Empty,
-            new { email = $"anon-{Guid.NewGuid():N}@exemplo.com", name = "Anônimo" });
+        // Contrato inverso: /auth/login segue acessível sem token — depois da 003 é o caminho
+        // real de entrada (research §1). Se um filtro global quebrar isso, todos os testes HTTP
+        // falham aqui primeiro.
+        var email = $"anon+{Guid.NewGuid():N}@exemplo.com";
+
+        await _fixture.RegisterAsync(email, "Anônimo", _fixture.TestPassword);
+
+        var response = await _fixture.PostAsync("/auth/login", string.Empty,
+            new Ambrosia.DTO.Auth.LoginInfo { Email = email, Password = _fixture.TestPassword });
 
         response.StatusCode.Should().Be(200);
     }

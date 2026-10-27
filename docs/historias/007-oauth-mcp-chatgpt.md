@@ -50,7 +50,9 @@ Tudo fica no domínio principal, em subpastas, com cada serviço como processo p
 
 Os documentos da raiz `/.well-known/*` são servidos pelo nginx, que roteia cada um para o serviço dono dele: `oauth-authorization-server/auth` vai para o AS e `oauth-protected-resource` (com e sem `/mcp`) vai para o MCP. Nenhum deles pode cair no fallback do SPA nem no service worker do PWA ([004](004-frontend-pwa.md)).
 
-As rotas de login da 001 (`/auth/google` e `/auth/dev-login`) passam a ficar sob a API, em `https://ambrosiaai.site/api/auth/*`. Elas não colidem com o AS, que ocupa `https://ambrosiaai.site/auth/*` sem o prefixo `/api`.
+As rotas de login da API — `/auth/google`, da 001, e `/auth/register` e `/auth/login`, da spec [`003-email-password-jwt-auth`](../../specs/003-email-password-jwt-auth/) — passam a ficar sob a API, em `https://ambrosiaai.site/api/auth/*`. Elas não colidem com o AS, que ocupa `https://ambrosiaai.site/auth/*` sem o prefixo `/api`.
+
+A entrada de desenvolvimento `/auth/dev-login` não existe mais: a 003 a removeu de **todos** os ambientes (responde 404) e a substituiu por cadastro e login com e-mail e senha. Para o AS isso não muda nada — quem entra com Google continua usando `/auth/google`, e a conta passa a poder ter também senha (`users.password_hash`), removida quando o login Google a reutiliza (FR-009).
 
 ---
 

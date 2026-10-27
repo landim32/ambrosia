@@ -1,0 +1,38 @@
+meta {
+  name: Login com senha
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/auth/login
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "email": "{{userEmail}}",
+    "password": "{{userPassword}}"
+  }
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setEnvVar("token", res.body.token);
+  }
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}
+
+docs {
+  Entra com e-mail e senha e grava o JWT em `token` — é o passo que todas as
+  execuções seguintes precisam para renovar a sessão.
+
+  E-mail inexistente, senha errada e conta sem senha (só Google) respondem o mesmo
+  401 com "E-mail ou senha inválidos" (a rota não revela quais e-mails existem).
+}

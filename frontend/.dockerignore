@@ -1,0 +1,15 @@
+node_modules
+dist
+.vite
+test-results
+coverage
+.tmp-*
+.env.local
+.env.*.local
+*.log
+.git
+.vscode
+.idea
+Dockerfile
+.dockerignore
+README.md

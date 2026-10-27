@@ -65,6 +65,7 @@ public static class Startup
         services.AddScoped<IOAuthTokenAppService, GoogleOAuthTokenAppService>();
         services.AddSingleton<IJwtTokenAppService, JwtTokenAppService>();
         services.AddSingleton<ICpfProtectionAppService, CpfProtectionAppService>();
+        services.AddSingleton<IPasswordHashAppService, PasswordHashAppService>();
 
         // Domain Services
         services.AddScoped<IAuthService, AuthService>();

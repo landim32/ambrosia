@@ -21,11 +21,79 @@ security:
   - bearerAuth: []
 
 paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Cria uma conta com nome, e-mail e senha e já inicia a sessão
+      description: |
+        O e-mail é normalizado (minúsculas, sem espaços nas pontas) e deve ser único.
+        A senha é guardada apenas como hash (PBKDF2-HMAC-SHA256) e nunca é devolvida.
+        Responde 409 se o e-mail já existe — com orientação para entrar com Google quando a
+        conta existente foi criada pelo Google.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterInfo' }
+      responses:
+        '201':
+          description: Conta criada; sessão iniciada
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResult' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409':
+          description: E-mail já cadastrado
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
+              examples:
+                senha:
+                  value: { sucesso: false, mensagem: "Este e-mail já está cadastrado.", erros: [] }
+                google:
+                  value: { sucesso: false, mensagem: "Este e-mail já está cadastrado. Entre com sua conta Google.", erros: [] }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Entra com e-mail e senha
+      description: |
+        Devolve o mesmo token do login Google (HS256, 8 h, claims sub/email/name).
+        E-mail inexistente, senha incorreta ou conta sem senha (só Google) respondem o MESMO
+        401 com a mesma mensagem, em tempo equivalente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginInfo' }
+      responses:
+        '200':
+          description: Token do Ambrosia
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/LoginResult' }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: Credenciais inválidas (mensagem única, sem distinguir o motivo)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResult' }
+              example: { sucesso: false, mensagem: "E-mail ou senha inválidos", erros: [] }
+        '500': { $ref: '#/components/responses/ServerError' }
+
   /auth/google:
     post:
       tags: [Auth]
       security: []
       summary: Login com ID token do Google; cria o usuário no primeiro acesso
+      description: |
+        Se o e-mail já tem conta, a conta é reutilizada (nome e subject atualizados).
+        Se essa conta tinha senha, a senha é REMOVIDA neste login: a partir daí só o Google
+        entra, até uma futura recuperação/troca de senha. Sessões já emitidas por senha
+        continuam válidas até expirar.
       requestBody:
         required: true
         content:
@@ -42,27 +110,6 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResult' }
-        '500': { $ref: '#/components/responses/ServerError' }
-
-  /auth/dev-login:
-    post:
-      tags: [Auth]
-      security: []
-      summary: "[Somente Development] Emite token sem Google"
-      description: Responde 404 fora de `ASPNETCORE_ENVIRONMENT=Development`.
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: '#/components/schemas/DevLoginInfo' }
-      responses:
-        '200':
-          description: Token do Ambrosia
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/LoginResult' }
-        '400': { $ref: '#/components/responses/ValidationError' }
-        '404': { description: Indisponível neste ambiente }
         '500': { $ref: '#/components/responses/ServerError' }
 
   /users/me:
@@ -158,7 +205,7 @@ paths:
         - { name: from, in: query, schema: { type: string, format: date }, description: Data inicial inclusiva }
         - { name: to, in: query, schema: { type: string, format: date }, description: Data final inclusiva }
         - { name: kind, in: query, schema: { $ref: '#/components/schemas/OrderKind' } }
-        - { name: channel, in: query, schema: { type: string }, description: Igualdade case-insensitive }
+        - { name: channel, in: query, schema: { type: string }, description: Trecho do canal (case-insensitive) }
         - { name: customerId, in: query, schema: { type: integer, format: int64 } }
         - { name: search, in: query, schema: { type: string }, description: Trecho do nº do pedido ou do nome do cliente }
         - { $ref: '#/components/parameters/Page' }
@@ -295,19 +342,26 @@ components:
       enum: [cota, omni]
     AuthProvider:
       type: string
-      enum: [google, dev]
+      enum: [google, password]
 
     GoogleLoginInfo:
       type: object
       required: [idToken]
       properties:
         idToken: { type: string, description: ID token (JWT) emitido pelo Google }
-    DevLoginInfo:
+    RegisterInfo:
       type: object
-      required: [email, name]
+      required: [name, email, password]
       properties:
-        email: { type: string, format: email }
-        name: { type: string, maxLength: 200 }
+        name: { type: string, minLength: 1, maxLength: 120, example: "Ana" }
+        email: { type: string, format: email, maxLength: 254, example: "ana@exemplo.com" }
+        password: { type: string, format: password, minLength: 8, maxLength: 128, writeOnly: true }
+    LoginInfo:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email, example: "ana@exemplo.com" }
+        password: { type: string, format: password, writeOnly: true }
     LoginResult:
       type: object
       properties:

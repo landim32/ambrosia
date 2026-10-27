@@ -14,6 +14,15 @@
 | Habilita | [004](004-frontend-pwa.md) (PWA) e a exibição de fotos da [010](010-banco-imagens-clientes-chatgpt.md) |
 | Código previsto | `frontend/` (novo) |
 
+> **Nota (003):** a entrada descrita neste documento é o registro do que foi planejado na época. Foi
+> substituída pela spec [`003-email-password-jwt-auth`](../../specs/003-email-password-jwt-auth/):
+> cadastro e login com e-mail e senha. O formulário de desenvolvimento, o componente `DevLoginForm` e
+> a flag de build `VITE_DEV_LOGIN` deixaram de existir; a tela `/login` ganhou formulário de
+> e-mail/senha (`POST /auth/login`, ao lado do botão do Google) e foi criada a rota pública
+> `/cadastro` (`POST /auth/register`). O `npm run verify:prod` passou a rodar em **qualquer** modo de
+> build (development, homolog, production) e falha se algum resíduo da entrada antiga sobreviver no
+> `dist/`. As menções ao formulário de desenvolvimento abaixo foram preservadas como histórico.
+
 ---
 
 ## 1. História

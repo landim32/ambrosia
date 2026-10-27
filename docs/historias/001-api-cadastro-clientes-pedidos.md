@@ -13,6 +13,15 @@
 | Código | [`backend/`](../../backend/) |
 | Contrato | [`contracts/openapi.yaml`](../../specs/001-api-cadastro-clientes-pedidos/contracts/openapi.yaml) |
 
+> **Nota (003):** a autenticação descrita neste documento é o registro do que foi entregue na época.
+> Foi substituída pela spec [`003-email-password-jwt-auth`](../../specs/003-email-password-jwt-auth/):
+> cadastro e login com e-mail e senha. A entrada de desenvolvimento `POST /auth/dev-login` saiu de
+> **todos** os ambientes (hoje responde 404 e não aparece no Swagger); no lugar dela vieram
+> `POST /auth/register` (nome, e-mail e senha → `201` com o mesmo `LoginResult` do login, ou `409` se
+> o e-mail já existe) e `POST /auth/login` (`200` com o JWT; credencial inválida → `401` com a mensagem
+> única "E-mail ou senha inválidos"). A senha fica só como hash PBKDF2 em `users.password_hash`. As
+> menções a `/auth/dev-login` abaixo foram preservadas como histórico, sem revisão.
+
 ---
 
 ## 1. História

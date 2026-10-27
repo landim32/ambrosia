@@ -98,7 +98,7 @@ graph LR
 | 8 | [008](historias/008-mcp-app-chatgpt.md) | Depende da 006 e da 007 |
 | 9 | [010](historias/010-banco-imagens-clientes-chatgpt.md) | Depende da 003, 006, 007 e 008 |
 
-Se o bot depender do token da 007 (pergunta em aberto da 009), ele pode começar em Development com o `dev-login` e trocar a autenticação depois.
+Se o bot depender do token da 007 (pergunta em aberto da 009), ele pode começar em Development com o JWT de `POST /auth/login` — conta criada em `POST /auth/register`, ambos da spec [`003-email-password-jwt-auth`](../specs/003-email-password-jwt-auth/) — e trocar a autenticação depois. Não existe mais rota que emita token sem credencial em nenhum ambiente.
 
 ### Como incluir uma nova história
 

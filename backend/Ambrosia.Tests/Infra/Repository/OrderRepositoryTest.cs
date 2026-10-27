@@ -187,18 +187,48 @@ public class OrderRepositoryTest : IDisposable
     [Fact]
     public async Task ListAsync_ShouldMatchChannelCaseInsensitively_OnEquality()
     {
-        // Arrange: T074 — "linx" encontra "Linx" e vice-versa; igualdade, não substring.
+        // Arrange: T074 — "linx" encontra "Linx" e vice-versa. O canal INTEIRO
+        // continua casando depois de o filtro virar por trecho (T067): igualdade
+        // é um caso particular de trecho, e essa compatibilidade é requisito de
+        // contracts/api-consumption.md.
         await SeedStandardCorpus();
 
         // Act
         var lower = await _sut.ListAsync(USER_A, new OrderListQuery { Channel = "linx" });
         var upper = await _sut.ListAsync(USER_A, new OrderListQuery { Channel = "LINX" });
-        var partial = await _sut.ListAsync(USER_A, new OrderListQuery { Channel = "Lin" });
 
         // Assert: pedidos 1 ("Linx") e 3 (gravado como "linx"), data DESC.
         AssertIds(lower.Items, 3, 1);
         Assert.Equal(lower.TotalCount, upper.TotalCount);
-        Assert.Equal(0, partial.TotalCount);
+    }
+
+    [Fact]
+    public async Task ListAsync_ShouldFilterChannelByChunk_CaseInsensitive()
+    {
+        // Arrange: FR-014 / T063 — a vendedora digita um TRECHO do canal ("lin"
+        // encontra "Linx"). O isolamento por usuário vem primeiro (FR-021): o pedido 4,
+        // do mesmo canal mas da outra vendedora, só aparece para a dona dele.
+        await SeedStandardCorpus();
+
+        // Act
+        var chunk = await _sut.ListAsync(USER_A, new OrderListQuery { Channel = "inx" });
+        var chunkUpper = await _sut.ListAsync(USER_A, new OrderListQuery { Channel = "INX" });
+        var overlapping = await _sut.ListAsync(USER_A, new OrderListQuery { Channel = "lin" });
+        var unknown = await _sut.ListAsync(USER_A, new OrderListQuery { Channel = "xyz" });
+        var otherUser = await _sut.ListAsync(USER_B, new OrderListQuery { Channel = "lin" });
+
+        // Assert: "inx" casa "Linx" (1) e "linx" (3), e nao "Online" (2). Data DESC.
+        AssertIds(chunk.Items, 3, 1);
+        Assert.Equal(chunk.TotalCount, chunkUpper.TotalCount);
+
+        // "o-n-l-i-n-e" tambem contem o trecho "lin": consequencia correta de
+        // filtrar por trecho — e o motivo de a tela mostrar o total de resultados.
+        AssertIds(overlapping.Items, 3, 2, 1);
+        Assert.Equal(0, unknown.TotalCount);
+
+        // FR-021: o filtro por dono vem antes, entao o "Linx" da outra vendedora
+        // aparece so para ela.
+        AssertIds(otherUser.Items, 4);
     }
 
     [Fact]
