@@ -3,6 +3,8 @@ import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { PasswordInput } from '@/components/common/PasswordInput'
+import { AuthMascot } from '@/components/layout/AuthMascot'
+import { BrandLogo } from '@/components/layout/BrandLogo'
 import { returnToOf, validateLoginForm } from '@/lib/authForm'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -113,105 +115,121 @@ export const LoginPage = () => {
   const passwordMessage = messageOf('password')
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-4 px-4 py-8">
-      <header className="flex flex-col gap-1 text-center">
-        <h1 className="text-xl font-semibold text-foreground">{t('login.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('login.subtitle')}</p>
-      </header>
+    // Mobile: uma coluna — mascote pequeno, logo, título e formulário (cabe em
+    // 375×667 sem rolar). Desktop (lg+): mascote grande à esquerda, formulário à direita.
+    <main className="px-safe pt-safe pb-safe relative isolate flex min-h-dvh w-full items-center justify-center py-6 sm:py-8 [@media(max-height:700px)]:py-4">
+      {/* Brilho azul da marca atrás do topo (decorativo). */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 -z-10 mx-auto h-80 max-w-lg rounded-full bg-brand/30 blur-3xl lg:hidden"
+      />
 
-      {hasGeneralError ? (
-        <p
-          role="alert"
-          className="rounded-md border border-destructive/40 bg-card px-3 py-2 text-center text-sm text-destructive"
-        >
-          {expired ? t('login.expired') : error}
-        </p>
-      ) : null}
+      <div className="grid w-full max-w-md items-center lg:max-w-5xl lg:grid-cols-[minmax(0,1fr)_minmax(0,28rem)] lg:gap-16">
+        <AuthMascot variant="hero" className="hidden lg:flex" />
 
-      {hasGoogle ? (
-        <>
-          <div
-            ref={googleButtonRef}
-            data-testid="google-button"
-            className="flex min-h-11 justify-center"
-          />
-          <div className="flex items-center gap-3">
-            <Separator className="flex-1" />
-            <span className="text-xs uppercase text-muted-foreground">{t('login.or')}</span>
-            <Separator className="flex-1" />
-          </div>
-        </>
-      ) : null}
+        <div className="flex w-full min-w-0 flex-col gap-4 sm:gap-5 [@media(max-height:700px)]:gap-3">
+          <header className="flex flex-col items-center gap-2 text-center lg:items-start lg:text-left">
+            <AuthMascot variant="compact" className="mb-1 lg:hidden" />
+            <BrandLogo decorative className="mb-3 h-9 sm:h-11 lg:mb-6 lg:h-12 [@media(max-height:700px)]:mb-1" />
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">{t('login.title')}</h1>
+            <p className="text-sm text-muted-foreground">{t('login.subtitle')}</p>
+          </header>
 
-      <form
-        ref={formRef}
-        onSubmit={(event) => {
-          void handleSubmit(event)
-        }}
-        className="flex flex-col gap-4"
-        noValidate
-      >
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="login-email">{t('login.email')}</Label>
-          <Input
-            id="login-email"
-            name="email"
-            className="min-h-11"
-            type="email"
-            autoComplete="username"
-            value={values.email}
-            onChange={setValue('email')}
-            aria-invalid={emailMessage !== undefined}
-            {...(emailMessage === undefined ? {} : { 'aria-describedby': 'login-email-error' })}
-          />
-          {emailMessage === undefined ? null : (
-            <p id="login-email-error" className="text-sm text-destructive">
-              {emailMessage.startsWith('validation.') ? t(emailMessage) : emailMessage}
+          {hasGeneralError ? (
+            <p
+              role="alert"
+              className="rounded-md border border-destructive/40 bg-card px-3 py-2 text-center text-sm text-destructive"
+            >
+              {expired ? t('login.expired') : error}
             </p>
-          )}
-        </div>
+          ) : null}
 
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="login-password">{t('login.password')}</Label>
-          <PasswordInput
-            id="login-password"
-            name="password"
-            value={values.password}
-            onChange={setValue('password')}
-            autoComplete="current-password"
-            toggleLabels={{ show: t('common.showPassword'), hide: t('common.hidePassword') }}
-            aria-invalid={passwordMessage !== undefined}
-            {...(passwordMessage === undefined
-              ? {}
-              : { 'aria-describedby': 'login-password-error' })}
-          />
-          {passwordMessage === undefined ? null : (
-            <p id="login-password-error" className="text-sm text-destructive">
-              {passwordMessage.startsWith('validation.') ? t(passwordMessage) : passwordMessage}
+          {hasGoogle ? (
+            <>
+              <div
+                ref={googleButtonRef}
+                data-testid="google-button"
+                className="flex min-h-11 justify-center"
+              />
+              <div className="flex items-center gap-3">
+                <Separator className="flex-1" />
+                <span className="text-xs uppercase text-muted-foreground">{t('login.or')}</span>
+                <Separator className="flex-1" />
+              </div>
+            </>
+          ) : null}
+
+          <form
+            ref={formRef}
+            onSubmit={(event) => {
+              void handleSubmit(event)
+            }}
+            className="flex flex-col gap-4 [@media(max-height:700px)]:gap-3"
+            noValidate
+          >
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="login-email">{t('login.email')}</Label>
+              <Input
+                id="login-email"
+                name="email"
+                className="min-h-11"
+                type="email"
+                autoComplete="username"
+                value={values.email}
+                onChange={setValue('email')}
+                aria-invalid={emailMessage !== undefined}
+                {...(emailMessage === undefined ? {} : { 'aria-describedby': 'login-email-error' })}
+              />
+              {emailMessage === undefined ? null : (
+                <p id="login-email-error" className="text-sm text-destructive">
+                  {emailMessage.startsWith('validation.') ? t(emailMessage) : emailMessage}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="login-password">{t('login.password')}</Label>
+              <PasswordInput
+                id="login-password"
+                name="password"
+                value={values.password}
+                onChange={setValue('password')}
+                autoComplete="current-password"
+                toggleLabels={{ show: t('common.showPassword'), hide: t('common.hidePassword') }}
+                aria-invalid={passwordMessage !== undefined}
+                {...(passwordMessage === undefined
+                  ? {}
+                  : { 'aria-describedby': 'login-password-error' })}
+              />
+              {passwordMessage === undefined ? null : (
+                <p id="login-password-error" className="text-sm text-destructive">
+                  {passwordMessage.startsWith('validation.') ? t(passwordMessage) : passwordMessage}
+                </p>
+              )}
+            </div>
+
+            <Button type="submit" className="min-h-12 rounded-xl text-[0.9375rem] font-semibold" disabled={loading}>
+              {t('login.submit')}
+            </Button>
+
+            <p aria-live="polite" className="min-h-5 text-center text-xs text-muted-foreground">
+              {loading ? t('common.loading') : ''}
             </p>
-          )}
+          </form>
+
+          {/* FR-018 / US1 cenário 7: a entrada é o caminho para o cadastro. */}
+          <p className="text-center text-sm text-muted-foreground lg:text-left">
+            {t('login.noAccount')}{' '}
+            <Link
+              to="/cadastro"
+              state={{ returnTo }}
+              className="inline-flex min-h-11 items-center font-medium text-brand-soft underline-offset-4 hover:underline"
+            >
+              {t('login.createAccount')}
+            </Link>
+          </p>
         </div>
-
-        <Button type="submit" className="min-h-11" disabled={loading}>
-          {t('login.submit')}
-        </Button>
-
-        <p aria-live="polite" className="min-h-5 text-center text-xs text-muted-foreground">
-          {loading ? t('common.loading') : ''}
-        </p>
-      </form>
-
-      {/* FR-018 / US1 cenário 7: a entrada é o caminho para o cadastro. */}
-      <p className="text-center text-sm text-muted-foreground">
-        {t('login.noAccount')}{' '}
-        <Link
-          to="/cadastro"
-          state={{ returnTo }}
-          className="text-foreground underline underline-offset-4"
-        >
-          {t('login.createAccount')}
-        </Link>
-      </p>
+      </div>
     </main>
   )
 }

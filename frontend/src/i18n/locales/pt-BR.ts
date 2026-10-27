@@ -4,6 +4,21 @@
  * `i18n/index.ts` porque nenhum texto vem de entrada do usuario com HTML.
  */
 export const ptBR = {
+  /** Identidade do app (marca "Ambrosio"). */
+  app: {
+    name: 'Ambrosio',
+    logoAlt: 'Ambrosio',
+  },
+  /** Navegação principal: barra superior no desktop, tab bar no rodapé no mobile. */
+  nav: {
+    mainLabel: 'Navegação principal',
+    customers: 'Clientes',
+    orders: 'Pedidos',
+    import: 'Importar',
+    account: 'Conta',
+    accountTitle: 'Sua conta',
+    close: 'Fechar',
+  },
   common: {
     logout: 'Sair',
     customers: 'Clientes',
@@ -27,7 +42,7 @@ export const ptBR = {
     paginationLabel: 'Paginação',
   },
   login: {
-    title: 'Entrar no Ambrosia',
+    title: 'Entrar no Ambrosio',
     subtitle: 'Consulte clientes e pedidos da sua conta.',
     google: 'Entrar com Google',
     email: 'E-mail',
@@ -43,7 +58,7 @@ export const ptBR = {
   /** Tela de cadastro (003): e-mail e senha reaproveitam `login.email`/`login.password`. */
   register: {
     title: 'Criar conta',
-    subtitle: 'Use seu e-mail e uma senha para acessar o Ambrosia.',
+    subtitle: 'Use seu e-mail e uma senha para acessar o Ambrosio.',
     name: 'Nome',
     confirmPassword: 'Confirmar senha',
     submit: 'Criar conta',
@@ -88,6 +103,8 @@ export const ptBR = {
     summaryAriaLabel: 'Resumo de compras',
     /** Nome longo truncado: o titulo nativo do browser mostra o inteiro. */
     openProfile: 'Abrir perfil de {{name}}',
+    /** Perfil estilo rede social: linha "Cliente desde dd/mm/aaaa". */
+    since: 'Cliente desde {{date}}',
   },
   orders: {
     title: 'Pedidos',

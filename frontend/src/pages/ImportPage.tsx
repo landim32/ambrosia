@@ -114,8 +114,9 @@ export const ImportPage = () => {
   )
 
   return (
-    <main className="mx-auto flex w-full max-w-screen-md flex-col gap-4 px-4 py-6">
-      <h1 className="text-xl font-semibold text-foreground">{t('import.title')}</h1>
+    // Dentro do `AppShell`, que já é o <main>: aqui é só a coluna da tela.
+    <div className="mx-auto flex w-full max-w-screen-md flex-col gap-4">
+      <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('import.title')}</h1>
 
       {defaults === null && loading ? <LoadingList count={2} /> : null}
 
@@ -147,7 +148,7 @@ export const ImportPage = () => {
         onOpen={handleOpen}
         onPageChange={handlePageChange}
       />
-    </main>
+    </div>
   )
 }
 

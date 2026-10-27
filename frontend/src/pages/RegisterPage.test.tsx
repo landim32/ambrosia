@@ -106,7 +106,7 @@ describe('RegisterPage (US1)', () => {
 
     expect(screen.getByRole('heading', { name: 'Criar conta' })).toBeInTheDocument()
     expect(
-      screen.getByText('Use seu e-mail e uma senha para acessar o Ambrosia.'),
+      screen.getByText('Use seu e-mail e uma senha para acessar o Ambrosio.'),
     ).toBeInTheDocument()
     expect(screen.getByLabelText('Nome')).toBeInTheDocument()
     expect(screen.getByLabelText('E-mail')).toBeInTheDocument()

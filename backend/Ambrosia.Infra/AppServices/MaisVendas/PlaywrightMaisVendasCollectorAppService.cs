@@ -669,8 +669,10 @@ public class PlaywrightMaisVendasCollectorAppService : IMaisVendasCollectorAppSe
                     ProductName = info?.Name,
                     SkuRef = reference,
                     Size = Text(product, "productSize"),
-                    // O sinal do item segue o do pedido: devolução e cancelamento entram negativos.
-                    Price = total < 0m ? -Math.Abs(price) : Math.Abs(price),
+                    // O sinal vem da origem: numa troca, a venda tem itens negativos (as peças que
+                    // voltaram) e a devolução já traz os itens negativos. Só o cancelamento é
+                    // ajustado, porque o detalhe dele repete os valores positivos da venda.
+                    Price = kind == OrderKind.Cancellation ? -Math.Abs(price) : price,
                     ImageUrl = info?.ImageUrl
                 });
             }

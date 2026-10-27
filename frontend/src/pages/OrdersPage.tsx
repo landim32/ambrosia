@@ -45,7 +45,7 @@ export const OrdersPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold text-foreground">{t('orders.title')}</h1>
+      <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('orders.title')}</h1>
 
       <OrderFiltersBar filters={filters} onChange={setFilters} onClear={clear} />
 
@@ -65,7 +65,7 @@ export const OrdersPage = () => {
 
       {!loading && orders.length > 0 ? (
         <>
-          <ul role="list" className="grid gap-3">
+          <ul role="list" className="grid gap-3 lg:grid-cols-2">
             {orders.map((order) => (
               <li key={order.id} className="min-w-0">
                 <OrderCard order={order} />

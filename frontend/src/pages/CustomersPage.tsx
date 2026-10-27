@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { Search } from 'lucide-react'
 
 import { CustomerCard } from '@/components/customers/CustomerCard'
 import { EmptyState } from '@/components/common/EmptyState'
@@ -105,21 +106,29 @@ export const CustomersPage = () => {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-semibold text-foreground">{t('customers.title')}</h1>
+      <h1 className="text-3xl font-bold tracking-tight text-foreground">{t('customers.title')}</h1>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="customer-search">{t('customers.searchLabel')}</Label>
-        <Input
-          id="customer-search"
-          className="min-h-11"
-          type="search"
-          name="busca"
-          autoComplete="off"
-          value={draft}
-          onChange={(event) => {
-            setDraft(event.target.value)
-          }}
-        />
+        <Label htmlFor="customer-search" className="text-xs font-normal text-muted-foreground">
+          {t('customers.searchLabel')}
+        </Label>
+        <div className="relative">
+          <Search
+            aria-hidden="true"
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            id="customer-search"
+            className="min-h-11 rounded-xl border-transparent bg-secondary pl-9 dark:bg-secondary"
+            type="search"
+            name="busca"
+            autoComplete="off"
+            value={draft}
+            onChange={(event) => {
+              setDraft(event.target.value)
+            }}
+          />
+        </div>
       </div>
 
       {loading ? <LoadingList count={4} /> : null}
@@ -138,7 +147,11 @@ export const CustomersPage = () => {
 
       {!loading && customers.length > 0 ? (
         <>
-          <ul role="list" className="grid gap-3 sm:grid-cols-2">
+          {/* Lista agrupada do iOS: um bloco arredondado com separadores finos. */}
+          <ul
+            role="list"
+            className="divide-y divide-border/70 overflow-hidden rounded-2xl border border-border/70 bg-card"
+          >
             {customers.map((customer) => (
               <li key={customer.id} className="min-w-0">
                 <CustomerCard customer={customer} />

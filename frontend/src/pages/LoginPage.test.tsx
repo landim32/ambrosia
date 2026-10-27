@@ -131,12 +131,26 @@ describe('LoginPage', () => {
   it('tem campo de e-mail, campo de senha com mostrar/ocultar e botao Entrar', async () => {
     renderLogin(await importGraph())
 
-    expect(await screen.findByRole('heading', { name: /Ambrosia/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /Ambrosio/i })).toBeInTheDocument()
     expect(inputOf('login-email')).toBeInTheDocument()
     expect(inputOf('login-password')).toHaveAttribute('type', 'password')
     expect(screen.getByRole('button', { name: 'Entrar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Mostrar senha' })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Criar conta' })).toBeInTheDocument()
+  })
+
+  /** Mascote do Ambrosio: compacto no mobile e grande no desktop, sempre decorativo. */
+  it('mostra o mascote como imagem decorativa, fora da árvore de acessibilidade', async () => {
+    renderLogin(await importGraph())
+
+    await screen.findByRole('heading', { name: /Ambrosio/i })
+    for (const testId of ['auth-mascot', 'auth-mascot-hero']) {
+      const mascot = screen.getByTestId(testId)
+      expect(mascot).toHaveAttribute('alt', '')
+      expect(mascot).toHaveAttribute('aria-hidden', 'true')
+    }
+    // Decorativo: nenhuma imagem com nome acessível além das que já existiam.
+    expect(screen.queryByRole('img')).not.toBeInTheDocument()
   })
 
   it('envio valido chama loginWithPassword com o e-mail cortado e a senha como digitada', async () => {
@@ -245,7 +259,7 @@ describe('LoginPage', () => {
   it('sem o parametro nao ha aviso de expiracao', async () => {
     renderLogin(await importGraph())
 
-    await screen.findByRole('heading', { name: /Ambrosia/i })
+    await screen.findByRole('heading', { name: /Ambrosio/i })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
@@ -264,7 +278,7 @@ describe('LoginPage', () => {
     vi.stubEnv('VITE_GOOGLE_CLIENT_ID', undefined)
     renderLogin(await importGraph())
 
-    await screen.findByRole('heading', { name: /Ambrosia/i })
+    await screen.findByRole('heading', { name: /Ambrosio/i })
     expect(screen.queryByText('ou')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Entrar com Google' })).not.toBeInTheDocument()
   })
@@ -291,7 +305,7 @@ describe('LoginPage', () => {
       return undefined
     })
     renderLogin(await importGraph())
-    await screen.findByRole('heading', { name: /Ambrosia/i })
+    await screen.findByRole('heading', { name: /Ambrosio/i })
 
     expect(onCredential).toBeTypeOf('function')
     onCredential?.('id-token-do-google')
