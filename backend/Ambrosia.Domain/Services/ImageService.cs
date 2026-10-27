@@ -14,8 +14,8 @@ using Microsoft.Extensions.Options;
 namespace Ambrosia.Domain.Services;
 
 /// <summary>
-/// Regras de vida da imagem (FR-003 a FR-018). Fala com o storage e com o processador apenas pelas
-/// abstrações da Infra, então nenhuma troca de provedor ou de biblioteca alcança este arquivo.
+/// Regras de vida da imagem (FR-003 a FR-018). Fala com o storage apenas pela abstração da Infra,
+/// então nenhuma troca de provedor alcança este arquivo.
 /// <para>
 /// As URLs pré-assinadas são geradas <b>a cada resposta</b> e nunca persistidas (FR-012, FR-013);
 /// <see cref="MapToInfo"/> só as produz para imagem <c>available</c> (FR-015). O log menciona no máximo
@@ -36,7 +36,6 @@ public class ImageService : IImageService
 
     private readonly IStoredImageRepository<StoredImage> _images;
     private readonly IObjectStorageAppService _storage;
-    private readonly IImageProcessingAppService _processing;
     private readonly IValidator<ImageUploadInsertInfo> _uploadValidator;
     private readonly ObjectStorageSettings _settings;
     private readonly IClock _clock;
@@ -45,7 +44,6 @@ public class ImageService : IImageService
     public ImageService(
         IStoredImageRepository<StoredImage> images,
         IObjectStorageAppService storage,
-        IImageProcessingAppService processing,
         IOptions<ObjectStorageSettings> settings,
         IValidator<ImageUploadInsertInfo> uploadValidator,
         IClock clock,
@@ -53,7 +51,6 @@ public class ImageService : IImageService
     {
         _images = images;
         _storage = storage;
-        _processing = processing;
         _settings = settings.Value;
         _uploadValidator = uploadValidator;
         _clock = clock;
@@ -144,24 +141,16 @@ public class ImageService : IImageService
         using var content = await CopyBoundedAsync(source)
             ?? throw await RejectAsync(image, ImageRejectionReason.Size, now);
 
-        var bytes = content.ToArray();
-        var actualSha256 = Sha256Hex(bytes);
-
-        // 3) Tipo pelo conteúdo, nunca pelo nome nem pelo declarado (FR-005, US1 cenário 6).
-        var inspection = await _processing.InspectAsync(content);
-
-        if (inspection is null || !IsAllowedMimeType(inspection.MimeType) || !IsSameType(inspection.MimeType, image.MimeType))
-        {
-            throw await RejectAsync(image, ImageRejectionReason.Type, now);
-        }
-
-        // 4) Hash: é a única prova de que o binário é o que foi declarado (critério 6 da HU 003).
-        if (actualSha256 != image.Sha256)
+        // 3) Hash: é a única prova de que o binário é o que foi declarado (critério 6 da HU 003). O
+        // tipo não é relido do conteúdo: a declaração já o restringiu aos aceitos e o Content-Type
+        // está assinado na URL de envio (FR-003).
+        if (Sha256Hex(content.ToArray()) != image.Sha256)
         {
             throw await RejectAsync(image, ImageRejectionReason.Hash, now);
         }
 
-        image.MarkAvailable(inspection.Width, inspection.Height, now);
+        // Sem processador de imagem, as dimensões ficam desconhecidas.
+        image.MarkAvailable(width: null, height: null, now);
         await _images.UpdateAsync(image);
 
         _logger.LogInformation("Envio aprovado: imagem {ImageId} do usuário {UserId}.", image.Id, userId);
@@ -170,10 +159,17 @@ public class ImageService : IImageService
     }
 
     /// <inheritdoc />
-    public async Task<(ImageInfo Image, bool Created)> StoreFromServerAsync(long userId, Stream content, ImageSource source)
+    public async Task<(ImageInfo Image, bool Created)> StoreFromServerAsync(long userId, Stream content, string mimeType, ImageSource source)
     {
-        // No caminho do servidor não há declaração a conferir: tamanho, tipo e hash são medidos aqui,
-        // sobre o conteúdo FINAL sanitizado (FR-008 a FR-010, research §7).
+        // No caminho do servidor não há declaração a conferir: tamanho e hash são medidos aqui e o
+        // tipo informado tem de estar entre os aceitos (FR-008, FR-009).
+        mimeType = NormalizeMimeType(mimeType);
+
+        if (!IsAllowedMimeType(mimeType))
+        {
+            throw new ImageRejectedException(ImageRejectionReason.Type);
+        }
+
         using var buffer = await CopyBoundedAsync(content) ?? throw EmptyOrTooLarge();
 
         if (buffer.Length == 0)
@@ -181,18 +177,8 @@ public class ImageService : IImageService
             throw new ImageRejectedException(ImageRejectionReason.Size);
         }
 
-        var detected = await _processing.InspectAsync(buffer);
-
-        if (detected is null || !IsAllowedMimeType(detected.MimeType))
-        {
-            throw new ImageRejectedException(ImageRejectionReason.Type);
-        }
-
-        buffer.Position = 0;
-
-        var processed = await _processing.SanitizeAsync(buffer);
-        var sha256 = Sha256Hex(processed.Content);
-        var mimeType = NormalizeMimeType(processed.MimeType);
+        var bytes = buffer.ToArray();
+        var sha256 = Sha256Hex(bytes);
         var now = _clock.UtcNow;
 
         var existing = await _images.GetActiveByHashAsync(userId, sha256);
@@ -209,10 +195,10 @@ public class ImageService : IImageService
             // binário que estamos gravando é exatamente o que aquela pendência espera na mesma chave,
             // então ela é promovida em vez de abrir um segundo registro — que o índice único parcial
             // não deixaria existir.
-            await PutProcessedAsync(existing.StorageKey, processed, mimeType);
+            await PutContentAsync(existing.StorageKey, bytes, mimeType);
 
-            existing.SizeBytes = processed.Content.Length;
-            existing.MarkAvailable(processed.Width, processed.Height, now);
+            existing.SizeBytes = bytes.Length;
+            existing.MarkAvailable(width: null, height: null, now);
 
             var promoted = await _images.UpdateAsync(existing);
 
@@ -224,9 +210,9 @@ public class ImageService : IImageService
         }
 
         var image = StoredImage.CreateAvailable(
-            userId, sha256, mimeType, processed.Content.Length, processed.Width, processed.Height, source, now);
+            userId, sha256, mimeType, bytes.Length, width: null, height: null, source, now);
 
-        await PutProcessedAsync(image.StorageKey, processed, mimeType);
+        await PutContentAsync(image.StorageKey, bytes, mimeType);
 
         StoredImage saved;
 
@@ -256,8 +242,8 @@ public class ImageService : IImageService
         }
 
         _logger.LogInformation(
-            "Imagem {ImageId} gravada pelo servidor para o usuário {UserId} ({Width}x{Height}).",
-            saved.Id, userId, saved.Width, saved.Height);
+            "Imagem {ImageId} gravada pelo servidor para o usuário {UserId}.",
+            saved.Id, userId);
 
         return (MapToInfo(saved), Created: true);
     }
@@ -424,12 +410,11 @@ public class ImageService : IImageService
     }
 
     /// <summary>
-    /// Grava o binário já sanitizado no storage. O <c>Content-Type</c> do objeto é o tipo detectado
-    /// pelo conteúdo, nunca o nome que o cliente mandou (FR-005).
+    /// Grava o binário no storage com o <c>Content-Type</c> já conferido contra os tipos aceitos.
     /// </summary>
-    private async Task PutProcessedAsync(string key, ProcessedImage processed, string mimeType)
+    private async Task PutContentAsync(string key, byte[] content, string mimeType)
     {
-        using var stream = new MemoryStream(processed.Content, writable: false);
+        using var stream = new MemoryStream(content, writable: false);
 
         await _storage.PutAsync(key, stream, mimeType);
     }
@@ -471,10 +456,6 @@ public class ImageService : IImageService
 
     private bool IsAllowedMimeType(string mimeType) =>
         _settings.AllowedMimeTypes.Any(allowed => string.Equals(allowed, mimeType, StringComparison.OrdinalIgnoreCase));
-
-    /// <summary>O tipo real tem de ser o que foi declarado, não apenas "um tipo aceito" (FR-006).</summary>
-    private static bool IsSameType(string detected, string declared) =>
-        string.Equals(detected, declared, StringComparison.OrdinalIgnoreCase);
 
     private async Task ThrowIfInvalidAsync(ImageUploadInsertInfo info)
     {

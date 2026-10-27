@@ -90,11 +90,9 @@ public static class Startup
         services.AddSingleton<ICpfProtectionAppService, CpfProtectionAppService>();
         services.AddSingleton<IPasswordHashAppService, PasswordHashAppService>();
 
-        // Storage de imagens (feature 004): os dois clientes S3 e o processador de imagem não guardam
-        // estado por requisição — o AmazonS3Client é thread-safe e caro (conexões, cache de região),
+        // Storage de imagens (feature 004): os dois clientes S3 não guardam estado por requisição — o AmazonS3Client é thread-safe e caro (conexões, cache de região),
         // então singleton. As URLs pré-assinadas são derivadas do relógio injetado, nunca de estado.
         services.AddSingleton<IObjectStorageAppService, ObjectStorageAppService>();
-        services.AddSingleton<IImageProcessingAppService, ImageProcessingAppService>();
 
         // Domain Services
         services.AddScoped<IAuthService, AuthService>();

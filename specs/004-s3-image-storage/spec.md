@@ -151,7 +151,7 @@ Envios declarados e nunca confirmados, e envios recusados, não ficam para sempr
 - **Storage fora do ar**: as operações que dependem dele respondem erro genérico de indisponibilidade, sem expor endereço, credenciais ou detalhes internos; nada fica marcado como disponível sem o objeto existir.
 - **Exclusão de imagem cujo objeto já não existe no storage**: o metadado é removido mesmo assim e a exclusão é considerada bem-sucedida.
 - **Usuário sem autenticação**: todas as operações de imagem respondem "não autorizado".
-- **Foto enviada pelo navegador com EXIF/GPS**: aceita e guardada como enviada (sem remoção nem recusa); só a gravação pelo servidor remove EXIF (FR-010).
+- **Foto com EXIF/GPS**: aceita e guardada como enviada, sem remoção nem recusa, nos dois caminhos (FR-010 retirado — ver decisions.md, "remoção do ImageSharp").
 - **Tipos fora da lista** (HEIC, GIF, SVG etc.): recusados nesta entrega; a lista é configurável.
 
 ## Requirements *(mandatory)*
@@ -175,7 +175,7 @@ Envios declarados e nunca confirmados, e envios recusados, não ficam para sempr
 **Envio pelo servidor (US3)**
 
 - **FR-009**: O sistema DEVE oferecer a gravação de uma imagem a partir de um arquivo que a própria API recebe ou obtém, validando tipo pelo conteúdo, tamanho e hash antes de gravar e registrando a origem (envio do cliente, servidor, ChatGPT ou bot).
-- **FR-010**: Na gravação pelo servidor, o sistema DEVE remover os metadados EXIF de localização (e demais metadados EXIF) antes de gravar; o hash usado na chave e na deduplicação DEVE ser o do conteúdo efetivamente armazenado.
+- **FR-010**: ~~Na gravação pelo servidor, o sistema DEVE remover os metadados EXIF antes de gravar.~~ **Retirado** (decisions.md, "remoção do ImageSharp"). O hash usado na chave e na deduplicação continua sendo o do conteúdo efetivamente armazenado.
 
 **Deduplicação**
 

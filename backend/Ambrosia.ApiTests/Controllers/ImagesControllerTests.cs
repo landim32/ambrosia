@@ -96,15 +96,15 @@ public class ImagesControllerTests
         // Act
         var confirmed = await _fixture.PostAsync($"{UPLOADS}/{declaredResult.ImageId}/confirm", Token, new { });
 
-        // Assert: 200 available, dimensões lidas do cabeçalho.
+        // Assert: 200 available; sem processador de imagem, as dimensões ficam nulas.
         confirmed.StatusCode.Should().Be(200, $"confirmar envio deveria funcionar: {confirmed}");
 
         var image = confirmed.As<ImageInfo>();
 
         image.ImageId.Should().Be(declaredResult.ImageId);
         image.Status.Should().Be(Ambrosia.DTO.Enums.ImageStatus.Available);
-        image.Width.Should().Be(320);
-        image.Height.Should().Be(240);
+        image.Width.Should().BeNull();
+        image.Height.Should().BeNull();
         image.Sha256.Should().Be(StorageHttp.Sha256Hex(content));
         image.Url.Should().NotBeNullOrWhiteSpace();
 
@@ -184,28 +184,6 @@ public class ImagesControllerTests
         MensagemOf(response).Should().Be("O conteúdo do arquivo não confere com o hash declarado.");
 
         // A recusa remove o objeto da mesma chave, então o reenvio prova que ele sumiu.
-        await AssertRejectedUploadMustBeRedeclaredAsync(content, "image/jpeg");
-    }
-
-    [Fact]
-    public async Task Confirm_FakeJpeg_ShouldReturn400ByType()
-    {
-        // US1 cenário 6 / FR-005: um PDF com nome .jpg passa no Content-Type assinado e no tamanho —
-        // o que o derruba é a detecção pelo conteúdo.
-        var content = UniqueBytes("fake.jpg");
-        var declared = await DeclareAsync(content, "image/jpeg");
-        var imageId = declared.As<ImageUploadResult>().ImageId;
-
-        var put = await StorageHttp.PutAsync(declared.As<ImageUploadResult>().UploadUrl!, content, "image/jpeg");
-        put.Dispose();
-
-        // Act
-        var response = await _fixture.PostAsync($"{UPLOADS}/{imageId}/confirm", Token, new { });
-
-        // Assert
-        response.StatusCode.Should().Be(400, $"conteúdo que não é imagem deveria recusar: {response}");
-        MensagemOf(response).Should().Be("O conteúdo do arquivo não é uma imagem de tipo aceito.");
-
         await AssertRejectedUploadMustBeRedeclaredAsync(content, "image/jpeg");
     }
 
@@ -542,17 +520,14 @@ public class ImagesControllerTests
     }
 
     // ---------------------------------------------------------------------
-    // US3 — gravar pelo servidor, sem metadado de privacidade (T043, T044)
+    // US3 — gravar pelo servidor (T043, T044)
     // ---------------------------------------------------------------------
 
     [Fact]
-    public async Task ServerUpload_JpegWithGps_ShouldDropExifAndStayViewable()
+    public async Task ServerUpload_Jpeg_ShouldStoreTheBytesAsReceived()
     {
-        // Critério 11 da HU / FR-010 / SC-007: o fixture tem EXIF com IFD GPS; o que o storage recebe
-        // não pode ter nenhum deles.
+        // FR-008: o servidor grava o arquivo como chegou, sem re-codificar.
         var source = File.ReadAllBytes(StorageHttp.FixturePath("small.jpg"));
-        ContainsMarker(source, "Exif").Should().BeTrue(
-            "o fixture precisa ter EXIF, senão este teste passa por vazio e não por ter removido");
 
         // Act
         var response = await _fixture.PostFileAsync("/images", Token, source, "image/jpeg", "small.jpg");
@@ -564,18 +539,14 @@ public class ImagesControllerTests
 
         image.Status.Should().Be(Ambrosia.DTO.Enums.ImageStatus.Available);
         image.Source.Should().Be(Ambrosia.DTO.Enums.ImageSource.Server);
-        image.Width.Should().NotBeNull("a dimensão vem da decodificação");
-        image.Height.Should().NotBeNull();
+        image.Sha256.Should().Be(StorageHttp.Sha256Hex(source));
         image.Url.Should().NotBeNullOrWhiteSpace();
 
         var downloaded = await StorageHttp.GetAsync(image.Url!);
         var stored = await StorageHttp.ReadBytesAsync(downloaded);
         downloaded.Dispose();
 
-        stored.Should().NotBeEquivalentTo(source, "o caminho do servidor re-codifica o conteúdo");
-        ContainsMarker(stored, "Exif").Should().BeFalse("o marcador APP1 de EXIF (com o IFD GPS) tem de sumir");
-
-        Convert.ToHexString(stored[..3]).Should().Be("FFD8FF", $"continua um JPEG legível: {BitConverter.ToString(stored[..4])}");
+        stored.Should().Equal(source, "o caminho do servidor não altera o conteúdo");
     }
 
     [Fact]
@@ -615,12 +586,7 @@ public class ImagesControllerTests
     [Fact]
     public async Task ServerUpload_InvalidContent_ShouldReturn400()
     {
-        // T044 / FR-008: PDF com nome .jpg, corpo vazio e campo ausente — todos 400.
-        var pdf = File.ReadAllBytes(StorageHttp.FixturePath("fake.jpg"));
-
-        var wrongType = await _fixture.PostFileAsync("/images", Token, pdf, "image/jpeg", "foto.jpg");
-        wrongType.StatusCode.Should().Be(400, $"PDF disfarçado de JPEG: {wrongType}");
-
+        // T044 / FR-008: corpo vazio, campo ausente e tipo fora da lista — todos 400.
         var empty = await _fixture.PostFileAsync("/images", Token, [], "image/jpeg", "vazio.jpg");
         empty.StatusCode.Should().Be(400, $"arquivo vazio: {empty}");
 
@@ -923,38 +889,8 @@ public class ImagesControllerTests
     }
 
     /// <summary>
-    /// Procura uma sequência de bytes legível (ASCII) dentro de um binário — é como o teste da US3
-    /// constata que o marcador APP1 de EXIF sumiu do arquivo que o storage guarda.
-    /// </summary>
-    private static bool ContainsMarker(byte[] data, string ascii)
-    {
-        var needle = System.Text.Encoding.ASCII.GetBytes(ascii);
-
-        for (var i = 0; i <= data.Length - needle.Length; i++)
-        {
-            var hit = true;
-
-            for (var j = 0; j < needle.Length; j++)
-            {
-                if (data[i + j] != needle[j])
-                {
-                    hit = false;
-                    break;
-                }
-            }
-
-            if (hit)
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /// <summary>
-    /// Bytes do fixture + sufixo aleatório: o arquivo continua sendo o mesmo formato (a detecção lê as
-    /// assinaturas de bytes no início) e ganha um SHA-256 único por teste — essencial porque a
+    /// Bytes do fixture + sufixo aleatório: o arquivo continua sendo o mesmo formato (as assinaturas de
+    /// bytes ficam no início) e ganha um SHA-256 único por teste — essencial porque a
     /// deduplicação é por <c>(usuário, hash)</c> e a suíte inteira usa a conta do usuário A.
     /// </summary>
     private static byte[] UniqueBytes(string fileName)

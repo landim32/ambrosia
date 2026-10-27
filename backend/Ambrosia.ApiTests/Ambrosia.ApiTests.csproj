@@ -37,7 +37,6 @@
     <Content Include="Fixtures\Images\small.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Fixtures\Images\small.webp" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Fixtures\Images\other.jpg" CopyToOutputDirectory="PreserveNewest" />
-    <Content Include="Fixtures\Images\fake.jpg" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
