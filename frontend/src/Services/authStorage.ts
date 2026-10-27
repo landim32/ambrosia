@@ -30,7 +30,7 @@ const isSession = (value: unknown): value is AuthSession => {
     typeof profile.email === 'string' &&
     profile.email !== '' &&
     typeof profile.name === 'string' &&
-    (profile.provider === 'google' || profile.provider === 'dev') &&
+    (profile.provider === 'google' || profile.provider === 'password') &&
     typeof profile.createdAt === 'string'
   )
 }

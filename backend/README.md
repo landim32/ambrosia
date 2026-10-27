@@ -28,7 +28,7 @@ Sobrescrevem `appsettings*.json` (separador `__`). Em Development, `appsettings.
 
 | Variável | Descrição |
 |---|---|
-| `ASPNETCORE_ENVIRONMENT` | `Development` habilita `/auth/dev-login` e CORS aberto; `Homolog` habilita só o `/auth/dev-login`; `Production` desliga os dois |
+| `ASPNETCORE_ENVIRONMENT` | `Development` abre o CORS; `Homolog` e `Production` não abrem. A autenticação é a mesma nos três: cadastro, login com senha ou Google — não há atalho sem credencial em ambiente nenhum (constituição §VI) |
 | `ConnectionStrings__AmbrosiaContext` | Connection string do PostgreSQL |
 | `Auth__JwtSecret` | Segredo HS256 do JWT (mínimo 32 bytes UTF-8) |
 | `Auth__GoogleClientId` | Client ID usado como audiência do ID token Google |
@@ -73,8 +73,16 @@ Pare a API antes de `dotnet build` (`stop-api.ps1`): o host em execução trava 
 
 ## Autenticação
 
-1. O cliente obtém um ID token do Google e chama `POST /auth/google`.
-2. A API devolve um JWT do Ambrosia (`sub` = `user_id`) usado como `Authorization: Bearer <token>`.
-3. Em Development, `POST /auth/dev-login { email, name }` emite o token sem Google.
+1. **Cadastro** — `POST /auth/register { name, email, password }` cria a conta (a senha fica
+   apenas como hash PBKDF2 em `users.password_hash`) e já devolve a sessão: `201` com o JWT.
+2. **Entrada** — `POST /auth/login { email, password }` devolve o mesmo JWT. Credencial recusada
+   responde `401` com a mensagem única "E-mail ou senha inválidos", sem revelar se o e-mail existe.
+3. **Google** — o cliente obtém um ID token e chama `POST /auth/google`; reutilizando uma conta
+   que tinha senha, a senha é removida neste login (FR-009).
+4. A API devolve um JWT do Ambrosia (`sub` = `user_id`) usado como `Authorization: Bearer <token>`
+   em todas as demais rotas.
+
+Não existe emissão de token sem credencial: a antiga entrada de desenvolvimento foi removida de
+todos os ambientes (003, FR-012).
 
 Recursos de outro usuário respondem **404**, igual a um id inexistente.

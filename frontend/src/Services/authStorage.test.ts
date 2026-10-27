@@ -15,7 +15,7 @@ const VALID: AuthSession = {
     id: 1,
     email: 'ana@exemplo.com',
     name: 'Ana',
-    provider: 'dev',
+    provider: 'password',
     createdAt: '2026-01-01T00:00:00Z',
   },
 }
@@ -68,7 +68,7 @@ describe('authStorage', () => {
 
     raw({
       ...VALID,
-      user: { id: 1, email: '', name: 'Ana', provider: 'dev', createdAt: '' },
+      user: { id: 1, email: '', name: 'Ana', provider: 'password', createdAt: '' },
     })
     expect(readSession()).toBeNull()
   })

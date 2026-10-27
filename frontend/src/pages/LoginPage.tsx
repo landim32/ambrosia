@@ -1,59 +1,55 @@
-import { lazy, Suspense, useCallback } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { useCallback, useRef, useState } from 'react'
+import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
+import { PasswordInput } from '@/components/common/PasswordInput'
+import { returnToOf, validateLoginForm } from '@/lib/authForm'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
 import { useAuth } from '@/hooks/useAuth'
 import { useGoogleIdentity } from '@/hooks/useGoogleIdentity'
 
-/**
- * `state` levado por `RequireAuth` e por `AuthContext.logout` ao redirecionar.
- * Vive neste módulo (e não em `RequireAuth`) para a tela de entrada não importar
- * a guarda de rotas — e, com ela, os contextos e serviços de dados internos.
- */
-interface ReturnToState {
-  returnTo?: string
-}
+import type { LoginFormValues } from '@/lib/authForm'
+import type { FormEvent } from 'react'
+
+const EMPTY: LoginFormValues = { email: '', password: '' }
 
 /**
- * Entrada de desenvolvimento sob a flag de build (research §8, FR-002, SC-008).
+ * Tela de entrada `/login` (FR-002/FR-004/FR-007/FR-018).
  *
- * `import.meta.env.VITE_DEV_LOGIN` é substituída pelo Vite em TEMPO DE BUILD: na
- * build de produção o ternário abaixo colapsa para `null` e o Rollup elimina o
- * `lazy()` — e portanto o chunk de `DevLoginForm` — por completo.
+ * Ordem do `contracts/ui-routes.md`: botão do Google (quando o cliente existe) →
+ * separador "ou" → formulário de e-mail/senha → link "Não tem conta? Criar
+ * conta". O aviso de expiração vem do parâmetro `motivo=expirada` (não de toast),
+ * para sobreviver ao redirecionamento (research §5); o erro de credencial (401)
+ * usa o MESMO `role="alert"`, e a senha digitada permanece no campo.
  *
- * Nada de `import DevLoginForm from './DevLoginForm'` para o `Suspense`: o import
- * estático (mesmo do tipo "só o nome", usado em `React.lazy`) é marcado como
- * usado ao referenciar o binding e NÃO é eliminado com o ramo morto — o chunk
- * sobrevivia à flag. O lazy() é a única referência, e o `<Suspense>` já existe em
- * volta dele. Verificação: `npm run verify:prod` (SC-008).
- */
-const DevLoginForm =
-  import.meta.env.VITE_DEV_LOGIN === 'true' ? lazy(() => import('./DevLoginForm')) : null
-
-const returnToOf = (state: unknown): string | undefined => {
-  if (typeof state !== 'object' || state === null) return undefined
-
-  const { returnTo } = state as ReturnToState
-
-  return typeof returnTo === 'string' && returnTo !== '' ? returnTo : undefined
-}
-
-/**
- * Tela de entrada (FR-002/FR-004/FR-007): botão do Google Identity Services e,
- * fora de produção, o formulário de desenvolvimento. Quem já tem sessão volta
- * para a rota que originou o redirecionamento (`state.returnTo`) ou `/clientes`.
- * O aviso de expiração vem do parâmetro `motivo=expirada` (não de toast), para
- * sobreviver ao redirecionamento (research §5).
+ * Quem já tem sessão volta para `state.returnTo ?? '/clientes'`. Não existe mais
+ * formulário de desenvolvimento: a 003 removeu a rota, o componente e a flag de
+ * build de todos os ambientes (FR-012/FR-013).
  */
 export const LoginPage = () => {
   const { t } = useTranslation()
   const location = useLocation()
-  const { isAuthenticated, loginWithGoogle, loading, error, expiryNotice } = useAuth()
+  const {
+    isAuthenticated,
+    loginWithGoogle,
+    loginWithPassword,
+    loading,
+    error,
+    errorFields,
+    clearError,
+    expiryNotice,
+  } = useAuth()
 
   const returnTo = returnToOf(location.state)
   const expired = new URLSearchParams(location.search).get('motivo') === 'expirada' || expiryNotice
   const destination = returnTo ?? '/clientes'
+
+  const [values, setValues] = useState<LoginFormValues>(EMPTY)
+  const [localErrors, setLocalErrors] = useState<Partial<Record<'email' | 'password', string>>>({})
+  const formRef = useRef<HTMLFormElement>(null)
 
   const handleCredential = useCallback(
     (credential: string): void => {
@@ -65,10 +61,56 @@ export const LoginPage = () => {
 
   const googleButtonRef = useGoogleIdentity(handleCredential)
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID
+  const hasGoogle = googleClientId !== undefined && googleClientId.trim() !== ''
+
+  const setValue = useCallback(
+    (field: keyof LoginFormValues) =>
+      (event: { target: { value: string } }): void => {
+        setValues((current) => ({ ...current, [field]: event.target.value }))
+        setLocalErrors((current) => ({ ...current, [field]: undefined }))
+        clearError()
+      },
+    [clearError],
+  )
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault()
+
+    const errors = validateLoginForm(values)
+    setLocalErrors(errors)
+
+    const firstInvalidId =
+      errors.email !== undefined
+        ? 'login-email'
+        : errors.password !== undefined
+          ? 'login-password'
+          : undefined
+
+    if (firstInvalidId !== undefined) {
+      formRef.current?.querySelector<HTMLInputElement>(`#${firstInvalidId}`)?.focus()
+
+      return
+    }
+
+    // E-mail cortado, senha como digitada (FR-002). O sucesso grava a sessão e o
+    // render seguinte cai no <Navigate>; o 401 fica em `error` (research §3).
+    await loginWithPassword(values.email.trim(), values.password)
+  }
 
   if (isAuthenticated) {
     return <Navigate to={destination} replace />
   }
+
+  const hasGeneralError = expired || (error !== null && error !== '')
+
+  const messageOf = (field: 'email' | 'password'): string | undefined => {
+    const apiMessage = errorFields[field]
+
+    return apiMessage ?? localErrors[field]
+  }
+
+  const emailMessage = messageOf('email')
+  const passwordMessage = messageOf('password')
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center gap-4 px-4 py-8">
@@ -77,35 +119,98 @@ export const LoginPage = () => {
         <p className="text-sm text-muted-foreground">{t('login.subtitle')}</p>
       </header>
 
-      {expired ? (
+      {hasGeneralError ? (
         <p
           role="alert"
           className="rounded-md border border-destructive/40 bg-card px-3 py-2 text-center text-sm text-destructive"
         >
-          {t('login.expired')}
+          {expired ? t('login.expired') : error}
         </p>
       ) : null}
 
-      {error !== null && error !== '' ? (
-        <p className="text-center text-sm text-destructive">{error}</p>
+      {hasGoogle ? (
+        <>
+          <div
+            ref={googleButtonRef}
+            data-testid="google-button"
+            className="flex min-h-11 justify-center"
+          />
+          <div className="flex items-center gap-3">
+            <Separator className="flex-1" />
+            <span className="text-xs uppercase text-muted-foreground">{t('login.or')}</span>
+            <Separator className="flex-1" />
+          </div>
+        </>
       ) : null}
 
-      <div ref={googleButtonRef} data-testid="google-button" className="flex min-h-11 justify-center">
-        {googleClientId === undefined || googleClientId.trim() === '' ? (
-          <Button type="button" variant="outline" className="w-full min-h-11" disabled>
-            {t('login.google')}
-          </Button>
-        ) : null}
-      </div>
+      <form
+        ref={formRef}
+        onSubmit={(event) => {
+          void handleSubmit(event)
+        }}
+        className="flex flex-col gap-4"
+        noValidate
+      >
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="login-email">{t('login.email')}</Label>
+          <Input
+            id="login-email"
+            name="email"
+            className="min-h-11"
+            type="email"
+            autoComplete="username"
+            value={values.email}
+            onChange={setValue('email')}
+            aria-invalid={emailMessage !== undefined}
+            {...(emailMessage === undefined ? {} : { 'aria-describedby': 'login-email-error' })}
+          />
+          {emailMessage === undefined ? null : (
+            <p id="login-email-error" className="text-sm text-destructive">
+              {emailMessage.startsWith('validation.') ? t(emailMessage) : emailMessage}
+            </p>
+          )}
+        </div>
 
-      {DevLoginForm === null ? null : (
-        <Suspense fallback={null}>
-          <DevLoginForm />
-        </Suspense>
-      )}
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="login-password">{t('login.password')}</Label>
+          <PasswordInput
+            id="login-password"
+            name="password"
+            value={values.password}
+            onChange={setValue('password')}
+            autoComplete="current-password"
+            toggleLabels={{ show: t('common.showPassword'), hide: t('common.hidePassword') }}
+            aria-invalid={passwordMessage !== undefined}
+            {...(passwordMessage === undefined
+              ? {}
+              : { 'aria-describedby': 'login-password-error' })}
+          />
+          {passwordMessage === undefined ? null : (
+            <p id="login-password-error" className="text-sm text-destructive">
+              {passwordMessage.startsWith('validation.') ? t(passwordMessage) : passwordMessage}
+            </p>
+          )}
+        </div>
 
-      <p aria-live="polite" className="min-h-5 text-center text-xs text-muted-foreground">
-        {loading ? t('common.loading') : ''}
+        <Button type="submit" className="min-h-11" disabled={loading}>
+          {t('login.submit')}
+        </Button>
+
+        <p aria-live="polite" className="min-h-5 text-center text-xs text-muted-foreground">
+          {loading ? t('common.loading') : ''}
+        </p>
+      </form>
+
+      {/* FR-018 / US1 cenário 7: a entrada é o caminho para o cadastro. */}
+      <p className="text-center text-sm text-muted-foreground">
+        {t('login.noAccount')}{' '}
+        <Link
+          to="/cadastro"
+          state={{ returnTo }}
+          className="text-foreground underline underline-offset-4"
+        >
+          {t('login.createAccount')}
+        </Link>
       </p>
     </main>
   )

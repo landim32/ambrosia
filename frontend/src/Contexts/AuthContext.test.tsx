@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AuthProvider } from '@/Contexts/AuthContext'
 import { useAuth } from '@/hooks/useAuth'
-import { apiRequest, setUnauthorizedHandler } from '@/Services/apiClient'
+import { ApiError, apiRequest, setUnauthorizedHandler } from '@/Services/apiClient'
 import { authService } from '@/Services/authService'
 import { AUTH_STORAGE_KEY, readSession, writeSession } from '@/Services/authStorage'
 
@@ -16,14 +16,18 @@ import type { AuthSession, LoginResult, UserInfo } from '@/types/auth'
  * sessão (data-model §3), não o chamamento HTTP (coberto em authService).
  */
 vi.mock('@/Services/authService', () => ({
-  authService: { loginWithGoogle: vi.fn(), loginDev: vi.fn() },
+  authService: {
+    loginWithGoogle: vi.fn(),
+    loginWithPassword: vi.fn(),
+    register: vi.fn(),
+  },
 }))
 
 const USER: UserInfo = {
   id: 11,
   email: 'ana@exemplo.com',
   name: 'Ana',
-  provider: 'dev',
+  provider: 'password',
   createdAt: '2026-01-01T00:00:00Z',
 }
 
@@ -50,13 +54,14 @@ const LocationProbe = () => {
 }
 
 const StatusProbe = () => {
-  const { isAuthenticated, loading, error, clearError } = useAuth()
+  const { isAuthenticated, loading, error, errorFields, clearError } = useAuth()
 
   return (
     <div>
       <div data-testid="status">
         {`auth=${String(isAuthenticated)} loading=${String(loading)} error=${error ?? '-'}`}
       </div>
+      <div data-testid="fields">{`fields=${JSON.stringify(errorFields)}`}</div>
       <button
         type="button"
         onClick={() => {
@@ -70,17 +75,17 @@ const StatusProbe = () => {
 }
 
 const ActionsProbe = () => {
-  const { loginDev, loginWithGoogle, logout } = useAuth()
+  const { loginWithGoogle, loginWithPassword, register, logout } = useAuth()
 
   return (
     <>
       <button
         type="button"
         onClick={() => {
-          void loginDev('ana@exemplo.com', 'Ana')
+          void loginWithPassword('ana@exemplo.com', 'senha-forte-1')
         }}
       >
-        login-dev
+        entrar-senha
       </button>
       <button
         type="button"
@@ -89,6 +94,14 @@ const ActionsProbe = () => {
         }}
       >
         login-google
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void register('Ana', 'ana@exemplo.com', 'senha-forte-1')
+        }}
+      >
+        cadastrar
       </button>
       <button
         type="button"
@@ -133,8 +146,9 @@ const locationText = (): string => screen.getByTestId('location').textContent
 
 beforeEach(() => {
   localStorage.clear()
-  vi.mocked(authService.loginDev).mockResolvedValue(loginResultExpiringIn(60_000))
   vi.mocked(authService.loginWithGoogle).mockResolvedValue(loginResultExpiringIn(60_000))
+  vi.mocked(authService.loginWithPassword).mockResolvedValue(loginResultExpiringIn(60_000))
+  vi.mocked(authService.register).mockResolvedValue(loginResultExpiringIn(60_000))
 })
 
 afterEach(() => {
@@ -169,16 +183,19 @@ describe('AuthContext', () => {
     expect(locationText()).toBe('LOC:/pedidos?tipo=sale:null')
   })
 
-  it('loginDev grava a sessão e autentica', async () => {
+  it('loginWithPassword grava a sessão e autentica', async () => {
     const events = userEvent.setup()
     renderAuth('/login')
 
-    await events.click(screen.getByRole('button', { name: 'login-dev' }))
+    await events.click(screen.getByRole('button', { name: 'entrar-senha' }))
 
     await waitFor(() => {
       expect(screen.getByTestId('status')).toHaveTextContent('auth=true')
     })
-    expect(vi.mocked(authService.loginDev)).toHaveBeenCalledWith('ana@exemplo.com', 'Ana')
+    expect(vi.mocked(authService.loginWithPassword)).toHaveBeenCalledWith({
+      email: 'ana@exemplo.com',
+      password: 'senha-forte-1',
+    })
     expect(localStorage.getItem(AUTH_STORAGE_KEY)).toContain('jwt-novo')
   })
 
@@ -194,12 +211,91 @@ describe('AuthContext', () => {
     expect(vi.mocked(authService.loginWithGoogle)).toHaveBeenCalledWith('id-token-falso')
   })
 
-  it('login recusado mantém a vendedora anônima, sem gravar sessão', async () => {
+  // US1 · FR-001/FR-010: o cadastro já inicia a sessão — mesma transição do login.
+  it('register grava a sessão, autentica e devolve true', async () => {
     const events = userEvent.setup()
-    vi.mocked(authService.loginDev).mockRejectedValueOnce(new Error('credencial recusada'))
+    renderAuth('/cadastro')
+
+    await events.click(screen.getByRole('button', { name: 'cadastrar' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status')).toHaveTextContent('auth=true')
+    })
+    expect(vi.mocked(authService.register)).toHaveBeenCalledWith({
+      name: 'Ana',
+      email: 'ana@exemplo.com',
+      password: 'senha-forte-1',
+    })
+
+    const stored = localStorage.getItem(AUTH_STORAGE_KEY)
+    expect(stored).toContain('jwt-novo')
+    expect(JSON.parse(stored ?? '{}')).toMatchObject({
+      token: 'jwt-novo',
+      user: { id: 11, email: 'ana@exemplo.com' },
+    })
+    expect(screen.getByTestId('status')).toHaveTextContent('error=-')
+  })
+
+  it('register recusado em 409 devolve false, expõe a mensagem da API e não grava sessão', async () => {
+    const events = userEvent.setup()
+    vi.mocked(authService.register).mockRejectedValueOnce(
+      new ApiError(409, 'Este e-mail já está cadastrado.', []),
+    )
+    renderAuth('/cadastro')
+
+    await events.click(screen.getByRole('button', { name: 'cadastrar' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status')).toHaveTextContent('auth=false')
+      expect(screen.getByTestId('status')).toHaveTextContent('error=Este e-mail já está cadastrado.')
+      expect(screen.getByTestId('status')).toHaveTextContent('loading=false')
+    })
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
+  })
+
+  it('register com 400 expõe os erros por campo vindos da API', async () => {
+    const events = userEvent.setup()
+    vi.mocked(authService.register).mockRejectedValueOnce(
+      new ApiError(400, 'Dados inválidos.', [{ campo: 'email', mensagem: 'E-mail inválido.' }]),
+    )
+    renderAuth('/cadastro')
+
+    await events.click(screen.getByRole('button', { name: 'cadastrar' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status')).toHaveTextContent('error=Dados inválidos.')
+    })
+    expect(screen.getByTestId('fields')).toHaveTextContent('fields={"email":"E-mail inválido."}')
+  })
+
+  // US2 · FR-002/FR-008 + research §3: o 401 anônimo de "credencial recusada" é
+  // erro do formulário — não pode derrubar sessão nem virar "Sua sessão expirou".
+  it('ApiError(401) do login devolve false, expõe a mensagem e NÃO faz logout(expirada)', async () => {
+    const events = userEvent.setup()
+    vi.mocked(authService.loginWithPassword).mockRejectedValueOnce(
+      new ApiError(401, 'E-mail ou senha inválidos', []),
+    )
     renderAuth('/login')
 
-    await events.click(screen.getByRole('button', { name: 'login-dev' }))
+    await events.click(screen.getByRole('button', { name: 'entrar-senha' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('status')).toHaveTextContent('auth=false')
+      expect(screen.getByTestId('status')).toHaveTextContent('error=E-mail ou senha inválidos')
+      expect(screen.getByTestId('status')).toHaveTextContent('loading=false')
+    })
+
+    // Nenhum logout('expirada') rodou: a rota não mudou nem ganhou o motivo.
+    expect(locationText()).toBe('LOC:/login:null')
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
+  })
+
+  it('login recusado mantém a vendedora anônima, sem gravar sessão', async () => {
+    const events = userEvent.setup()
+    vi.mocked(authService.loginWithPassword).mockRejectedValueOnce(new Error('credencial recusada'))
+    renderAuth('/login')
+
+    await events.click(screen.getByRole('button', { name: 'entrar-senha' }))
 
     await waitFor(() => {
       expect(screen.getByTestId('status')).toHaveTextContent('auth=false')
@@ -209,16 +305,32 @@ describe('AuthContext', () => {
 
   it('clearError volta a não expor erro', async () => {
     const events = userEvent.setup()
-    vi.mocked(authService.loginDev).mockRejectedValueOnce(new Error('credencial recusada'))
+    vi.mocked(authService.loginWithPassword).mockRejectedValueOnce(new Error('credencial recusada'))
     renderAuth('/login')
 
-    await events.click(screen.getByRole('button', { name: 'login-dev' }))
+    await events.click(screen.getByRole('button', { name: 'entrar-senha' }))
     await waitFor(() => {
       expect(screen.getByTestId('status')).not.toHaveTextContent('error=-')
     })
 
     await events.click(screen.getByRole('button', { name: 'limpar-erro' }))
     expect(screen.getByTestId('status')).toHaveTextContent('error=-')
+  })
+
+  it('clearError também limpa os erros de campo', async () => {
+    const events = userEvent.setup()
+    vi.mocked(authService.register).mockRejectedValueOnce(
+      new ApiError(400, 'Dados inválidos.', [{ campo: 'name', mensagem: 'O nome é obrigatório.' }]),
+    )
+    renderAuth('/cadastro')
+
+    await events.click(screen.getByRole('button', { name: 'cadastrar' }))
+    await waitFor(() => {
+      expect(screen.getByTestId('fields')).toHaveTextContent('name')
+    })
+
+    await events.click(screen.getByRole('button', { name: 'limpar-erro' }))
+    expect(screen.getByTestId('fields')).toHaveTextContent('fields={}')
   })
 
   it('logout() limpa o storage e navega para /login sem motivo', async () => {

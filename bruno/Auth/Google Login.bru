@@ -1,7 +1,7 @@
 meta {
   name: Google Login
   type: http
-  seq: 2
+  seq: 3
 }
 
 post {
@@ -25,4 +25,7 @@ script:post-response {
 docs {
   Troca um ID token do Google por um JWT do Ambrosia. Preencha `googleIdToken` no
   ambiente (exige `AUTH_GOOGLE_CLIENT_ID` configurado na API).
+
+  Reutilizando uma conta que tinha senha, a senha é REMOVIDA neste login (FR-009):
+  depois disso só o Google entra, até uma futura troca/recuperação de senha.
 }

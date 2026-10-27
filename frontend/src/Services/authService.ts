@@ -1,10 +1,9 @@
-import i18n from '@/i18n'
-import { ApiError, apiRequest, NotFoundError } from '@/Services/apiClient'
+import { apiRequest } from '@/Services/apiClient'
 
-import type { DevLoginInfo, GoogleLoginInfo, LoginResult } from '@/types/auth'
+import type { GoogleLoginInfo, LoginInfo, LoginResult, RegisterInfo } from '@/types/auth'
 
 /**
- * Auth Service - troca da credencial do provedor pelo JWT da API (HU 001).
+ * Auth Service - troca da credencial pelo JWT da API (HU 001 + 003).
  *
  * O transporte é sempre `apiRequest` (Fetch API, constituição §II): as rotas
  * `/auth/*` são anônimas (`auth: false`) e os erros chegam como classes,
@@ -13,6 +12,28 @@ import type { DevLoginInfo, GoogleLoginInfo, LoginResult } from '@/types/auth'
  */
 class AuthService {
   /**
+   * `POST /auth/register` (FR-001): cria a conta e devolve o `LoginResult` — a
+   * sessão começa no mesmo passo, sem um segundo login.
+   *
+   * Erros que a tela precisa distinguir (contracts/auth-api.md): 400 chega com
+   * `erros[]` por campo, 409 com a `mensagem` geral (e-mail já cadastrado).
+   * O `apiClient` já traduz ambos em `ApiError`; nada é reescrito aqui.
+   */
+  async register(info: RegisterInfo): Promise<LoginResult> {
+    return apiRequest<LoginResult>('POST', '/auth/register', { body: info, auth: false })
+  }
+
+  /**
+   * `POST /auth/login` com e-mail e senha (FR-002). O 401 de credencial recusada
+   * vem como `ApiError(401, 'E-mail ou senha inválidos')` porque a chamada é
+   * anônima — ele NÃO derruba sessão nem dispara o aviso de "Sua sessão expirou"
+   * (research §3).
+   */
+  async loginWithPassword(info: LoginInfo): Promise<LoginResult> {
+    return apiRequest<LoginResult>('POST', '/auth/login', { body: info, auth: false })
+  }
+
+  /**
    * `POST /auth/google` com o ID token do Google Identity Services.
    * 400 vira `ApiError` com a `mensagem` da API (mostrada em toast pela tela).
    */
@@ -20,36 +41,6 @@ class AuthService {
     const body: GoogleLoginInfo = { idToken }
 
     return apiRequest<LoginResult>('POST', '/auth/google', { body, auth: false })
-  }
-
-  /**
-   * `POST /auth/dev-login`, disponível só em Development/Homolog. O 404 típico do
-   * ambiente de produção é traduzido para "Entrada de desenvolvimento indisponível".
-   *
-   * A primeira linha é uma **guarda de build** (FR-002, SC-008): o Vite substitui
-   * `import.meta.env.VITE_DEV_LOGIN` por uma constante em tempo de compilação,
-   * então na build de produção a comparação colapsa para `true` e o Rollup elimina
-   * todo o corpo que envia `{ email, name }` a `/auth/dev-login`. Sem isso, a
-   * rota e o DTO continuariam vivos no bundle principal — o `AuthContext` importa
-   * este serviço sempre, e a flag de build só escondia o **formulário**
-   * (`DevLoginForm`), não o chamador. `npm run verify:prod` é o que prova.
-   */
-  async loginDev(email: string, name: string): Promise<LoginResult> {
-    if (import.meta.env.VITE_DEV_LOGIN !== 'true') {
-      throw new ApiError(404, i18n.t('errors.devLoginUnavailable'))
-    }
-
-    const body: DevLoginInfo = { email, name }
-
-    try {
-      return await apiRequest<LoginResult>('POST', '/auth/dev-login', { body, auth: false })
-    } catch (err) {
-      if (err instanceof NotFoundError) {
-        throw new ApiError(404, i18n.t('errors.devLoginUnavailable'))
-      }
-
-      throw err
-    }
   }
 }
 

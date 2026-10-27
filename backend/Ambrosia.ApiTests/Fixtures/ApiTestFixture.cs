@@ -10,12 +10,16 @@ using Microsoft.Extensions.Configuration;
 namespace Ambrosia.ApiTests.Fixtures;
 
 /// <summary>
-/// Fixture da coleção de testes HTTP (skill <c>dotnet-test-api</c>), com o preset adaptado ao
-/// dev-login desta feature (research §2): autentica <b>dois</b> usuários por sessão para que os
-/// testes de isolamento (US4) tenham A e B disponíveis.
+/// Fixture da coleção de testes HTTP (skill <c>dotnet-test-api</c>): autentica pelo caminho
+/// real da aplicação — <c>POST /auth/register</c> seguido de <c>POST /auth/login</c> — e cria
+/// <b>dois</b> usuários por sessão para que os testes de isolamento (US4) tenham A e B.
 ///
-/// O dev-login não usa senha, então <c>appsettings.Test.json</c> não contém segredos e não há
-/// placeholders <c>REPLACE_VIA_ENV_*</c>.
+/// Nenhum teste depende de usuário semeado à mão nem de atalho sem senha: os e-mails usam um
+/// sufixo GUID por execução, então a suíte pode rodar duas vezes seguidas no mesmo banco de
+/// Development e continuar verde (FR-016, SC-005).
+///
+/// <c>Auth:TestPassword</c> <b>não é um segredo</b>: só existe em bancos de Development/Homolog
+/// e cada execução cria contas novas com e-mail aleatório (research §7).
 /// </summary>
 public class ApiTestFixture : IAsyncLifetime
 {
@@ -46,7 +50,12 @@ public class ApiTestFixture : IAsyncLifetime
 
     public int TimeoutSeconds { get; private set; } = 30;
 
-    public string DevLoginEndpoint { get; private set; } = "/auth/dev-login";
+    public string RegisterEndpoint { get; private set; } = "/auth/register";
+
+    public string LoginEndpoint { get; private set; } = "/auth/login";
+
+    /// <summary>Senha padrão das contas criadas pela suíte (não é segredo — ver cabeçalho).</summary>
+    public string TestPassword { get; private set; } = "Senha-de-teste-123";
 
     private IConfiguration _configuration = null!;
 
@@ -59,7 +68,9 @@ public class ApiTestFixture : IAsyncLifetime
             .Build();
 
         BaseUrl = RequireConfig("ApiBaseUrl");
-        DevLoginEndpoint = _configuration["Auth:DevLoginEndpoint"] ?? "/auth/dev-login";
+        RegisterEndpoint = _configuration["Auth:RegisterEndpoint"] ?? "/auth/register";
+        LoginEndpoint = _configuration["Auth:LoginEndpoint"] ?? "/auth/login";
+        TestPassword = _configuration["Auth:TestPassword"] ?? "Senha-de-teste-123";
         TimeoutSeconds = int.TryParse(_configuration["Timeout"], out var timeout) ? timeout : 30;
 
         await EnsureApiIsUp();
@@ -69,11 +80,11 @@ public class ApiTestFixture : IAsyncLifetime
         EmailA = $"ana+{suffix}@exemplo.com";
         EmailB = $"bia+{suffix}@exemplo.com";
 
-        var loginA = await DevLoginAsync(EmailA, "Ana");
+        var loginA = await CreateUserAsync(EmailA, "Ana");
         TokenA = loginA.Token;
         UserIdA = loginA.User.Id;
 
-        var loginB = await DevLoginAsync(EmailB, "Bia");
+        var loginB = await CreateUserAsync(EmailB, "Bia");
         TokenB = loginB.Token;
         UserIdB = loginB.User.Id;
     }
@@ -88,36 +99,66 @@ public class ApiTestFixture : IAsyncLifetime
     public IFlurlRequest CreateAnonymousRequest(string path) => BuildRequest(path);
 
     /// <summary>
-    /// Dev-login direto, usado pelo setup do fixture e por testes que precisam de um usuário
-    /// extra (ex.: o mesmo CPF para dois usuários, US4 cenário 4).
+    /// <c>POST /auth/register</c> exigindo 201. Usado pelo setup e por testes que precisam de
+    /// uma conta sem token na mão (ex.: a rota pública anônima de <c>/auth/login</c>).
     /// </summary>
-    public async Task<LoginResult> DevLoginAsync(string email, string name)
+    public async Task<LoginResult> RegisterAsync(string email, string name, string password)
     {
-        var response = await CreateAnonymousRequest(DevLoginEndpoint)
+        var response = await CreateAnonymousRequest(RegisterEndpoint)
             .AllowAnyHttpStatus()
-            .PostJsonAsync(new DevLoginInfo { Email = email, Name = name });
+            .PostJsonAsync(new RegisterInfo { Email = email, Name = name, Password = password });
 
-        if (response.StatusCode == 404)
-        {
-            throw new InvalidOperationException(
-                $"POST {DevLoginEndpoint} respondeu 404 em {BaseUrl}: os testes HTTP exigem a API no ar " +
-                "com ASPNETCORE_ENVIRONMENT=Development. Suba-a com backend/scripts/run-api.ps1.");
-        }
-
-        if (!response.StatusCode.IsSuccess())
+        if (response.StatusCode != 201)
         {
             var body = await response.GetStringAsync();
             throw new InvalidOperationException(
-                $"Dev-login de '{email}' falhou com HTTP {response.StatusCode}: {body}");
+                $"POST {RegisterEndpoint} de '{email}' respondeu {response.StatusCode} (esperado 201): {body}. " +
+                "Confirme a API no ar em Development (backend/scripts/run-api.ps1) e se a rota " +
+                "/auth/register existe nesta build.");
         }
 
         var result = Deserialize<LoginResult>(await response.GetStringAsync());
         if (string.IsNullOrWhiteSpace(result.Token))
         {
-            throw new InvalidOperationException($"Dev-login de '{email}' não retornou token.");
+            throw new InvalidOperationException($"Cadastro de '{email}' não retornou token.");
         }
 
         return result;
+    }
+
+    /// <summary><c>POST /auth/login</c> exigindo 200 e token não vazio.</summary>
+    public async Task<LoginResult> LoginAsync(string email, string password)
+    {
+        var response = await CreateAnonymousRequest(LoginEndpoint)
+            .AllowAnyHttpStatus()
+            .PostJsonAsync(new LoginInfo { Email = email, Password = password });
+
+        if (response.StatusCode != 200)
+        {
+            var body = await response.GetStringAsync();
+            throw new InvalidOperationException(
+                $"POST {LoginEndpoint} de '{email}' respondeu {response.StatusCode} (esperado 200): {body}.");
+        }
+
+        var result = Deserialize<LoginResult>(await response.GetStringAsync());
+        if (string.IsNullOrWhiteSpace(result.Token))
+        {
+            throw new InvalidOperationException($"Login de '{email}' não retornou token.");
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Cria a conta e entra na sequência (US4 cenário 1): o <see cref="LoginResult"/> devolvido é
+    /// o do <b>login</b>, então todo teste autenticado prova que a senha cadastrada funciona —
+    /// não que um atalho de desenvolvimento gerou o token.
+    /// </summary>
+    public async Task<LoginResult> CreateUserAsync(string email, string name)
+    {
+        await RegisterAsync(email, name, TestPassword);
+
+        return await LoginAsync(email, TestPassword);
     }
 
     /// <summary>GET com resposta capturada sem exceção (status, corpo bruto, Location).</summary>

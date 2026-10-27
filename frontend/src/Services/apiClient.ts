@@ -10,7 +10,7 @@ const apiBase = (): string => {
   return configured && configured.trim() !== '' ? configured : '/api'
 }
 
-/** Erro de negócio da API (400/409/500) com a mensagem e os erros de campo. */
+/** Erro de negócio da API (400/401/409/500) com a mensagem e os erros de campo. */
 export class ApiError extends Error {
   readonly status: number
   readonly mensagem: string
@@ -96,8 +96,8 @@ const liveSession = () => {
   const session = readSession()
   if (!session) return null
 
-  const expiresAt = Date.parse(session.expiresAt)
-  if (Number.isNaN(expiresAt) || expiresAt <= Date.now()) return null
+  const when = Date.parse(session.expiresAt)
+  if (Number.isNaN(when) || when <= Date.now()) return null
 
   return session
 }
@@ -114,8 +114,9 @@ export interface RequestOptions {
 /**
  * Cliente HTTP único da aplicação (Fetch API nativa, constituição §II).
  * Interpreta as respostas conforme `contracts/api-consumption.md`:
- * 200 → JSON tipado · 400/409 → ApiError · 401 → UnauthorizedError ·
- * 404 → NotFoundError · 500 `text/plain` → ApiError · rede → NetworkError.
+ * 200/201 → JSON tipado · 400/409/500 → ApiError · 401 autenticado →
+ * UnauthorizedError · 401 anônimo → ApiError · 404 → NotFoundError ·
+ * rede → NetworkError.
  *
  * Exceção formal à regra 7 da skill `react-architecture`: respostas 200 da API da
  * HU 001 são DTOs puros, sem wrapper `sucesso` (plano → Complexity Tracking); os
@@ -153,12 +154,23 @@ export const apiRequest = async <T>(
     return (await response.json()) as T
   }
 
-  if (response.status === 401) {
-    triggerUnauthorized()
-    throw new UnauthorizedError()
-  }
-
   const errorResult = await readErrorResult(response)
+
+  if (response.status === 401) {
+    // Chamada autenticada: a sessão morreu → o handler desloga (FR-004).
+    if (withAuth) {
+      triggerUnauthorized()
+      throw new UnauthorizedError()
+    }
+
+    // 003 · research §3: o 401 anônimo é credencial recusada no login com senha
+    // (FR-008) — um erro do formulário, e não uma sessão expirada. Lançar
+    // `UnauthorizedError` aqui faria a tela de entrada mostrar "Sua sessão
+    // expirou" no lugar de "E-mail ou senha inválidos".
+    if (errorResult) throw new ApiError(401, errorResult.mensagem, errorResult.erros)
+
+    throw new ApiError(401, await readText(response))
+  }
 
   if (response.status === 404) throw new NotFoundError(errorResult?.mensagem)
 

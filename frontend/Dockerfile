@@ -1,9 +1,12 @@
 # Frontend da HU 002 (T089): build em Node, servido por nginx.
 #
-# O compose passa BUILD_MODE (homolog|production), VITE_DEV_LOGIN e
-# VITE_GOOGLE_CLIENT_ID. As variaveis VITE_* sao embutidas no bundle EM BUILD
-# TIME — por isso existem so no primeiro estagio e nao precisam de ENV no runtime
-# (research §8, SC-008: nao ha como "ligar" o dev-login depois da imagem pronta).
+# O compose passa BUILD_MODE (homolog|production) e VITE_GOOGLE_CLIENT_ID. As
+# variaveis VITE_* sao embutidas no bundle EM BUILD TIME — por isso existem so no
+# primeiro estagio e nao precisam de ENV no runtime.
+#
+# Desde a 003 nao existe flag de entrada de desenvolvimento: a rota, o DTO, o
+# formulario e o build arg correspondente foram removidos de todos os ambientes
+# (FR-012/FR-013), entao o pacote nao tem o que "ligar" depois de pronto.
 
 # --- Estagio 1: build -------------------------------------------------------
 FROM node:22-alpine AS build
@@ -11,7 +14,6 @@ FROM node:22-alpine AS build
 WORKDIR /app
 
 ARG BUILD_MODE=production
-ARG VITE_DEV_LOGIN
 ARG VITE_GOOGLE_CLIENT_ID
 
 # So o lockfile: a camada de dependencias sobrevive a mudanca de codigo.
@@ -20,16 +22,16 @@ RUN npm ci
 
 COPY . .
 
-ENV VITE_DEV_LOGIN=${VITE_DEV_LOGIN}
 ENV VITE_GOOGLE_CLIENT_ID=${VITE_GOOGLE_CLIENT_ID}
 
-# `--mode` escolhe o .env.<mode> do frontend (homolog | production). O script
+# `--mode` escolhe o .env.<modo> do frontend (homolog | production). O script
 # `build` roda `tsc -b && vite build`: a imagem nao nasce com tipo quebrado.
 RUN npm run build -- --mode "${BUILD_MODE}"
 
-# A prova da SC-008 so vale para producao: em homolog o dev-login PRECISA existir
-# (VITE_DEV_LOGIN=true), entao o teste ali seria uma falha falsa.
-RUN if [ "${BUILD_MODE}" = "production" ]; then node scripts/verify-prod.mjs; fi
+# A prova do pacote roda em QUALQUER modo (SC-004): desde a 003 nao ha ambiente
+# em que os termos da entrada de desenvolvimento possam aparecer legitimamente,
+# entao nao ha condicao aqui — homolog e production sao provados igual.
+RUN node scripts/verify-prod.mjs
 
 # --- Estagio 2: runtime -----------------------------------------------------
 FROM nginx:1.27-alpine

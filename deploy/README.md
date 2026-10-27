@@ -9,7 +9,9 @@
 | Endereço | `http://localhost:5000/swagger` | `http://localhost:8080/api/swagger` | `https://ambrosiaai.site/api/swagger` |
 | HTTPS | Não | Não | Cloudflare (Full strict) + Origin Certificate no nginx |
 | Migrações | `dotnet ef database update` | Serviço `migrator` (bundle EF) no `up` | Job `migrate` do pipeline |
-| `/auth/dev-login` | Sim | Sim | Não |
+| `/auth/register` e `/auth/login` | Sim | Sim | Sim |
+
+Autenticação: `POST /auth/register` (cadastro com nome, e-mail e senha) e `POST /auth/login` (e-mail + senha) são rotas anônimas da API, disponíveis nos três ambientes, como o `POST /auth/google` — atrás do gateway elas ficam em `/api/auth/*`, e o `/auth/` sem prefixo continua reservado à HU 007. Não existe emissão de token sem credencial em ambiente nenhum: a antiga entrada de desenvolvimento foi removida pela spec [`003-email-password-jwt-auth`](../specs/003-email-password-jwt-auth/) e responde 404 em Development, Homolog e Production (nem aparece no Swagger).
 
 Rotas do gateway (homolog e produção, `deploy/nginx/routes.inc`): `/` → frontend (HU 002), `/api/` → API (o prefixo é removido), `/auth/` → HU 007, `/mcp` → HU 006. Rotas de serviços que ainda não existem respondem 503.
 

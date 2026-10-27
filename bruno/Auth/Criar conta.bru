@@ -1,0 +1,43 @@
+meta {
+  name: Criar conta
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/auth/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "name": "{{userName}}",
+    "email": "{{userEmail}}",
+    "password": "{{userPassword}}"
+  }
+}
+
+script:post-response {
+  // Só a primeira execução (conta inédita) responde 201 e grava o token. Nas
+  // seguintes o cadastro responde 409 e o token continua vindo do Login com senha.
+  if (res.status === 201) {
+    bru.setEnvVar("token", res.body.token);
+  }
+}
+
+tests {
+  test("201 na conta nova, 409 quando o e-mail já existe", function () {
+    expect([201, 409]).to.include(res.status);
+  });
+}
+
+docs {
+  Cria a conta com e-mail e senha (feature 003) e já inicia a sessão: o JWT vai para
+  `token` quando a resposta é 201.
+
+  A primeira execução contra um banco novo responde **201**. As execuções seguintes
+  respondem **409** ("Este e-mail já está cadastrado.") e NÃO gravam token, porque o
+  cadastro nunca sobrescreve uma conta existente — nem a senha dela. Para renovar a
+  sessão, rode **Login com senha** (seq 2).
+}

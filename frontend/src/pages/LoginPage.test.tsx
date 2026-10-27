@@ -13,7 +13,11 @@ import type { AuthSession, LoginResult, UserInfo } from '@/types/auth'
  * escopo do modulo de `LoginPage`.
  */
 const mocks = vi.hoisted(() => ({
-  authService: { loginWithGoogle: vi.fn(), loginDev: vi.fn() },
+  authService: {
+    loginWithGoogle: vi.fn(),
+    loginWithPassword: vi.fn(),
+    register: vi.fn(),
+  },
   useGoogleIdentity: vi.fn(),
 }))
 
@@ -29,7 +33,7 @@ const USER: UserInfo = {
   id: 11,
   email: 'ana@exemplo.com',
   name: 'Ana',
-  provider: 'dev',
+  provider: 'password',
   createdAt: '2026-01-01T00:00:00Z',
 }
 
@@ -45,17 +49,21 @@ const loginResult: LoginResult = {
   user: USER,
 }
 
+/** Sonda de destino: revela para onde se foi, com que search e com que state. */
 const AfterLogin = () => {
   const location = useLocation()
 
-  return <div data-testid="after">{`AT:${location.pathname}${location.search}`}</div>
+  return (
+    <div data-testid="after">
+      {`AT:${location.pathname}${location.search}:${JSON.stringify(location.state ?? null)}`}
+    </div>
+  )
 }
 
 /**
- * Codigo da aplicacao importado DO ZERO. A flag `VITE_DEV_LOGIN` e lida no
- * ESCOPO DO MODULO (research §8 / T044) — assim o Rollup elimina o chunk em
- * producao —, entao so um reimport enxerga o `vi.stubEnv` do teste. provider e
- * pagina vem da MESMA copia do grafo: `node_modules` e compartilhado, `src/` nao.
+ * Codigo da aplicacao importado DO ZERO: o grafo e reavaliado a cada teste para
+ * que o `vi.stubEnv` de `VITE_GOOGLE_CLIENT_ID` (lido no corpo do componente) e o
+ * estado do AuthProvider comecem limpos.
  */
 const importGraph = async () => {
   vi.resetModules()
@@ -71,7 +79,7 @@ const importGraph = async () => {
 /** provider + pagina vindos do mesmo grafo reimportado. */
 type Graph = Awaited<ReturnType<typeof importGraph>>
 
-/** Monta /login com pathname e search separados (MemoryRouter casa a rota). */
+/** Monta /login com pathname, search e state separados (MemoryRouter casa a rota). */
 const renderLogin = (
   { AuthProvider, LoginPage }: Graph,
   entry = '/login',
@@ -88,6 +96,7 @@ const renderLogin = (
       <AuthProvider>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/cadastro" element={<AfterLogin />} />
           <Route path="/clientes" element={<AfterLogin />} />
           <Route path="/pedidos" element={<AfterLogin />} />
         </Routes>
@@ -96,11 +105,21 @@ const renderLogin = (
   )
 }
 
+/** O input por id: `type="password"` nao tem role de textbox. */
+const inputOf = (id: string): HTMLInputElement => {
+  const input = document.getElementById(id)
+
+  if (!(input instanceof HTMLInputElement)) throw new Error(`campo ${id} nao encontrado`)
+
+  return input
+}
+
 beforeEach(() => {
   localStorage.clear()
   mocks.useGoogleIdentity.mockImplementation(() => undefined)
-  mocks.authService.loginDev.mockResolvedValue(loginResult)
+  mocks.authService.loginWithPassword.mockResolvedValue(loginResult)
   mocks.authService.loginWithGoogle.mockResolvedValue(loginResult)
+  mocks.authService.register.mockResolvedValue(loginResult)
 })
 
 afterEach(() => {
@@ -109,36 +128,178 @@ afterEach(() => {
 })
 
 describe('LoginPage', () => {
-  it('mostra o formulario de dev quando VITE_DEV_LOGIN=true', async () => {
-    vi.stubEnv('VITE_DEV_LOGIN', 'true')
-    renderLogin(await importGraph())
-
-    expect(await screen.findByRole('textbox', { name: /E-mail/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Entrar' })).toBeInTheDocument()
-  })
-
-  it('nao mostra o formulario de dev quando a flag esta ausente (producao)', async () => {
-    vi.stubEnv('VITE_DEV_LOGIN', undefined)
-    renderLogin(await importGraph())
-
-    await screen.findByRole('heading', { name: /Ambrosia/i })
-    expect(screen.queryByRole('textbox', { name: /E-mail/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Entrar' })).not.toBeInTheDocument()
-  })
-
-  it('com ?motivo=expirada exibe o aviso de sessao expirada como alerta', async () => {
-    vi.stubEnv('VITE_DEV_LOGIN', undefined)
-    renderLogin(await importGraph(), '/login?motivo=expirada')
-
-    expect(screen.getByRole('alert')).toHaveTextContent('Sua sessão expirou')
-  })
-
-  it('sem o parametro nao ha aviso de expiracao', async () => {
-    vi.stubEnv('VITE_DEV_LOGIN', undefined)
+  it('tem campo de e-mail, campo de senha com mostrar/ocultar e botao Entrar', async () => {
     renderLogin(await importGraph())
 
     expect(await screen.findByRole('heading', { name: /Ambrosia/i })).toBeInTheDocument()
+    expect(inputOf('login-email')).toBeInTheDocument()
+    expect(inputOf('login-password')).toHaveAttribute('type', 'password')
+    expect(screen.getByRole('button', { name: 'Entrar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Mostrar senha' })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Criar conta' })).toBeInTheDocument()
+  })
+
+  it('envio valido chama loginWithPassword com o e-mail cortado e a senha como digitada', async () => {
+    const events = userEvent.setup()
+    renderLogin(await importGraph(), '/login', { returnTo: '/pedidos?tipo=sale' })
+
+    await events.type(inputOf('login-email'), '  ana@exemplo.com  ')
+    await events.type(inputOf('login-password'), 'senha-forte-1')
+    await events.click(screen.getByRole('button', { name: 'Entrar' }))
+
+    await waitFor(() => {
+      expect(mocks.authService.loginWithPassword).toHaveBeenCalledWith({
+        email: 'ana@exemplo.com',
+        password: 'senha-forte-1',
+      })
+    })
+    await waitFor(() => {
+      expect(screen.getByTestId('after')).toHaveTextContent('AT:/pedidos?tipo=sale')
+    })
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toContain('jwt-novo')
+  })
+
+  it('sem returnTo o sucesso vai para /clientes', async () => {
+    const events = userEvent.setup()
+    renderLogin(await importGraph())
+
+    await events.type(inputOf('login-email'), 'ana@exemplo.com')
+    await events.type(inputOf('login-password'), 'senha-forte-1')
+    await events.click(screen.getByRole('button', { name: 'Entrar' }))
+
+    await waitFor(() => {
+      expect(screen.getByTestId('after')).toHaveTextContent('AT:/clientes')
+    })
+  })
+
+  it('enviar vazio mostra a mensagem, foca o campo e nao chama a API', async () => {
+    const events = userEvent.setup()
+    renderLogin(await importGraph())
+
+    await events.click(screen.getByRole('button', { name: 'Entrar' }))
+
+    expect(inputOf('login-email')).toHaveFocus()
+    expect(inputOf('login-email')).toHaveAttribute('aria-invalid', 'true')
+    expect(screen.getByText('Informe seu e-mail')).toBeInTheDocument()
+    expect(mocks.authService.loginWithPassword).not.toHaveBeenCalled()
+  })
+
+  it('senha vazia pede a senha e nao envia', async () => {
+    const events = userEvent.setup()
+    renderLogin(await importGraph())
+
+    await events.type(inputOf('login-email'), 'ana@exemplo.com')
+    await events.click(screen.getByRole('button', { name: 'Entrar' }))
+
+    expect(screen.getByText('Informe sua senha')).toBeInTheDocument()
+    expect(inputOf('login-password')).toHaveFocus()
+    expect(mocks.authService.loginWithPassword).not.toHaveBeenCalled()
+  })
+
+  it('e-mail mal formado mostra "E-mail inválido" e nao envia', async () => {
+    const events = userEvent.setup()
+    renderLogin(await importGraph())
+
+    await events.type(inputOf('login-email'), 'ana@')
+    await events.type(inputOf('login-password'), 'senha-forte-1')
+    await events.click(screen.getByRole('button', { name: 'Entrar' }))
+
+    expect(await screen.findByText('E-mail inválido')).toBeInTheDocument()
+    expect(mocks.authService.loginWithPassword).not.toHaveBeenCalled()
+  })
+
+  it('401 mostra a mensagem da API em role="alert" e a senha continua no campo', async () => {
+    const events = userEvent.setup()
+    mocks.authService.loginWithPassword.mockRejectedValueOnce(new Error('E-mail ou senha inválidos'))
+    renderLogin(await importGraph())
+
+    await events.type(inputOf('login-email'), 'ana@exemplo.com')
+    await events.type(inputOf('login-password'), 'senha-errada')
+    await events.click(screen.getByRole('button', { name: 'Entrar' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('E-mail ou senha inválidos')
+    expect(inputOf('login-password')).toHaveValue('senha-errada')
+    expect(screen.queryByTestId('after')).not.toBeInTheDocument()
+    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
+  })
+
+  it('o botao Mostrar/Ocultar alterna o tipo do campo de senha', async () => {
+    const events = userEvent.setup()
+    renderLogin(await importGraph())
+
+    await events.click(screen.getByRole('button', { name: 'Mostrar senha' }))
+
+    expect(inputOf('login-password')).toHaveAttribute('type', 'text')
+    expect(screen.getByRole('button', { name: 'Ocultar senha' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+  })
+
+  it('?motivo=expirada mostra o aviso de sessao expirada', async () => {
+    renderLogin(await importGraph(), '/login?motivo=expirada')
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Sua sessão expirou')
+  })
+
+  it('sem o parametro nao ha aviso de expiracao', async () => {
+    renderLogin(await importGraph())
+
+    await screen.findByRole('heading', { name: /Ambrosia/i })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('link "Criar conta" leva a /cadastro preservando o returnTo', async () => {
+    const events = userEvent.setup()
+    renderLogin(await importGraph(), '/login', { returnTo: '/pedidos?tipo=sale' })
+
+    await events.click(screen.getByRole('link', { name: 'Criar conta' }))
+
+    expect(await screen.findByTestId('after')).toHaveTextContent(
+      'AT:/cadastro:{"returnTo":"/pedidos?tipo=sale"}',
+    )
+  })
+
+  it('sem VITE_GOOGLE_CLIENT_ID nao ha separador "ou" nem botao Google', async () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', undefined)
+    renderLogin(await importGraph())
+
+    await screen.findByRole('heading', { name: /Ambrosia/i })
+    expect(screen.queryByText('ou')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Entrar com Google' })).not.toBeInTheDocument()
+  })
+
+  it('com VITE_GOOGLE_CLIENT_ID o botao do Google aparece acima do formulario, com o "ou"', async () => {
+    vi.stubEnv('VITE_GOOGLE_CLIENT_ID', 'client-id-de-teste')
+    const { container } = renderLogin(await importGraph())
+
+    const google = await screen.findByTestId('google-button')
+    const email = inputOf('login-email')
+
+    expect(screen.getByText('ou')).toBeInTheDocument()
+    // O formulario inteiro vem depois do container do Google.
+    expect(google.compareDocumentPosition(email) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(container.querySelector('form')).toBeInTheDocument()
+  })
+
+  it('usa o credential do Google Identity para autenticar', async () => {
+    let onCredential: ((credential: string) => void) | undefined
+
+    mocks.useGoogleIdentity.mockImplementation((callback: (credential: string) => void) => {
+      onCredential = callback
+
+      return undefined
+    })
+    renderLogin(await importGraph())
+    await screen.findByRole('heading', { name: /Ambrosia/i })
+
+    expect(onCredential).toBeTypeOf('function')
+    onCredential?.('id-token-do-google')
+
+    await waitFor(() => {
+      expect(screen.getByTestId('after')).toHaveTextContent('AT:/clientes')
+    })
+    expect(mocks.authService.loginWithGoogle).toHaveBeenCalledWith('id-token-do-google')
   })
 
   it('logada, redireciona para /clientes', async () => {
@@ -155,65 +316,30 @@ describe('LoginPage', () => {
     expect(screen.getByTestId('after')).toHaveTextContent('AT:/pedidos?tipo=sale')
   })
 
-  it('apos o login dev navega para o returnTo e grava a sessao', async () => {
-    vi.stubEnv('VITE_DEV_LOGIN', 'true')
+  it('editar um campo limpa o erro geral', async () => {
     const events = userEvent.setup()
-    renderLogin(await importGraph(), '/login', { returnTo: '/pedidos?tipo=sale' })
+    mocks.authService.loginWithPassword.mockRejectedValueOnce(new Error('E-mail ou senha inválidos'))
+    renderLogin(await importGraph())
 
-    const email = await screen.findByRole('textbox', { name: /E-mail/i })
-    const name = screen.getByRole('textbox', { name: /Nome/i })
-
-    await events.clear(email)
-    await events.type(email, 'ana@exemplo.com')
-    await events.clear(name)
-    await events.type(name, 'Ana')
+    await events.type(inputOf('login-email'), 'ana@exemplo.com')
+    await events.type(inputOf('login-password'), 'senha-errada')
     await events.click(screen.getByRole('button', { name: 'Entrar' }))
+    await screen.findByRole('alert')
 
-    await waitFor(() => {
-      expect(screen.getByTestId('after')).toHaveTextContent('AT:/pedidos?tipo=sale')
-    })
-    expect(mocks.authService.loginDev).toHaveBeenCalledWith('ana@exemplo.com', 'Ana')
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toContain('jwt-novo')
+    await events.type(inputOf('login-password'), 'x')
+
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 
-  it('login dev recusado nao navega e mantem a tela de entrada', async () => {
-    vi.stubEnv('VITE_DEV_LOGIN', 'true')
-    mocks.authService.loginDev.mockRejectedValueOnce(new Error('indisponível'))
+  it('a senha digitada continua no campo depois de um erro de formato', async () => {
     const events = userEvent.setup()
     renderLogin(await importGraph())
 
-    const email = await screen.findByRole('textbox', { name: /E-mail/i })
-    await events.clear(email)
-    await events.type(email, 'ana@exemplo.com')
-    await events.clear(screen.getByRole('textbox', { name: /Nome/i }))
-    await events.type(screen.getByRole('textbox', { name: /Nome/i }), 'Ana')
+    await events.type(inputOf('login-email'), 'ana@')
+    await events.type(inputOf('login-password'), 'senha-forte-1')
     await events.click(screen.getByRole('button', { name: 'Entrar' }))
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Entrar' })).toBeEnabled()
-    })
-    expect(screen.queryByTestId('after')).not.toBeInTheDocument()
-    expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
-  })
-
-  it('usa o credential do Google Identity para autenticar', async () => {
-    let onCredential: ((credential: string) => void) | undefined
-
-    mocks.useGoogleIdentity.mockImplementation((callback: (credential: string) => void) => {
-      onCredential = callback
-
-      return undefined
-    })
-    const events = userEvent.setup()
-    renderLogin(await importGraph())
-
-    expect(onCredential).toBeTypeOf('function')
-    await events.click(screen.getByRole('main'))
-    onCredential?.('id-token-do-google')
-
-    await waitFor(() => {
-      expect(screen.getByTestId('after')).toHaveTextContent('AT:/clientes')
-    })
-    expect(mocks.authService.loginWithGoogle).toHaveBeenCalledWith('id-token-do-google')
+    await screen.findByText('E-mail inválido')
+    expect(inputOf('login-password')).toHaveValue('senha-forte-1')
   })
 })

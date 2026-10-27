@@ -6,6 +6,7 @@ import { LoadingList } from '@/components/common/LoadingList'
 import { RequireAuth } from '@/components/layout/RequireAuth'
 
 const LoginPage = lazy(() => import('@/pages/LoginPage'))
+const RegisterPage = lazy(() => import('@/pages/RegisterPage'))
 const CustomersPage = lazy(() => import('@/pages/CustomersPage'))
 const CustomerProfilePage = lazy(() => import('@/pages/CustomerProfilePage'))
 const OrdersPage = lazy(() => import('@/pages/OrdersPage'))
@@ -24,7 +25,8 @@ export const siteBasename = (): string | undefined => {
  * (research §19). `BrowserRouter` vive em `main.tsx` porque o `AuthContext`
  * precisa de `useNavigate` (T039). Toda rota interna passa por `RequireAuth`
  * (FR-001) dentro de `AppShell` (cabeçalho com nome/e-mail e navegação,
- * FR-005/FR-006); `/login` é a única pública. Nenhuma rota usa os prefixos
+ * FR-005/FR-006); `/login` e `/cadastro` são as públicas (003: criar conta tem
+ * rota própria, com o mesmo `state.returnTo`). Nenhuma rota usa os prefixos
  * `/api`, `/auth`, `/mcp` ou `/.well-known` (gateway).
  */
 export const App = () => (
@@ -32,6 +34,7 @@ export const App = () => (
     <Routes>
       <Route path="/" element={<Navigate to="/clientes" replace />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/cadastro" element={<RegisterPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppShell />}>
           <Route path="/clientes" element={<CustomersPage />} />

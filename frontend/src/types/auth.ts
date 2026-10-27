@@ -5,12 +5,12 @@ export interface UserInfo {
   id: number
   email: string
   name: string
-  provider: 'google' | 'dev'
+  provider: 'google' | 'password'
   /** Instante ISO date-time de criação. */
   createdAt: string
 }
 
-/** Resposta de `POST /auth/google` e `POST /auth/dev-login`. */
+/** Resposta de `POST /auth/google`, `POST /auth/login` e `POST /auth/register`. */
 export interface LoginResult {
   token: string
   /** Instante ISO date-time de expiração do JWT. */
@@ -23,10 +23,17 @@ export interface GoogleLoginInfo {
   idToken: string
 }
 
-/** Corpo de `POST /auth/dev-login` (Development/Homolog apenas). */
-export interface DevLoginInfo {
-  email: string
+/** Corpo de `POST /auth/register` (data-model §3): a senha vai sem `trim()`. */
+export interface RegisterInfo {
   name: string
+  email: string
+  password: string
+}
+
+/** Corpo de `POST /auth/login` (data-model §3). */
+export interface LoginInfo {
+  email: string
+  password: string
 }
 
 /** O que vai ao `localStorage` na chave `login-with-metamask:auth`. */

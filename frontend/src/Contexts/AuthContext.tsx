@@ -11,9 +11,10 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
 import { toUserMessage } from '@/lib/errors'
-import { setUnauthorizedHandler } from '@/Services/apiClient'
+import { ApiError, setUnauthorizedHandler } from '@/Services/apiClient'
 import { authService } from '@/Services/authService'
 import { clearSession, peekSession, writeSession } from '@/Services/authStorage'
+import { fieldErrorsOf, type ApiFieldErrors } from '@/lib/authForm'
 
 import type { AuthSession } from '@/types/auth'
 
@@ -29,6 +30,13 @@ export interface AuthContextType {
   /** Mensagem legível do último erro de autenticação. */
   error: string | null
   /**
+   * Erros por campo do último `ApiError` (400): a `mensagem` geral deles não
+   * serve de guia, e a tela precisa ligar "E-mail inválido." ao campo e-mail
+   * (FR-003, `contracts/auth-api.md`). Vazio em 401/409/rede — que são erros
+   * gerais do formulário.
+   */
+  errorFields: ApiFieldErrors
+  /**
    * `true` quando a sessão deixou de existir POR expiração (chave corrompida,
    * `expiresAt` vencido ou 401) — e o que faz `/login` mostrar "Sua sessão
    * expirou" mesmo quando a rota de destino chega pela guarda de rotas
@@ -37,8 +45,17 @@ export interface AuthContextType {
   expiryNotice: boolean
   /** Troca o ID token do Google pelo JWT da API. `true` quando autenticou. */
   loginWithGoogle: (idToken: string) => Promise<boolean>
-  /** `POST /auth/dev-login` (Development/Homolog). `true` quando autenticou. */
-  loginDev: (email: string, name: string) => Promise<boolean>
+  /**
+   * `POST /auth/login` com e-mail e senha (FR-002). `false` + `error` quando a
+   * credencial é recusada — e sem mexer em sessão nem em `expiryNotice`, porque
+   * o 401 anônimo não é sessão expirada (research §3).
+   */
+  loginWithPassword: (email: string, password: string) => Promise<boolean>
+  /**
+   * `POST /auth/register` (FR-001). Cria a conta e já inicia a sessão, pela
+   * mesma transição do login (`writeSession`, mesmo timer de expiração).
+   */
+  register: (name: string, email: string, password: string) => Promise<boolean>
   /** Encerra a sessão; com motivo, avisa a vendedora em `/login?motivo=expirada`. */
   logout: (reason?: LogoutReason) => void
   clearError: () => void
@@ -64,6 +81,10 @@ const toSession = (result: { token: string; expiresAt: string; user: AuthSession
  * por um timer agendado para `expiresAt`. Os três convergem em
  * `logout('expirada')`, que limpa o storage e leva `/login?motivo=expirada`
  * guardando a rota de origem em `state.returnTo`.
+ *
+ * Google, senha e cadastro entram todos pelo mesmo `runLogin`: mesma sessão
+ * gravada, mesmo timer, mesma expiração de 8 h (FR-004/FR-007/FR-010) — a origem
+ * do login não cria caminhos paralelos.
  */
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { t } = useTranslation()
@@ -75,6 +96,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<AuthSession | null>(initialPeek.session)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorFields, setErrorFields] = useState<ApiFieldErrors>({})
   // O aviso só existe quando havia chave E ela não produziu sessão válida:
   // sessão boa no storage não é "sessão expirada".
   const [expiryNotice, setExpiryNotice] = useState(
@@ -83,6 +105,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const clearError = useCallback((): void => {
     setError(null)
+    setErrorFields({})
   }, [])
 
   const logout = useCallback(
@@ -109,6 +132,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         setLoading(true)
         setError(null)
+        setErrorFields({})
         const next = toSession(await request())
         writeSession(next)
         setSession(next)
@@ -118,6 +142,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       } catch (err) {
         setError(toUserMessage(err, t))
 
+        // 400 devolve o par campo → mensagem; 401/409/rede só têm a mensagem geral.
+        setErrorFields(err instanceof ApiError ? fieldErrorsOf(err) : {})
+
         return false
       } finally {
         setLoading(false)
@@ -126,14 +153,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     [t],
   )
 
-  const loginWithGoogle = useCallback(
-    (idToken: string): Promise<boolean> => runLogin(() => authService.loginWithGoogle(idToken)),
+  const register = useCallback(
+    (name: string, email: string, password: string): Promise<boolean> =>
+      runLogin(() => authService.register({ name, email, password })),
     [runLogin],
   )
 
-  const loginDev = useCallback(
-    (email: string, name: string): Promise<boolean> =>
-      runLogin(() => authService.loginDev(email, name)),
+  const loginWithPassword = useCallback(
+    (email: string, password: string): Promise<boolean> =>
+      runLogin(() => authService.loginWithPassword({ email, password })),
+    [runLogin],
+  )
+
+  const loginWithGoogle = useCallback(
+    (idToken: string): Promise<boolean> => runLogin(() => authService.loginWithGoogle(idToken)),
     [runLogin],
   )
 
@@ -186,13 +219,26 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       isAuthenticated: session !== null,
       loading,
       error,
+      errorFields,
       expiryNotice,
       loginWithGoogle,
-      loginDev,
+      loginWithPassword,
+      register,
       logout,
       clearError,
     }),
-    [session, loading, error, expiryNotice, loginWithGoogle, loginDev, logout, clearError],
+    [
+      session,
+      loading,
+      error,
+      errorFields,
+      expiryNotice,
+      loginWithGoogle,
+      loginWithPassword,
+      register,
+      logout,
+      clearError,
+    ],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

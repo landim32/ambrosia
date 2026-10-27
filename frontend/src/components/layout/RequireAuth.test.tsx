@@ -9,14 +9,14 @@ import { writeSession } from '@/Services/authStorage'
 import type { AuthSession, UserInfo } from '@/types/auth'
 
 vi.mock('@/Services/authService', () => ({
-  authService: { loginWithGoogle: vi.fn(), loginDev: vi.fn() },
+  authService: { loginWithGoogle: vi.fn(), loginWithPassword: vi.fn(), register: vi.fn() },
 }))
 
 const USER: UserInfo = {
   id: 11,
   email: 'ana@exemplo.com',
   name: 'Ana',
-  provider: 'dev',
+  provider: 'password',
   createdAt: '2026-01-01T00:00:00Z',
 }
 

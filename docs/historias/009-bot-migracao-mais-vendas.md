@@ -141,7 +141,7 @@ Contrato proposto (detalhado na spec). As rotas são relativas à base da API, q
 | Tema | Proposta |
 |---|---|
 | Stack do bot | Node.js + TypeScript + `playwright` + `zod`, como no [doc 03](../03-bot-playwright.md#stack). Sai o `pg`/`better-sqlite3`, porque o bot não grava no banco |
-| Autenticação do bot na API | Token de longa duração do usuário, com escopo restrito à importação. Ver perguntas em aberto (o `dev-login` só existe em Development e o login Google não é viável sem interface) |
+| Autenticação do bot na API | Token de longa duração do usuário, com escopo restrito à importação. Ver perguntas em aberto (a entrada de desenvolvimento não existe mais — foi removida de todos os ambientes pela spec [`003-email-password-jwt-auth`](../../specs/003-email-password-jwt-auth/); sem interface, o bot obtém o JWT com `POST /auth/login` usando a conta criada em `POST /auth/register`, já que o login Google não é viável sem navegador) |
 | CLI | `npm run migrate -- --mode=<dry-run ou apply> --periods=<current, previous ou AAAA-MM> --channel=<canal>` |
 | Endereço da API | Variável `AMBROSIA_API_URL` no `.env` do bot (produção: `https://ambrosiaai.site/api`). O bot roda fora do navegador, então CORS não se aplica |
 | Relatório | `bot/reports/{runId}.json` (máquina) e `bot/reports/{runId}.md` (resumo legível), além do registro em `import_runs`. Sem CPF, só mascarado |

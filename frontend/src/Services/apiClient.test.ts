@@ -23,7 +23,7 @@ const SESSION: AuthSession = {
     id: 1,
     email: 'ana@exemplo.com',
     name: 'Ana',
-    provider: 'dev',
+    provider: 'password',
     createdAt: '2026-01-01T00:00:00Z',
   },
 }
@@ -123,8 +123,8 @@ describe('apiClient', () => {
     writeSession(SESSION)
     mockFetch(() => jsonResponse(200, { ok: true }))
 
-    await apiRequest<Ping>('POST', '/auth/dev-login', {
-      body: { email: 'ana@exemplo.com', name: 'Ana' },
+    await apiRequest<Ping>('POST', '/auth/login', {
+      body: { email: 'ana@exemplo.com', password: 'senha-forte-1' },
     })
 
     expect(lastHeaders().get('authorization')).toBeNull()
@@ -149,10 +149,14 @@ describe('apiClient', () => {
   it('envia Content-Type: application/json em POST', async () => {
     mockFetch(() => jsonResponse(200, { ok: true }))
 
-    await apiRequest<Ping>('POST', '/auth/dev-login', { body: { email: 'a@a.com', name: 'A' } })
+    await apiRequest<Ping>('POST', '/auth/register', {
+      body: { email: 'a@a.com', name: 'A', password: 'senha-forte-1' },
+    })
 
     expect(lastHeaders().get('content-type')).toBe('application/json')
-    expect(lastCall().init.body).toBe(JSON.stringify({ email: 'a@a.com', name: 'A' }))
+    expect(lastCall().init.body).toBe(
+      JSON.stringify({ email: 'a@a.com', name: 'A', password: 'senha-forte-1' }),
+    )
     expect(lastCall().init.method).toBe('POST')
   })
 
@@ -231,15 +235,73 @@ describe('apiClient', () => {
     expect(err.status).toBe(409)
   })
 
-  it('401 vira UnauthorizedError e chama onUnauthorized', async () => {
+  it('401 em chamada autenticada vira UnauthorizedError e chama onUnauthorized', async () => {
+    writeSession(SESSION)
     const onUnauthorized = vi.fn()
     setUnauthorizedHandler(onUnauthorized)
     mockFetch(() => new Response(null, { status: 401 }))
 
-    const err = await capture(apiRequest<Ping>('GET', '/customers', { auth: false }))
+    const err = await capture(apiRequest<Ping>('GET', '/customers'))
 
     expect(err).toBeInstanceOf(UnauthorizedError)
     expect(onUnauthorized).toHaveBeenCalledTimes(1)
+  })
+
+  // 003 · research §3 — o 401 de "credencial recusada" nasce de uma chamada ANÔNIMA
+  // (`POST /auth/login`) e não pode ser confundido com sessão expirada: sem esta
+  // regra a tela de entrada mostraria "Sua sessão expirou" no lugar de
+  // "E-mail ou senha inválidos" e derrubaria a sessão da vendedora.
+  it('401 anônimo vira ApiError(401, mensagem do ErrorResult) e NÃO chama o handler', async () => {
+    const onUnauthorized = vi.fn()
+    setUnauthorizedHandler(onUnauthorized)
+    mockFetch(() =>
+      jsonResponse(401, { sucesso: false, mensagem: 'E-mail ou senha inválidos', erros: [] }),
+    )
+
+    const err = (await capture(
+      apiRequest<Ping>('POST', '/auth/login', {
+        body: { email: 'ana@exemplo.com', password: 'errada-123' },
+      }),
+    )) as ApiError
+
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.status).toBe(401)
+    expect(err.mensagem).toBe('E-mail ou senha inválidos')
+    expect(err.erros).toEqual([])
+    expect(onUnauthorized).not.toHaveBeenCalled()
+  })
+
+  it('401 anônimo preserva os erros de campo do ErrorResult', async () => {
+    const onUnauthorized = vi.fn()
+    setUnauthorizedHandler(onUnauthorized)
+    mockFetch(() =>
+      jsonResponse(401, {
+        sucesso: false,
+        mensagem: 'E-mail ou senha inválidos',
+        erros: [{ campo: 'password', mensagem: 'A senha é obrigatória.' }],
+      }),
+    )
+
+    const err = (await capture(
+      apiRequest<Ping>('POST', '/auth/login', { body: { email: 'a@a.com', password: '' } }),
+    )) as ApiError
+
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.erros).toHaveLength(1)
+    expect(err.erros[0]?.campo).toBe('password')
+    expect(onUnauthorized).not.toHaveBeenCalled()
+  })
+
+  it('401 anônimo sem corpo JSON vira ApiError(401, texto)', async () => {
+    mockFetch(() => textResponse(401, 'unauthorized'))
+
+    const err = (await capture(
+      apiRequest<Ping>('POST', '/auth/login', { body: { email: 'a@a.com', password: 'x' } }),
+    )) as ApiError
+
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.status).toBe(401)
+    expect(err.mensagem).toBe('unauthorized')
   })
 
   it('404 com ErrorResult vira NotFoundError com a mensagem', async () => {
@@ -259,7 +321,7 @@ describe('apiClient', () => {
     mockFetch(() => new Response(null, { status: 404 }))
 
     const err = await capture(
-      apiRequest<Ping>('POST', '/auth/dev-login', { body: { email: 'a@a.com', name: 'A' } }),
+      apiRequest<Ping>('POST', '/auth/login', { body: { email: 'a@a.com', password: 'x' } }),
     )
 
     expect(err).toBeInstanceOf(NotFoundError)

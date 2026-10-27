@@ -1,19 +1,33 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 3.1.0 → 3.2.0 (MINOR)
+Version change: 3.2.0 → 3.3.0 (MINOR)
 
-Bump rationale: new principle VIII (Estratégia de Testes) que define a política de testes do
-projeto: backend somente com testes de API; frontend somente com testes unitários; Playwright e
-qualquer teste E2E no frontend são proibidos. Nova regra de stack correspondente. Não há remoção
-de princípio existente nem código afetado (nenhum teste E2E/Playwright existia na constituição).
+Bump rationale: Princípio VI passa a descrever cadastro/login com e-mail e senha ao lado do
+Google e PROÍBE emissão de token sem credencial em qualquer ambiente (o dev-login, antes
+permitido em Development/Homolog, foi removido pela feature 003). Princípio VII esclarece
+que os testes de API criam seus próprios usuários. Novo quality gate correspondente.
 
 Modified principles:
-- II. Stack Tecnológica Fixa: nova regra de stack proibindo Playwright/E2E no frontend.
+- VI. Autenticação e Segurança: linha "Esquema" reescrita (três rotas públicas devolvendo o
+  mesmo `LoginResult`); regra do dev-login substituída pela proibição de token sem credencial;
+  nova regra de hash de senha e de resposta uniforme em falha de login; rationale ampliado.
+- VII. Ambientes e Testes de API: esclarecimento — os testes de API criam seus próprios
+  usuários por cadastro + login, sem usuário pré-existente nem atalho sem senha.
 
-Added sections: VIII. Estratégia de Testes
+Added sections: none
 Removed sections: none
-Quality gates: added "frontend testado apenas com testes unitários (sem Playwright/E2E)".
+Quality gates: added "nenhuma rota/flag de emissão de token sem credencial; testes de API e
+coleções obtêm o token por cadastro + login".
+Templates/skills afetados: nenhum (`dotnet-test-api` já usa fixture com login real).
+Follow-up: histórias 007/009 (`docs/historias`) mencionavam o dev-login como possível
+bootstrap do bot/MCP — devem usar cadastro + login ou token próprio.
+
+Previous amendment (3.1.0 → 3.2.0, MINOR): new principle VIII (Estratégia de Testes) defining the
+project's testing policy — backend only through API tests, frontend only through unit tests, with
+Playwright and any browser E2E testing prohibited; matching stack rule added to Principle II. No
+existing principle was removed and no code was affected (no E2E/Playwright existed). Quality gate
+added: "frontend testado apenas com testes unitários (sem Playwright/E2E)".
 
 Previous amendment (3.0.0 → 3.1.0, MINOR): new principle VII (environments and API tests): the
 Development / Homolog / Production environments are created with the `dotnet-env` skill, Homolog
@@ -206,7 +220,7 @@ cascata.
 
 | Aspecto | Padrão |
 |---|---|
-| Esquema | JWT Bearer emitido pela própria API após login OAuth/OIDC (Google): `POST /auth/google` troca o ID token do provedor por um JWT HS256 (`sub` = `user_id`, `email`, `name`; `iss`/`aud` configuráveis; expiração padrão de 8 h) |
+| Esquema | JWT Bearer HS256 emitido pela própria API (`sub` = `user_id`, `email`, `name`; `iss`/`aud` configuráveis; expiração padrão de 8 h), obtido por **uma** das rotas públicas: `POST /auth/register` (cadastro com nome, e-mail e senha — já devolve a sessão), `POST /auth/login` (e-mail e senha) ou `POST /auth/google` (troca do ID token do Google). As três devolvem o mesmo `LoginResult`. |
 | Storage (frontend) | localStorage, chave `"login-with-metamask:auth"` |
 | Proteção de rotas | Atributo `[Authorize]` nos controllers |
 
@@ -227,11 +241,20 @@ cascata.
 - Senhas e hashes de senha NUNCA são mapeados para DTO. Dados pessoais sensíveis (ex.: CPF) DEVEM
   ser gravados como hash com pepper (unicidade) e cifra autenticada (recuperação), exibidos
   mascarados em listagens.
-- `POST /auth/dev-login` (token sem provedor) é permitido SOMENTE em Development e Homolog: em
-  Production responde 404 e é omitido do Swagger.
+- É PROIBIDA qualquer rota, flag de build ou atalho que emita token sem credencial
+  (ex.: o antigo `POST /auth/dev-login`), em QUALQUER ambiente, inclusive Development e
+  Homolog. Testes de API, coleções HTTP e quickstarts DEVEM obter o token por
+  `POST /auth/register` + `POST /auth/login` com usuários criados pela própria execução.
+- Senhas DEVEM ser armazenadas apenas como hash com salt aleatório por senha, com algoritmo
+  de derivação lenta (PBKDF2-HMAC-SHA256 ≥ 600.000 iterações ou mais forte), nunca em texto
+  puro, em log ou em DTO. Falhas de login (e-mail inexistente, senha incorreta, conta sem
+  senha) DEVEM responder a MESMA mensagem genérica e status, em tempo equivalente.
 
 **Rationale**: regras explícitas de armazenamento e proteção impedem vazamento de credenciais
-e endpoints desprotegidos, independentemente do esquema de autenticação adotado.
+e endpoints desprotegidos, independentemente do esquema de autenticação adotado. O acesso sem
+senha, mesmo restrito a ambientes internos, é uma porta aberta em bancos com dados reais de
+homologação; o cadastro + login por senha cobre o mesmo uso (testes, Bruno, desenvolvimento
+local) sem o risco.
 
 ### VII. Ambientes e Testes de API
 
@@ -248,7 +271,9 @@ Os três ambientes DEVEM ser criados e mantidos com a skill `dotnet-env`:
 - Ao final de cada ciclo de desenvolvimento (feature, história ou correção que altere a API), a
   homologação DEVE ser reconstruída com o código do ciclo e os testes de API
   (`{NomeDoProjeto}.ApiTests`) DEVEM ser executados contra ela
-  (`ApiBaseUrl=http://localhost:8080/api`). O ciclo só termina com todos os testes passando.
+  (`ApiBaseUrl=http://localhost:8080/api`), **criando seus próprios usuários pelo cadastro e
+  login com senha** (sem usuário pré-existente nem atalho sem senha). O ciclo só termina com
+  todos os testes passando.
 - Endpoints novos ou alterados DEVEM ganhar ou atualizar testes de API, criados com a skill
   `dotnet-test-api`, no mesmo ciclo.
 - Falhas nos testes de API DEVEM ser corrigidas no código, não contornadas removendo ou
@@ -321,6 +346,8 @@ Antes de submeter qualquer código, o contribuidor DEVE verificar:
 - [ ] Variáveis de ambiente do frontend usam o prefixo `VITE_`.
 - [ ] Controllers com dados sensíveis possuem `[Authorize]`.
 - [ ] Leituras de repositório filtram por `userId`.
+- [ ] Nenhuma rota/flag de emissão de token sem credencial foi adicionada; testes de API e
+      coleções obtêm o token por cadastro + login.
 - [ ] Comandos Docker locais seguiram a skill `wsl-docker`.
 - [ ] Ambientes Dev, Homolog e Prod seguem a skill `dotnet-env`.
 - [ ] Ao final do ciclo, a homologação foi reconstruída e os testes de API passaram contra ela.
@@ -345,4 +372,4 @@ Code reviews DEVEM recusar alterações que não cumpram este checklist.
 - Para orientação detalhada de implementação, use as skills `dotnet-architecture`,
   `react-architecture`, `dotnet-graphql`, `wsl-docker`, `dotnet-env` e `dotnet-test-api`.
 
-**Version**: 3.2.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-26
+**Version**: 3.3.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-26

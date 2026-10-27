@@ -45,8 +45,8 @@ services:
     profiles: ["frontend"]
     build:
       context: ./frontend
-      # SEM VITE_DEV_LOGIN: a entrada de desenvolvimento nao entra no bundle
-      # de producao (FR-002 / SC-008, provado por npm run verify:prod).
+      # A entrada de desenvolvimento nao existe em ambiente nenhum desde a 003
+      # (FR-012/FR-013); `npm run verify:prod` roda no Dockerfile em todo modo.
       args:
         BUILD_MODE: production
         VITE_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID}

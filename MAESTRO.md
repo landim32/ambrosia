@@ -30,7 +30,7 @@ npm test             # Vitest + RTL
 npm run lint
 npm run type-check
 npm run build -- --mode production
-npm run verify:prod  # prova da SC-008: falha se dev-login sobreviver no dist/
+npm run verify:prod  # prova do pacote: falha se dev-login/DevLoginForm/VITE_DEV_LOGIN sobreviver no dist/ (qualquer modo)
 ```
 
 # Backend (.NET 8)

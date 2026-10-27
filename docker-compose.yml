@@ -68,10 +68,11 @@ services:
     profiles: ["frontend"]
     build:
       context: ./frontend
-      # Flags de BUILD (o Vite embute no bundle): homolog tem dev-login.
+      # Flags de BUILD (o Vite embute no bundle). Desde a 003 a entrada de
+      # desenvolvimento nao existe em ambiente nenhum (FR-012/FR-013), entao
+      # homolog e production constroem exatamente igual.
       args:
         BUILD_MODE: homolog
-        VITE_DEV_LOGIN: "true"
         VITE_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID:-}
     image: ambrosia-frontend:homolog
     container_name: ambrosia-homolog-frontend

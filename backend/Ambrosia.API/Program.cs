@@ -106,12 +106,12 @@ builder.Services.AddSwaggerGen(options =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Cole o token do Ambrosia obtido em POST /auth/google (ou /auth/dev-login " +
-                      "em Development e Homolog). Não inclua o prefixo \"Bearer\"."
+        Description = "Cole o token do Ambrosia obtido em POST /auth/login, POST /auth/register " +
+                      "ou POST /auth/google. Não inclua o prefixo \"Bearer\"."
     });
 
     // O requisito de segurança é declarado POR OPERAÇÃO no ContractAlignmentOperationFilter, e não
-    // globalmente (T094): o contrato marca /auth/google e /auth/dev-login com `security: []`, e a
+    // globalmente (T094): o contrato marca as rotas de /auth/* com `security: []`, e a
     // Microsoft.OpenApi não serializa uma lista de requisitos vazia — com um requisito global, uma
     // operação não tem como "desligar" a autenticação no documento, e o Swagger mostraria o cadeado
     // na rota que serve justamente para obter o token. Sem requisito global, cada operação protegida
@@ -121,10 +121,6 @@ builder.Services.AddSwaggerGen(options =>
     {
         options.IncludeXmlComments(xmlPath);
     }
-
-    // T047: /auth/dev-login só aparece na documentação em Development e Homolog, exatamente como o
-    // comportamento da rota (research §2).
-    options.DocumentFilter<DevLoginDocumentFilter>();
 
     // T094: parâmetros de query em camelCase e o requisito Bearer por operação.
     options.OperationFilter<ContractAlignmentOperationFilter>();
