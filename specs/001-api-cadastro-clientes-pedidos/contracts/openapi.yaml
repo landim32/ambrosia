@@ -279,6 +279,70 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/ServerError' }
 
+  # -------------------------------------------------------------------- Feature 006: importação do +Vendas
+  /imports/mais-vendas/defaults:
+    get:
+      tags: [Imports]
+      summary: Datas sugeridas, limites e bloqueio vigente
+      responses:
+        '200': { description: Defaults, content: { application/json: { schema: { $ref: '#/components/schemas/ImportDefaultsInfo' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /imports/mais-vendas/runs:
+    post:
+      tags: [Imports]
+      summary: Inicia uma importação (credenciais só desta execução, não gravadas)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ImportRunStartInfo' } } }
+      responses:
+        '202': { description: Execução na fila, content: { application/json: { schema: { $ref: '#/components/schemas/ImportRunInfo' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '409': { description: Já existe importação em andamento, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResult' } } } }
+        '429':
+          description: Bloqueio por recusas seguidas de credencial (cabeçalho Retry-After em segundos)
+          headers: { Retry-After: { schema: { type: integer } } }
+          content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResult' } } }
+    get:
+      tags: [Imports]
+      summary: Histórico paginado (mais recentes primeiro)
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 50, default: 10 } }
+      responses:
+        '200': { description: Página, content: { application/json: { schema: { $ref: '#/components/schemas/PagedImportRunInfo' } } } }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /imports/mais-vendas/runs/current:
+    get:
+      tags: [Imports]
+      summary: Execução ativa (queued/running)
+      responses:
+        '200': { description: Execução ativa, content: { application/json: { schema: { $ref: '#/components/schemas/ImportRunDetailInfo' } } } }
+        '204': { description: Sem execução ativa }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /imports/mais-vendas/runs/{runId}:
+    parameters:
+      - { name: runId, in: path, required: true, schema: { type: integer, format: int64 } }
+    get:
+      tags: [Imports]
+      summary: Relatório da execução
+      responses:
+        '200': { description: Relatório, content: { application/json: { schema: { $ref: '#/components/schemas/ImportRunDetailInfo' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /imports/mais-vendas/runs/{runId}/cancel:
+    parameters:
+      - { name: runId, in: path, required: true, schema: { type: integer, format: int64 } }
+    post:
+      tags: [Imports]
+      summary: Pede o cancelamento (queued na hora; running ao fim do bloco em curso)
+      responses:
+        '202': { description: Cancelamento aceito, content: { application/json: { schema: { $ref: '#/components/schemas/ImportRunDetailInfo' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: A execução já foi finalizada, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResult' } } } }
+
 components:
   securitySchemes:
     bearerAuth:
@@ -343,6 +407,115 @@ components:
     AuthProvider:
       type: string
       enum: [google, password]
+    OrderSource:
+      type: string
+      enum: [manual, maisVendas]
+      description: "Feature 006: como o pedido entrou no Ambrosia"
+
+    # ---------------------------------------------------------------- Feature 006: importação do +Vendas
+    ImportRunStatus: { type: string, enum: [queued, running, succeeded, failed, partial, cancelled] }
+    ImportRunMode: { type: string, enum: [dryRun, apply] }
+    ImportBlockStatus: { type: string, enum: [pending, running, succeeded, failed, notExecuted] }
+    ImportChangeAction: { type: string, enum: [inserted, updated, unchanged, missing, conflict, error] }
+    ImportRunStartInfo:
+      type: object
+      required: [login, password, startDate, endDate]
+      description: "Credenciais do +Vendas valem só para esta execução e não são gravadas (FR-005/FR-006)"
+      properties:
+        login: { type: string, maxLength: 120, writeOnly: true }
+        password: { type: string, format: password, maxLength: 200, writeOnly: true }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        dryRun: { type: boolean, default: false }
+    ImportDefaultsInfo:
+      type: object
+      properties:
+        suggestedStartDate: { type: string, format: date, nullable: true }
+        suggestedEndDate: { type: string, format: date }
+        blockDays: { type: integer }
+        maxRangeDays: { type: integer }
+        lockedUntil: { type: string, format: date-time, nullable: true }
+    ImportRunCountsInfo:
+      type: object
+      properties:
+        inserted: { type: integer }
+        updated: { type: integer }
+        unchanged: { type: integer }
+        missing: { type: integer }
+        failed: { type: integer }
+        conflicts: { type: integer }
+        customersCreated: { type: integer }
+        imagesStored: { type: integer }
+        imagesFailed: { type: integer }
+    ImportRunInfo:
+      type: object
+      description: "Nunca contém login, senha ou hash da conta (FR-006)"
+      properties:
+        id: { type: integer, format: int64 }
+        mode: { $ref: '#/components/schemas/ImportRunMode' }
+        status: { $ref: '#/components/schemas/ImportRunStatus' }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        blockDays: { type: integer }
+        blocksTotal: { type: integer }
+        blocksFinished: { type: integer }
+        currentBlockNo: { type: integer, nullable: true }
+        cancelRequested: { type: boolean }
+        requestedAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+        durationSeconds: { type: integer, format: int64, nullable: true }
+        counts: { $ref: '#/components/schemas/ImportRunCountsInfo' }
+        errorMessage: { type: string, nullable: true }
+    ImportRunBlockInfo:
+      type: object
+      properties:
+        blockNo: { type: integer }
+        startDate: { type: string, format: date }
+        endDate: { type: string, format: date }
+        status: { $ref: '#/components/schemas/ImportBlockStatus' }
+        counts: { $ref: '#/components/schemas/ImportRunCountsInfo' }
+        errorMessage: { type: string, nullable: true }
+        startedAt: { type: string, format: date-time, nullable: true }
+        finishedAt: { type: string, format: date-time, nullable: true }
+    ImportRunChangeInfo:
+      type: object
+      description: "Só a chave natural do pedido; nunca CPF nem nome do cliente (FR-052)"
+      properties:
+        orderId: { type: integer, format: int64, nullable: true }
+        orderNumber: { type: string }
+        orderDate: { type: string, format: date }
+        kind: { $ref: '#/components/schemas/OrderKind' }
+        channel: { type: string, nullable: true }
+        origin: { allOf: [ { $ref: '#/components/schemas/OrderOrigin' } ], nullable: true }
+        action: { $ref: '#/components/schemas/ImportChangeAction' }
+        changedFields: { type: array, items: { type: string }, nullable: true }
+        errorMessage: { type: string, nullable: true }
+    ImportRunBreakdownInfo:
+      type: object
+      properties:
+        channel: { type: string, nullable: true }
+        origin: { allOf: [ { $ref: '#/components/schemas/OrderOrigin' } ], nullable: true }
+        kind: { $ref: '#/components/schemas/OrderKind' }
+        action: { $ref: '#/components/schemas/ImportChangeAction' }
+        count: { type: integer }
+    ImportRunDetailInfo:
+      allOf:
+        - $ref: '#/components/schemas/ImportRunInfo'
+        - type: object
+          properties:
+            blocks: { type: array, items: { $ref: '#/components/schemas/ImportRunBlockInfo' } }
+            changes: { type: array, items: { $ref: '#/components/schemas/ImportRunChangeInfo' } }
+            breakdown: { type: array, items: { $ref: '#/components/schemas/ImportRunBreakdownInfo' } }
+            previousRunOrdersCount: { type: integer, nullable: true }
+            countDropWarning: { type: boolean }
+    PagedImportRunInfo:
+      type: object
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/ImportRunInfo' } }
+        page: { type: integer }
+        pageSize: { type: integer }
+        totalCount: { type: integer }
 
     GoogleLoginInfo:
       type: object
@@ -433,6 +606,7 @@ components:
           properties:
             id: { type: integer, format: int64 }
             lineNo: { type: integer }
+            imageId: { type: integer, format: int64, nullable: true, description: "Feature 006: foto copiada da origem para o storage; null sem foto ou com erro" }
     OrderInsertInfo:
       type: object
       required: [customerId, orderNumber, orderDate, kind, total, items]
@@ -471,6 +645,7 @@ components:
         origin: { allOf: [ { $ref: '#/components/schemas/OrderOrigin' } ], nullable: true }
         status: { type: string, nullable: true }
         total: { type: number, format: double }
+        source: { $ref: '#/components/schemas/OrderSource' }
         itemsCount: { type: integer }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }

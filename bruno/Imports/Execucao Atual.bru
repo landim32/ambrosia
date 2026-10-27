@@ -1,0 +1,22 @@
+meta {
+  name: Execucao Atual
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/imports/mais-vendas/runs/current
+  body: none
+  auth: inherit
+}
+
+docs {
+  Execução ativa (`queued`/`running`) com blocos e contagens parciais — é o que a tela
+  consulta a cada 3 s (FR-015). 204 quando não há execução ativa.
+}
+
+tests {
+  test("status 200 ou 204", function () {
+    expect([200, 204]).to.include(res.status);
+  });
+}

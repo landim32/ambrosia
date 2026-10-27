@@ -1,4 +1,7 @@
+using System.Globalization;
+using Ambrosia.Domain.Common;
 using Ambrosia.Domain.Exceptions;
+using Ambrosia.Domain.Interfaces;
 using Ambrosia.API.Swagger;
 using Ambrosia.DTO.Common;
 using FluentValidation;
@@ -73,6 +76,51 @@ public abstract class ApiControllerBase : ControllerBase
     protected IActionResult InvalidCredentialsError(InvalidCredentialsException ex)
     {
         return Unauthorized(new ErrorResult
+        {
+            Sucesso = false,
+            Mensagem = ex.Message,
+            Erros = []
+        });
+    }
+
+    /// <summary>
+    /// Relógio da requisição (o <see cref="IClock"/> do Domain, resolvido do contêiner), para que o
+    /// <c>Retry-After</c> use o "agora" injetável em vez de um relógio estático.
+    /// </summary>
+    protected IClock Clock =>
+        HttpContext.RequestServices.GetService(typeof(IClock)) as IClock ?? new SystemClock();
+
+    /// <summary>
+    /// HTTP 429 (feature 006, FR-008a): novos inícios de importação bloqueados por recusas seguidas de
+    /// credencial do +Vendas. O cabeçalho <c>Retry-After</c> leva <b>só os segundos</b> — nunca o
+    /// horário absoluto, que permitiria sondar o fuso e o relógio do servidor — e a mensagem traz o
+    /// horário local da vendedora, porque é o que ela pode conferir no pulso.
+    /// <para>
+    /// Nem o login nem a senha aparecem aqui: a mensagem é uma constante com o horário (FR-006).
+    /// </para>
+    /// </summary>
+    protected IActionResult ImportLockedError(ImportLockedException ex)
+    {
+        var retryAfterSeconds = (long)Math.Max(1, Math.Ceiling((ex.LockedUntil - Clock.UtcNow).TotalSeconds));
+        var localRelease = SaoPauloCalendar.ToSaoPaulo(ex.LockedUntil);
+
+        Response.Headers.RetryAfter = retryAfterSeconds.ToString(CultureInfo.InvariantCulture);
+
+        return StatusCode(StatusCodes.Status429TooManyRequests, new ErrorResult
+        {
+            Sucesso = false,
+            Mensagem = $"Muitas tentativas com credenciais recusadas. Tente novamente às {localRelease:HH:mm}.",
+            Erros = []
+        });
+    }
+
+    /// <summary>
+    /// HTTP 409 (feature 006, FR-019): cancelamento pedido numa execução que já terminou. Sem corpo de
+    /// detalhe além da mensagem — <c>erros</c> vazio porque não é falha de campo.
+    /// </summary>
+    protected IActionResult NotCancellableError(ImportRunNotCancellableException ex)
+    {
+        return Conflict(new ErrorResult
         {
             Sucesso = false,
             Mensagem = ex.Message,

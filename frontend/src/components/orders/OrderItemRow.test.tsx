@@ -1,7 +1,8 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { OrderItemRow } from '@/components/orders/OrderItemRow'
+import { imageService } from '@/Services/imageService'
 
 import type { OrderItemInfo } from '@/types/order'
 
@@ -20,6 +21,7 @@ const item = (overrides: Partial<OrderItemInfo> = {}): OrderItemInfo => ({
   size: 'M',
   price: 450,
   imageUrl: 'https://example.org/vestido.jpg',
+  imageId: null,
   ...overrides,
 })
 
@@ -29,6 +31,10 @@ const attribute = (label: string): string => screen.getByTestId(`item-${label}`)
 const rowText = (): string => screen.getByTestId('order-item-row').textContent
 
 describe('OrderItemRow', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
   it('mostra nome, referência, tamanho e preço', () => {
     render(<OrderItemRow item={item()} />)
 
@@ -88,5 +94,36 @@ describe('OrderItemRow', () => {
 
     expect(rowText()).not.toContain('lineNo')
     expect(rowText()).not.toContain('skuRef')
+  })
+  /** Feature 006: a foto importada vem do storage, não da URL de origem do +Vendas. */
+  it('item com imageId mostra a foto do storage, não a URL de origem', async () => {
+    const spy = vi
+      .spyOn(imageService, 'getReadUrl')
+      .mockResolvedValue('https://storage.example/ambrosio/foto.jpg?sig=1')
+
+    render(
+      <OrderItemRow
+        item={item({ imageId: 7, imageUrl: 'https://maisvendas.example/media/sku.jpg' })}
+      />,
+    )
+
+    await waitFor(() => {
+      expect(screen.getByRole('img', { name: 'Vestido Longo de Linho' })).toHaveAttribute(
+        'src',
+        'https://storage.example/ambrosio/foto.jpg?sig=1',
+      )
+    })
+    expect(spy).toHaveBeenCalledWith(7)
+  })
+
+  it('item com imageId sem URL de leitura mostra o placeholder', async () => {
+    vi.spyOn(imageService, 'getReadUrl').mockRejectedValue(new Error('404'))
+
+    render(<OrderItemRow item={item({ imageId: 8 })} />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('image-placeholder')).toBeInTheDocument()
+    })
+    expect(screen.queryByRole('img', { name: 'Vestido Longo de Linho' })).not.toBeInTheDocument()
   })
 })

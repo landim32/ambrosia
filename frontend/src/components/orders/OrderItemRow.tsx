@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next'
 
 import { LazyImage } from '@/components/common/LazyImage'
+import { useStoredImageUrl } from '@/hooks/useStoredImageUrl'
 import { formatCurrency } from '@/lib/currency'
 
 import type { OrderItemInfo } from '@/types/order'
@@ -36,9 +37,15 @@ export const OrderItemRow = ({ item }: OrderItemRowProps) => {
 
   const label = item.productName ?? item.skuRef ?? t('orders.noImage')
 
+  // Foto importada (feature 006): vem do storage pela URL pré-assinada do
+  // `imageId`. A `imageUrl` desses itens é a da origem, que só abre com a sessão
+  // do +Vendas, então não serve de reserva; ela só é usada sem `imageId`.
+  const storedUrl = useStoredImageUrl(item.imageId)
+  const src = item.imageId === null ? item.imageUrl : (storedUrl ?? null)
+
   return (
     <li className="flex items-center gap-3 py-2" data-testid="order-item-row">
-      <LazyImage src={item.imageUrl} alt={label} />
+      <LazyImage src={src} alt={label} />
 
       <div className="grid min-w-0 grow gap-0.5">
         <p className="truncate text-sm font-medium text-foreground">{label}</p>

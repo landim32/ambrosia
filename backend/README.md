@@ -66,6 +66,56 @@ O `AWSSDK.S3` e o `SixLabors.ImageSharp` ficam restritos ao `Ambrosia.Infra`, at
 licença da Six Labors no build **Release** (em `Debug` é só aviso): veja a seção de licença em
 [`deploy/README.md`](../deploy/README.md).
 
+### Importação do +Vendas (feature 006)
+
+Rotas `/imports/mais-vendas/*` (defaults, iniciar, execução atual, relatório, histórico, cancelar). A
+vendedora informa login e senha do +Vendas **a cada execução**; `POST /runs` grava a execução sem
+credencial, enfileira o trabalho numa fila em memória e responde `202`, e o `ImportRunWorker`
+(`BackgroundService`) coleta bloco a bloco, valida contadores e totais da origem **antes** de gravar e
+grava pedido a pedido de forma idempotente (chave natural + `source_hash`).
+
+Seção `MaisVendas` do appsettings (variáveis `MaisVendas__*`):
+
+| Chave | Padrão | Faixa |
+|---|---|---|
+| `Collector` | `Playwright` | `Playwright` ou `Fake` (Fake recusado em Production) |
+| `BaseUrl` | `https://maisvendas.somalabs.com.br` | URL https absoluta |
+| `BlockDays` | `7` | 1–31 |
+| `MaxRangeDays` | `366` | 1–3660 |
+| `MaxConcurrentRuns` | `2` | 1–10 |
+| `MaxFailedLogins` / `LockoutMinutes` | `3` / `15` | recusas seguidas antes do bloqueio (FR-008a) |
+| `MinDelayMs` / `MaxDelayMs` | `300` / `900` | pausa aleatória entre ações na origem |
+| `Fake:DelayMs` | `50` | atraso por pedido do coletor fake |
+
+**Coletor Fake (homologação)** — origem de teste determinística, sem rede, usada pela suíte
+`Ambrosia.ApiTests`. O login escolhe o cenário (`conta+cenario`, a conta vira o vínculo) e a senha é a
+versão do conteúdo:
+
+| Login | Senha | Resultado |
+|---|---|---|
+| `s482+ok` | `v1` | 49 pedidos entre 26/09 e 25/10/2026, líquido R$ 123.300,58 |
+| `s482+ok` | `v2` / `v3` | valores/status/nome alterados / um pedido do bloco 2 omitido (`missing`) |
+| qualquer | `recusada` | credencial recusada (3× → bloqueio de 15 min, `429`) |
+| `s999+ok` | `v1` | conta diferente da vinculada → `failed` |
+| `s482+falha-bloco3` | `v1` | bloco 3 falha no 15º pedido; blocos 4–5 não executados |
+| `s482+contador-divergente` / `total-divergente` | `v1` | bloco falha antes de gravar |
+| `s482+foto-erro` / `foto-gif` | `v1` | pedido gravado, foto com erro, execução `partial` |
+| `s482+cpf-invalido` | `v1` | dois pedidos com erro de CPF, execução `partial` |
+| `s482+sem-ano`, `instavel`, `vazio`, `2fa` | `v1` | data sem ano, falha transitória, período vazio, etapa não suportada |
+
+Nenhum desses valores é credencial real; nunca versione login ou senha do +Vendas.
+
+**Coletor Playwright (Development/produção)** — depois do primeiro build, instale o Chromium da
+versão fixa do pacote:
+
+```powershell
+pwsh Ambrosia.API/bin/Debug/net8.0/playwright.ps1 install chromium
+```
+
+Na imagem Docker isso é feito pelo estágio `playwright` do `Dockerfile`. A navegação é restrita por
+allowlist (`NavigationGuard`) e ritmo (`OriginRateLimiter`, ≤ 2 req/s). Detalhes de deploy em
+[`deploy/README.md`](../deploy/README.md).
+
 ## Comandos
 
 ```powershell

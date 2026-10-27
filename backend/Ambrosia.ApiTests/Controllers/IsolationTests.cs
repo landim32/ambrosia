@@ -235,4 +235,45 @@ public class IsolationTests
         asB.Id.Should().Be(_fixture.UserIdB);
         asA.Id.Should().NotBe(asB.Id);
     }
+
+    /// <summary>
+    /// T092 [US7] (FR-053): a execução de importação de A não existe para B — nem no relatório, nem no
+    /// cancelamento, nem no histórico, nem como "execução atual". Vendedoras novas por teste, para o
+    /// histórico de B começar vazio.
+    /// </summary>
+    [Fact]
+    public async Task ImportRun_OfSellerA_IsInvisibleToSellerB()
+    {
+        // Arrange: A inicia uma simulação (não grava nada e termina rápido).
+        var (tokenA, _) = await _fixture.NewSellerAsync("Ana Importa");
+        var (tokenB, _) = await _fixture.NewSellerAsync("Bia Isola");
+
+        var run = await _fixture.StartImportAsync(
+            tokenA,
+            TestDataHelper.FakeLogin(TestDataHelper.SCENARIO_OK),
+            "v1",
+            TestDataHelper.ImportEnd,
+            TestDataHelper.ImportEnd,
+            dryRun: true);
+
+        // Act + Assert: B recebe 404 idêntico ao de execução inexistente.
+        var report = await _fixture.GetAsync($"/imports/mais-vendas/runs/{run.Id}", tokenB);
+        var missing = await _fixture.GetAsync("/imports/mais-vendas/runs/999999999", tokenB);
+
+        report.StatusCode.Should().Be(404);
+        report.Body.Should().Be(missing.Body);
+
+        var cancel = await _fixture.PostAsync($"/imports/mais-vendas/runs/{run.Id}/cancel", tokenB, new { });
+        cancel.StatusCode.Should().Be(404);
+
+        var history = await _fixture.GetAsync("/imports/mais-vendas/runs?page=1&pageSize=50", tokenB);
+        history.StatusCode.Should().Be(200);
+        history.As<PagedResult<Ambrosia.DTO.Imports.ImportRunInfo>>().Items.Should().BeEmpty();
+
+        (await _fixture.GetAsync("/imports/mais-vendas/runs/current", tokenB)).StatusCode.Should().Be(204);
+
+        // A continua dona: a execução termina normalmente para ela.
+        var finished = await _fixture.WaitUntilFinishedAsync(run.Id, tokenA);
+        finished.Status.Should().Be(Ambrosia.DTO.Enums.ImportRunStatus.Succeeded);
+    }
 }

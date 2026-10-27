@@ -16,11 +16,16 @@ x-api-environment: &api-environment
   # sobrescrevível — são eles que fazem os testes de expiração e de limpeza rodarem em minutos.
   ObjectStorage__AccessKey: ${OBJECT_STORAGE_ACCESS_KEY}
   ObjectStorage__SecretKey: ${OBJECT_STORAGE_SECRET_KEY}
-  ObjectStorage__Bucket: ${OBJECT_STORAGE_BUCKET:-ambrosio}
+  ObjectStorage__Bucket: ${OBJECT_STORAGE_BUCKET:-emagine}
   ObjectStorage__PresignedReadMinutes: ${STORAGE_PRESIGNED_READ_MINUTES:-1}
   ObjectStorage__PresignedUploadMinutes: ${STORAGE_PRESIGNED_UPLOAD_MINUTES:-1}
   ObjectStorage__PendingTtlMinutes: ${STORAGE_PENDING_TTL_MINUTES:-2}
   ObjectStorage__CleanupIntervalMinutes: ${STORAGE_CLEANUP_INTERVAL_MINUTES:-1}
+  # Importação do +Vendas (feature 006, research §3/§13): homolog importa de verdade com o coletor
+  # Playwright (Chromium na imagem). Para rodar a suíte de testes de API, que depende do Fake
+  # determinístico (falha de bloco, divergência de contadores, foto com erro — constituição §VIII),
+  # suba a API com MAIS_VENDAS_COLLECTOR=Fake.
+  MaisVendas__Collector: ${MAIS_VENDAS_COLLECTOR:-Playwright}
 
 services:
   db:
@@ -65,6 +70,9 @@ services:
     container_name: ambrosia-homolog-api
     restart: unless-stopped
     environment: *api-environment
+    # Chromium do coletor Playwright (feature 006, research §2): /dev/shm padrão de 64 MB faz o
+    # navegador abortar em navegação. Mesmo valor de produção.
+    shm_size: 512m
     volumes:
       - dataprotection_keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:
@@ -92,7 +100,7 @@ services:
     # nenhuma origem de storage fica fixa na imagem (FR-023). Sem a variavel, o
     # default do Dockerfile e o endpoint do Spaces.
     environment:
-      STORAGE_ORIGIN: ${OBJECT_STORAGE_PUBLIC_ORIGIN:-https://ambrosio.nyc3.digitaloceanspaces.com}
+      STORAGE_ORIGIN: ${OBJECT_STORAGE_PUBLIC_ORIGIN:-https://emagine.nyc3.digitaloceanspaces.com}
     networks:
       - ambrosia-homolog
 

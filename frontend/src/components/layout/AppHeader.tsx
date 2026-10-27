@@ -39,6 +39,9 @@ export const AppHeader = () => {
           <NavLink to="/pedidos" className={linkClass}>
             {t('common.orders')}
           </NavLink>
+          <NavLink to="/importacao" className={linkClass}>
+            {t('import.nav')}
+          </NavLink>
         </nav>
 
         <Button

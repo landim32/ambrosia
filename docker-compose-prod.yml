@@ -16,6 +16,10 @@ x-api-environment: &api-environment
   # (skill dotnet-env). Os prazos ficam os de producao (15/5/60/15) do appsettings base.
   ObjectStorage__AccessKey: ${OBJECT_STORAGE_ACCESS_KEY}
   ObjectStorage__SecretKey: ${OBJECT_STORAGE_SECRET_KEY}
+  # Importação do +Vendas (feature 006): produção usa o coletor Playwright real. O startup recusa
+  # Collector=Fake em Production (research §3), então o default já é Playwright e o pipeline não
+  # precisa exportar MAIS_VENDAS_COLLECTOR.
+  MaisVendas__Collector: ${MAIS_VENDAS_COLLECTOR:-Playwright}
 
 services:
   migrator:
@@ -37,6 +41,11 @@ services:
     container_name: ambrosia-api
     restart: unless-stopped
     environment: *api-environment
+    # Chromium do coletor do +Vendas (feature 006, research §2): /dev/shm de 64 MB (padrão) faz o
+    # navegador abortar no meio da coleta. O teto de memória cobre a API e um Chromium por execução
+    # (MaxConcurrentRuns = 2) — deploy/README.md.
+    shm_size: 512m
+    mem_limit: 1536m
     volumes:
       - dataprotection_keys:/home/app/.aspnet/DataProtection-Keys
     depends_on:

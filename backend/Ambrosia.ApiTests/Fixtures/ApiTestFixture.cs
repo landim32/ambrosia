@@ -82,6 +82,25 @@ public class ApiTestFixture : IAsyncLifetime
     /// <summary>Teto de espera de um teste lento: acima disso ele é pulado (research §16).</summary>
     public int SlowTestMaxWaitMinutes { get; private set; } = 5;
 
+    /// <summary>
+    /// Teto de espera de uma execução de importação (feature 006, research §16). A suíte roda com o
+    /// coletor Fake e atraso curto entre pedidos, então o período de referência termina em segundos;
+    /// o teto existe para o polling do <c>ImportRunWaiter</c> falhar rápido em vez de pendurar a suíte.
+    /// </summary>
+    public int ImportRunTimeoutSeconds { get; private set; } = 180;
+
+    /// <summary>Tamanho de bloco esperado no ambiente sob teste (FR-009).</summary>
+    public int MaisVendasBlockDays { get; private set; } = 7;
+
+    /// <summary>Limite de período esperado no ambiente (FR-004).</summary>
+    public int MaisVendasMaxRangeDays { get; private set; } = 366;
+
+    /// <summary>Recusas seguidas antes do bloqueio de novos inícios (FR-008a).</summary>
+    public int MaisVendasMaxFailedLogins { get; private set; } = 3;
+
+    /// <summary>Duração do bloqueio, em minutos (FR-008a).</summary>
+    public int MaisVendasLockoutMinutes { get; private set; } = 15;
+
     /// <summary>Origem do frontend, esperada no <c>Access-Control-Allow-Origin</c> (FR-022).</summary>
     public string StorageFrontendOrigin { get; private set; } = "http://localhost:8080";
 
@@ -107,6 +126,16 @@ public class ApiTestFixture : IAsyncLifetime
         StorageCleanupIntervalMinutes = ReadInt("Storage:CleanupIntervalMinutes", StorageCleanupIntervalMinutes);
         SlowTestMaxWaitMinutes = ReadInt("Storage:SlowTestMaxWaitMinutes", SlowTestMaxWaitMinutes);
         StorageFrontendOrigin = _configuration["Storage:FrontendOrigin"] ?? StorageFrontendOrigin;
+
+        // Importação do +Vendas (feature 006, T006): os prazos e limites que a suíte ESPERA encontrar no
+        // ambiente sob teste. Vêm do appsettings.Test.json porque o teste é quem define o próprio teto
+        // de espera — e conferir o valor real do servidor é justamente o que as asserções de defaults
+        // e de bloqueio precisam.
+        ImportRunTimeoutSeconds = ReadInt("MaisVendas:RunTimeoutSeconds", ImportRunTimeoutSeconds);
+        MaisVendasBlockDays = ReadInt("MaisVendas:BlockDays", MaisVendasBlockDays);
+        MaisVendasMaxRangeDays = ReadInt("MaisVendas:MaxRangeDays", MaisVendasMaxRangeDays);
+        MaisVendasMaxFailedLogins = ReadInt("MaisVendas:MaxFailedLogins", MaisVendasMaxFailedLogins);
+        MaisVendasLockoutMinutes = ReadInt("MaisVendas:LockoutMinutes", MaisVendasLockoutMinutes);
 
         if (long.TryParse(_configuration["Storage:MaxUploadBytes"], out var maxUploadBytes))
         {

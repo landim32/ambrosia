@@ -5,6 +5,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App, { siteBasename } from '@/App'
 import { AuthProvider } from '@/Contexts/AuthContext'
 import { CustomerProvider } from '@/Contexts/CustomerContext'
+import { ImportProvider } from '@/Contexts/ImportContext'
 import { OrderProvider } from '@/Contexts/OrderContext'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -22,6 +23,7 @@ if (!container) {
  * (research §15):
  *
  *   BrowserRouter → AuthProvider (US1) → CustomerProvider (US2) → OrderProvider (US3)
+ *     → ImportProvider (feature 006; não carrega nada sozinho — a `ImportPage` busca)
  *
  * O roteador mora AQUI (e não em `App.tsx`) porque o `AuthContext` precisa de
  * `useNavigate`/`useLocation` para encerrar a sessão em expiração e 401 (T039);
@@ -35,7 +37,9 @@ createRoot(container).render(
       <AuthProvider>
         <CustomerProvider>
           <OrderProvider>
-            <App />
+            <ImportProvider>
+              <App />
+            </ImportProvider>
           </OrderProvider>
         </CustomerProvider>
         <Toaster richColors position="top-center" />
