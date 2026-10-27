@@ -40,6 +40,13 @@ public class OrderInfo
     [JsonPropertyName("total")]
     public decimal Total { get; set; }
 
+    /// <summary>
+    /// Como o pedido entrou no Ambrosia (feature 006): <c>manual</c> ou <c>maisVendas</c>. A tela usa
+    /// para marcar o pedido importado, e a importação só sobrescreve os vindos da origem (FR-023).
+    /// </summary>
+    [JsonPropertyName("source")]
+    public OrderSource Source { get; set; } = OrderSource.Manual;
+
     /// <summary>Quantidade de itens do pedido (evita trazer as linhas na listagem).</summary>
     [JsonPropertyName("itemsCount")]
     public int ItemsCount { get; set; }

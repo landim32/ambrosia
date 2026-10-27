@@ -1,0 +1,28 @@
+meta {
+  name: Historico
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/imports/mais-vendas/runs?page=1&pageSize=10
+  body: none
+  auth: inherit
+}
+
+params:query {
+  page: 1
+  pageSize: 10
+}
+
+docs {
+  Histórico paginado das execuções da vendedora, mais recentes primeiro (FR-045).
+  `pageSize` aceita de 1 a 50.
+}
+
+tests {
+  test("status 200 paginado", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.items).to.be.an('array');
+  });
+}

@@ -26,4 +26,12 @@ public class OrderItemInfo
 
     [JsonPropertyName("imageUrl")]
     public string? ImageUrl { get; set; }
+
+    /// <summary>
+    /// Imagem do Ambrosia ligada a esta linha (feature 006, FR-037): a foto copiada da origem para o
+    /// storage da vendedora. <c>null</c> quando o item não tem foto ou quando o download falhou — o
+    /// pedido continua gravado (FR-039). <see cref="ImageUrl"/> segue sendo a URL de origem.
+    /// </summary>
+    [JsonPropertyName("imageId")]
+    public long? ImageId { get; set; }
 }

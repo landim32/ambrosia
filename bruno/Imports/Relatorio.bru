@@ -1,0 +1,28 @@
+meta {
+  name: Relatorio
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/imports/mais-vendas/runs/{{importRunId}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  Relatório da execução: blocos com as nove contagens, `changes` (só a chave natural do
+  pedido, nunca CPF ou nome — FR-052), `breakdown` canal × origem × tipo × ação e o
+  aviso de queda de contagem. 404 para execução inexistente ou de outra vendedora.
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("traz blocos e rastro", function () {
+    expect(res.body.blocks).to.be.an('array');
+    expect(res.body.changes).to.be.an('array');
+  });
+}

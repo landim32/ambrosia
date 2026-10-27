@@ -1,4 +1,5 @@
 using Ambrosia.Application.HostedServices;
+using Ambrosia.Application.Imports;
 using Ambrosia.Application.Settings;
 using Ambrosia.Domain.Common;
 using Ambrosia.Domain.Exceptions;
@@ -7,6 +8,7 @@ using Ambrosia.Domain.Models;
 using Ambrosia.Domain.Services;
 using Ambrosia.DTO.Settings;
 using Ambrosia.Infra.AppServices;
+using Ambrosia.Infra.AppServices.MaisVendas;
 using Ambrosia.Infra.Context;
 using Ambrosia.Infra.Interfaces.AppServices;
 using Ambrosia.Infra.Interfaces.Repository;
@@ -69,6 +71,22 @@ public static class Startup
             opt.CleanupIntervalMinutes = settings.ObjectStorage.CleanupIntervalMinutes;
         });
 
+        // Importação do +Vendas (feature 006, research §13): a seção inteira vai adiante como IOptions,
+        // consumida pelo coletor, pelos serviços de importação, pelo worker e pelo validator de início.
+        services.Configure<MaisVendasSettings>(opt =>
+        {
+            opt.Collector = settings.MaisVendas.Collector;
+            opt.BaseUrl = settings.MaisVendas.BaseUrl;
+            opt.BlockDays = settings.MaisVendas.BlockDays;
+            opt.MaxRangeDays = settings.MaisVendas.MaxRangeDays;
+            opt.MaxConcurrentRuns = settings.MaisVendas.MaxConcurrentRuns;
+            opt.MaxFailedLogins = settings.MaisVendas.MaxFailedLogins;
+            opt.LockoutMinutes = settings.MaisVendas.LockoutMinutes;
+            opt.MinDelayMs = settings.MaisVendas.MinDelayMs;
+            opt.MaxDelayMs = settings.MaisVendas.MaxDelayMs;
+            opt.Fake.DelayMs = settings.MaisVendas.Fake.DelayMs;
+        });
+
         // DbContext (EF Core 9 + Npgsql, sobre .NET 8 — research §18).
         services.AddDbContext<AmbrosiaContext>(options => options.UseNpgsql(settings.ConnectionString));
 
@@ -104,6 +122,45 @@ public static class Startup
         // Job de limpeza de envios abandonados (FR-018, research §9): abre um escopo por ciclo, então
         // só precisa do IServiceScopeFactory singleton daqui.
         services.AddHostedService<PendingImageCleanupService>();
+
+        // ---------------------------------------------------------------------------
+        // Importação do +Vendas (feature 006)
+        // ---------------------------------------------------------------------------
+
+        services.AddScoped<IImportRunRepository<ImportRun, ImportRunBlock, ImportRunChange>, ImportRunRepository>();
+        services.AddScoped<IMaisVendasAccountRepository<MaisVendasAccount>, MaisVendasAccountRepository>();
+
+        // Hash da conta com o mesmo pepper do CPF, mas AppService próprio: a semântica é diferente
+        // (comparação, sem recuperação) e ICpfProtectionAppService continua exclusivo do documento
+        // (research §8). Singleton: só deriva digest a partir do segredo configurado.
+        services.AddSingleton<IAccountHashAppService, AccountHashAppService>();
+
+        // O coletor é escolhido pela configuração (research §3): Fake é a origem de teste controlada da
+        // homologação; Playwright é o navegador real. Program.ValidateSettings recusa Fake em
+        // Production, então a outra saída é sempre o coletor real.
+        if (settings.MaisVendas.IsFake)
+        {
+            services.AddSingleton<IMaisVendasCollectorAppService, FakeMaisVendasCollectorAppService>();
+        }
+        else
+        {
+            // Limitador de ritmo compartilhado com o download das fotos (FR-043): singleton porque o
+            // bucket precisa ser um só por processo — duas instâncias dobrariam o ritmo real.
+            services.AddSingleton<OriginRateLimiter>();
+            services.AddSingleton<IMaisVendasCollectorAppService, PlaywrightMaisVendasCollectorAppService>();
+        }
+
+        // Fila em memória: singleton porque é o canal entre a requisição (que enfileira) e o worker
+        // (que consome). O ImportJob não é registrado como serviço — ele carrega a senha.
+        services.AddSingleton<IImportRunQueue, ImportRunQueue>();
+
+        services.AddScoped<IImportRunService, ImportRunService>();
+
+        // O executor é scoped: cada job roda em escopo próprio (research §7), com DbContext e
+        // repositórios novos, e é o único consumidor destas dependências.
+        services.AddScoped<IImportExecutionService, ImportExecutionService>();
+
+        services.AddHostedService<ImportRunWorker>();
 
         return services;
     }

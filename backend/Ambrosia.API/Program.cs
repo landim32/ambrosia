@@ -24,7 +24,10 @@ var settings = new AmbrosiaSettings
             ?? new Ambrosia.DTO.Settings.CpfProtectionSettings(),
     ObjectStorage = builder.Configuration.GetSection("ObjectStorage")
             .Get<Ambrosia.DTO.Settings.ObjectStorageSettings>()
-            ?? new Ambrosia.DTO.Settings.ObjectStorageSettings()
+            ?? new Ambrosia.DTO.Settings.ObjectStorageSettings(),
+    MaisVendas = builder.Configuration.GetSection("MaisVendas")
+            .Get<Ambrosia.DTO.Settings.MaisVendasSettings>()
+            ?? new Ambrosia.DTO.Settings.MaisVendasSettings()
 };
 
 // Falha no startup em vez de rodar com chave vazia: CPFs cifrados com chave errada são
@@ -65,6 +68,19 @@ builder.Services.ConfigureServices(opt =>
     opt.ObjectStorage.AllowedMimeTypes = settings.ObjectStorage.AllowedMimeTypes;
     opt.ObjectStorage.PendingTtlMinutes = settings.ObjectStorage.PendingTtlMinutes;
     opt.ObjectStorage.CleanupIntervalMinutes = settings.ObjectStorage.CleanupIntervalMinutes;
+
+    // Importação do +Vendas (feature 006): a seção inteira vai adiante como IOptions; o ValidateSettings
+    // abaixo já recusou startup com configuração fora das faixas.
+    opt.MaisVendas.Collector = settings.MaisVendas.Collector;
+    opt.MaisVendas.BaseUrl = settings.MaisVendas.BaseUrl;
+    opt.MaisVendas.BlockDays = settings.MaisVendas.BlockDays;
+    opt.MaisVendas.MaxRangeDays = settings.MaisVendas.MaxRangeDays;
+    opt.MaisVendas.MaxConcurrentRuns = settings.MaisVendas.MaxConcurrentRuns;
+    opt.MaisVendas.MaxFailedLogins = settings.MaisVendas.MaxFailedLogins;
+    opt.MaisVendas.LockoutMinutes = settings.MaisVendas.LockoutMinutes;
+    opt.MaisVendas.MinDelayMs = settings.MaisVendas.MinDelayMs;
+    opt.MaisVendas.MaxDelayMs = settings.MaisVendas.MaxDelayMs;
+    opt.MaisVendas.Fake.DelayMs = settings.MaisVendas.Fake.DelayMs;
 });
 
 // ---------------------------------------------------------------------------
@@ -121,7 +137,16 @@ builder.Services.AddSwaggerGen(options =>
                       "a URL pré-assinada de `PUT`, `POST /images/uploads/{imageId}/confirm` confere o " +
                       "binário que chegou ao storage, `POST /images` grava pelo servidor (multipart, " +
                       "sem EXIF), `GET /images/{imageId}` consulta e `DELETE /images/{imageId}` exclui. " +
-                      "As URLs de leitura são temporárias e o bucket é privado."
+                      "As URLs de leitura são temporárias e o bucket é privado. " +
+                      "Importação do +Vendas (feature 006): `GET /imports/mais-vendas/defaults` traz as " +
+                      "datas sugeridas, `POST /imports/mais-vendas/runs` inicia uma execução (202; login " +
+                      "e senha do +Vendas valem só para ela e não são guardados em lugar nenhum), " +
+                      "`GET /imports/mais-vendas/runs/current` acompanha o progresso, " +
+                      "`GET /imports/mais-vendas/runs/{runId}` é o relatório, " +
+                      "`GET /imports/mais-vendas/runs` é o histórico paginado e " +
+                      "`POST /imports/mais-vendas/runs/{runId}/cancel` pede o cancelamento. Nenhuma " +
+                      "resposta de importação contém credencial, e o período é reimportável sem " +
+                      "duplicar nada."
     });
 
     // T094: o wrapper paginado saía como "CustomerInfoPagedResult"; o contrato
@@ -256,6 +281,7 @@ static void ValidateSettings(AmbrosiaSettings settings)
     }
 
     ValidateObjectStorage(settings.ObjectStorage, errors);
+    ValidateMaisVendas(settings.MaisVendas, errors);
 
     if (errors.Count > 0)
     {
@@ -335,12 +361,63 @@ static void ValidateObjectStorage(Ambrosia.DTO.Settings.ObjectStorageSettings st
     static bool IsHttpUri(string? value) =>
         Uri.TryCreate(value, UriKind.Absolute, out var uri)
         && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+}
 
-    static void AddIfOutOfRange(List<string> errors, string name, int value, int min, int max)
+// Importação do +Vendas (feature 006, research §13): a API não sobe com a seção fora das faixas. Cada
+// mensagem nomeia a VARIÁVEL e o intervalo aceito, e nunca mostra o valor — o texto do
+// InvalidOperationException vai para o log e para o stderr do container.
+static void ValidateMaisVendas(Ambrosia.DTO.Settings.MaisVendasSettings maisVendas, List<string> errors)
+{
+    const string collector = "MaisVendas__Collector";
+
+    if (!maisVendas.IsPlaywright && !maisVendas.IsFake)
     {
-        if (value < min || value > max)
-        {
-            errors.Add($"{name} deve estar entre {min} e {max} minutos (valor atual não é mostrado).");
-        }
+        errors.Add(
+            $"{collector} aceita apenas " +
+            $"{Ambrosia.DTO.Settings.MaisVendasSettings.COLLECTOR_PLAYWRIGHT} ou " +
+            $"{Ambrosia.DTO.Settings.MaisVendasSettings.COLLECTOR_FAKE}.");
+    }
+
+    // Fake é a origem de teste controlada da homologação (research §3). Em produção um fake
+    // "importando com sucesso" escreveria pedidos inventados na base da vendedora com o carimbo de uma
+    // execução concluída — o pior resultado possível para a feature. A recusa é de startup, não de
+    // runtime: o deploy falha cedo e visível.
+    if (maisVendas.IsFake
+        && string.Equals(
+            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+            "Production",
+            StringComparison.OrdinalIgnoreCase))
+    {
+        errors.Add($"{collector} não aceita Fake em Production.");
+    }
+
+    if (!Uri.TryCreate(maisVendas.BaseUrl, UriKind.Absolute, out var baseUri)
+        || baseUri.Scheme != Uri.UriSchemeHttps)
+    {
+        errors.Add("MaisVendas__BaseUrl deve ser uma URL absoluta https.");
+    }
+
+    AddIfOutOfRange(errors, "MaisVendas__BlockDays", maisVendas.BlockDays, 1, 31);
+    AddIfOutOfRange(errors, "MaisVendas__MaxRangeDays", maisVendas.MaxRangeDays, 1, 3660);
+    AddIfOutOfRange(errors, "MaisVendas__MaxConcurrentRuns", maisVendas.MaxConcurrentRuns, 1, 8);
+    AddIfOutOfRange(errors, "MaisVendas__MaxFailedLogins", maisVendas.MaxFailedLogins, 1, 10);
+    AddIfOutOfRange(errors, "MaisVendas__LockoutMinutes", maisVendas.LockoutMinutes, 1, 1440);
+    AddIfOutOfRange(errors, "MaisVendas__MinDelayMs", maisVendas.MinDelayMs, 100, 5000);
+    AddIfOutOfRange(errors, "MaisVendas__MaxDelayMs", maisVendas.MaxDelayMs, 100, 5000);
+    AddIfOutOfRange(errors, "MaisVendas__Fake__DelayMs", maisVendas.Fake.DelayMs, 0, 5000);
+
+    // Dois valores dentro da faixa, mas invertidos, não são detectáveis por faixa sozinha: o jitter do
+    // ritmo (FR-043) viraria espera negativa.
+    if (maisVendas.MinDelayMs > maisVendas.MaxDelayMs)
+    {
+        errors.Add("MaisVendas__MinDelayMs não pode ser maior que MaisVendas__MaxDelayMs.");
+    }
+}
+
+static void AddIfOutOfRange(List<string> errors, string name, int value, int min, int max)
+{
+    if (value < min || value > max)
+    {
+        errors.Add($"{name} deve estar entre {min} e {max} (valor atual não é mostrado).");
     }
 }

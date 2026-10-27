@@ -17,7 +17,7 @@ export interface LazyImageProps {
  *
  * `loading="lazy"` + `decoding="async"`: a lista de itens não baixa tudo de uma
  * vez no celular da loja. `referrerPolicy="no-referrer"`: o servidor de imagem
- * do +Vendas não recebe a origem do Ambrosia — o domínio da vendedora não vaza.
+ * do +Vendas não recebe a origem do Ambrosio — o domínio da vendedora não vaza.
  *
  * Sem URL, ou quando a URL quebrou (hotlink bloqueado ou link expirado — o Edge
  * Case da spec), aparece o placeholder NO MESMO ESPAÇO: um ícone sobre fundo
@@ -41,7 +41,10 @@ export const LazyImage = ({ src, alt, className }: LazyImageProps) => {
 
   return (
     <div
-      className={cn('aspect-square w-16 shrink-0 overflow-hidden rounded-md bg-muted', className)}
+      className={cn(
+        'aspect-square w-16 shrink-0 overflow-hidden rounded-lg bg-muted ring-1 ring-border/60 ring-inset',
+        className,
+      )}
     >
       {usableSrc === null ? (
         <div
@@ -50,7 +53,7 @@ export const LazyImage = ({ src, alt, className }: LazyImageProps) => {
           data-testid="image-placeholder"
           className="flex size-full items-center justify-center text-muted-foreground"
         >
-          <ImageOff aria-hidden="true" className="size-6" />
+          <ImageOff aria-hidden="true" className="size-1/3 max-h-10 max-w-10" strokeWidth={1.5} />
         </div>
       ) : (
         <img

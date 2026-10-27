@@ -1,12 +1,14 @@
 # ambrosia Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-10-26
+Auto-generated from all feature plans. Last updated: 2026-10-27
 
 ## Active Technologies
 - TypeScript 5.x, React 18, Vite 6, Tailwind CSS 4 + shadcn/ui, i18next 25 (frontend); C# 12 / .NET 8.0 para o ajuste pontual do backend (002-frontend-web-clientes-pedidos)
 - nenhum no frontend além de `localStorage` (chave `login-with-metamask:auth` com `{ token, expiresAt, user }`); dados vêm da API (PostgreSQL via HU 001) (002-frontend-web-clientes-pedidos)
 - C# 12 / .NET 8.0 (backend); TypeScript 5.x / React 18 (frontend) (003-email-password-jwt-auth)
 - PostgreSQL (tabela `users`, coluna `password_hash varchar(260)` já existente; sem migração). Frontend: `localStorage` na chave `login-with-metamask:auth` com `{ token, expiresAt, user }` (inalterado) (003-email-password-jwt-auth)
+- C# 12 / .NET 8.0 (backend); TypeScript 5.x / React 18 + Vite 6 (frontend) (006-mais-vendas-import)
+- PostgreSQL (migração `AddMaisVendasImport`: `import_runs`, `import_run_blocks`, `import_run_changes`, `mais_vendas_accounts`; colunas novas em `orders`/`order_items`); fotos no storage S3 da 004 (`ImageSource.Bot`); `Microsoft.Playwright` + Chromium na imagem da API; nenhuma credencial do +Vendas persistida (006-mais-vendas-import)
 
 - C# 12 / .NET 8.0 (LTS) (001-api-cadastro-clientes-pedidos)
 
@@ -58,10 +60,10 @@ em Linux no Docker e caixa importa. Toda string visível vem de
 `frontend/src/i18n/locales/pt-BR.ts`.
 
 ## Recent Changes
+- 006-mais-vendas-import: Added C# 12 / .NET 8.0 (backend); TypeScript 5.x / React 18 + Vite 6 (frontend)
 - 003-email-password-jwt-auth: Added C# 12 / .NET 8.0 (backend); TypeScript 5.x / React 18 (frontend)
 - 002-frontend-web-clientes-pedidos: Added TypeScript 5.x (frontend); C# 12 / .NET 8.0 para o ajuste pontual do backend
 
-- 001-api-cadastro-clientes-pedidos: Added C# 12 / .NET 8.0 (LTS)
 
 <!-- MANUAL ADDITIONS START -->
 

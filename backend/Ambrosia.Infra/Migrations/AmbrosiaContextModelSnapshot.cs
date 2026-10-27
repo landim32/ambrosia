@@ -83,6 +83,385 @@ namespace Ambrosia.Infra.Migrations
                     b.ToTable("customers", (string)null);
                 });
 
+            modelBuilder.Entity("Ambrosia.Domain.Models.ImportRun", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("import_run_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("BlockDays")
+                        .HasColumnType("integer")
+                        .HasColumnName("block_days");
+
+                    b.Property<int>("BlocksTotal")
+                        .HasColumnType("integer")
+                        .HasColumnName("blocks_total");
+
+                    b.Property<bool>("CancelRequested")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("cancel_requested");
+
+                    b.Property<string>("CollectorVersion")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("collector_version");
+
+                    b.Property<int>("ConflictCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("conflict_count");
+
+                    b.Property<int>("CustomersCreatedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("customers_created_count");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("end_date");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("error_message");
+
+                    b.Property<int>("FailedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("failed_count");
+
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<int>("ImagesFailedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("images_failed_count");
+
+                    b.Property<int>("ImagesStoredCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("images_stored_count");
+
+                    b.Property<int>("InsertedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("inserted_count");
+
+                    b.Property<int>("MissingCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("missing_count");
+
+                    b.Property<int>("Mode")
+                        .HasColumnType("integer")
+                        .HasColumnName("mode");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("requested_at");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("status");
+
+                    b.Property<int>("UnchangedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("unchanged_count");
+
+                    b.Property<int>("UpdatedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("updated_count");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("import_runs_pkey");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_import_runs_user_active")
+                        .HasFilter("status IN (1, 2)");
+
+                    b.HasIndex("UserId", "RequestedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_import_runs_user_requested");
+
+                    b.HasIndex("UserId", "StartDate", "EndDate", "FinishedAt")
+                        .IsDescending(false, false, false, true)
+                        .HasDatabaseName("ix_import_runs_user_period");
+
+                    b.ToTable("import_runs", (string)null);
+                });
+
+            modelBuilder.Entity("Ambrosia.Domain.Models.ImportRunBlock", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("import_run_block_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("BlockNo")
+                        .HasColumnType("integer")
+                        .HasColumnName("block_no");
+
+                    b.Property<int>("ConflictCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("conflict_count");
+
+                    b.Property<int>("CustomersCreatedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("customers_created_count");
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date")
+                        .HasColumnName("end_date");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("error_message");
+
+                    b.Property<int>("FailedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("failed_count");
+
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("finished_at");
+
+                    b.Property<int>("ImagesFailedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("images_failed_count");
+
+                    b.Property<int>("ImagesStoredCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("images_stored_count");
+
+                    b.Property<long>("ImportRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("import_run_id");
+
+                    b.Property<int>("InsertedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("inserted_count");
+
+                    b.Property<int>("MissingCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("missing_count");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date")
+                        .HasColumnName("start_date");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("started_at");
+
+                    b.Property<int>("Status")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("status");
+
+                    b.Property<int>("UnchangedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("unchanged_count");
+
+                    b.Property<int>("UpdatedCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("updated_count");
+
+                    b.HasKey("Id")
+                        .HasName("import_run_blocks_pkey");
+
+                    b.HasIndex("ImportRunId")
+                        .HasDatabaseName("ix_import_run_blocks_run");
+
+                    b.HasIndex("ImportRunId", "BlockNo")
+                        .IsUnique()
+                        .HasDatabaseName("ux_import_run_blocks_run_no");
+
+                    b.ToTable("import_run_blocks", (string)null);
+                });
+
+            modelBuilder.Entity("Ambrosia.Domain.Models.ImportRunChange", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("import_run_change_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("Action")
+                        .HasColumnType("integer")
+                        .HasColumnName("action");
+
+                    b.Property<string>("ChangedFields")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("changed_fields");
+
+                    b.Property<string>("Channel")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("channel");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("error_message");
+
+                    b.Property<long>("ImportRunBlockId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("import_run_block_id");
+
+                    b.Property<long>("ImportRunId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("import_run_id");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("integer")
+                        .HasColumnName("kind");
+
+                    b.Property<DateOnly>("OrderDate")
+                        .HasColumnType("date")
+                        .HasColumnName("order_date");
+
+                    b.Property<long?>("OrderId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("order_id");
+
+                    b.Property<string>("OrderNumber")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)")
+                        .HasColumnName("order_number");
+
+                    b.Property<int?>("Origin")
+                        .HasColumnType("integer")
+                        .HasColumnName("origin");
+
+                    b.HasKey("Id")
+                        .HasName("import_run_changes_pkey");
+
+                    b.HasIndex("ImportRunBlockId")
+                        .HasDatabaseName("ix_import_run_changes_block");
+
+                    b.HasIndex("ImportRunId")
+                        .HasDatabaseName("ix_import_run_changes_run");
+
+                    b.HasIndex("OrderId")
+                        .HasDatabaseName("ix_import_run_changes_order");
+
+                    b.ToTable("import_run_changes", (string)null);
+                });
+
+            modelBuilder.Entity("Ambrosia.Domain.Models.MaisVendasAccount", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("mais_vendas_account_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("AccountHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("account_hash");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("FailedLoginCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("failed_login_count");
+
+                    b.Property<DateTime?>("LinkedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("linked_at");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("locked_until");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("mais_vendas_accounts_pkey");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_mais_vendas_accounts_user");
+
+                    b.ToTable("mais_vendas_accounts", (string)null);
+                });
+
             modelBuilder.Entity("Ambrosia.Domain.Models.Order", b =>
                 {
                     b.Property<long>("Id")
@@ -95,6 +474,10 @@ namespace Ambrosia.Infra.Migrations
                     b.Property<DateOnly?>("CancelledOn")
                         .HasColumnType("date")
                         .HasColumnName("cancelled_on");
+
+                    b.Property<DateTime?>("CapturedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("captured_at");
 
                     b.Property<string>("Channel")
                         .HasMaxLength(60)
@@ -136,6 +519,21 @@ namespace Ambrosia.Infra.Migrations
                         .HasColumnType("date")
                         .HasColumnName("original_sale_on");
 
+                    b.Property<int>("Source")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("source");
+
+                    b.Property<DateTime?>("SourceChangedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("source_changed_at");
+
+                    b.Property<string>("SourceHash")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("source_hash");
+
                     b.Property<string>("Status")
                         .HasMaxLength(60)
                         .HasColumnType("character varying(60)")
@@ -169,6 +567,10 @@ namespace Ambrosia.Infra.Migrations
                         .IsDescending(false, true)
                         .HasDatabaseName("ix_orders_user_date");
 
+                    b.HasIndex("UserId", "Source", "OrderDate")
+                        .IsDescending(false, false, true)
+                        .HasDatabaseName("ix_orders_user_source_date");
+
                     b.HasIndex("UserId", "OrderNumber", "OrderDate", "Kind")
                         .IsUnique()
                         .HasDatabaseName("ux_orders_user_number_date_kind");
@@ -184,6 +586,10 @@ namespace Ambrosia.Infra.Migrations
                         .HasColumnName("order_item_id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<long?>("ImageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("image_id");
 
                     b.Property<string>("ImageUrl")
                         .HasMaxLength(500)
@@ -219,6 +625,9 @@ namespace Ambrosia.Infra.Migrations
 
                     b.HasKey("Id")
                         .HasName("order_items_pkey");
+
+                    b.HasIndex("ImageId")
+                        .HasDatabaseName("ix_order_items_image");
 
                     b.HasIndex("OrderId")
                         .HasDatabaseName("ix_order_items_order");
@@ -380,6 +789,65 @@ namespace Ambrosia.Infra.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Ambrosia.Domain.Models.ImportRun", b =>
+                {
+                    b.HasOne("Ambrosia.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .IsRequired()
+                        .HasConstraintName("fk_user_import_run");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Ambrosia.Domain.Models.ImportRunBlock", b =>
+                {
+                    b.HasOne("Ambrosia.Domain.Models.ImportRun", "ImportRun")
+                        .WithMany("Blocks")
+                        .HasForeignKey("ImportRunId")
+                        .IsRequired()
+                        .HasConstraintName("fk_import_run_import_run_block");
+
+                    b.Navigation("ImportRun");
+                });
+
+            modelBuilder.Entity("Ambrosia.Domain.Models.ImportRunChange", b =>
+                {
+                    b.HasOne("Ambrosia.Domain.Models.ImportRunBlock", "ImportRunBlock")
+                        .WithMany()
+                        .HasForeignKey("ImportRunBlockId")
+                        .IsRequired()
+                        .HasConstraintName("fk_import_run_block_import_run_change");
+
+                    b.HasOne("Ambrosia.Domain.Models.ImportRun", "ImportRun")
+                        .WithMany()
+                        .HasForeignKey("ImportRunId")
+                        .IsRequired()
+                        .HasConstraintName("fk_import_run_import_run_change");
+
+                    b.HasOne("Ambrosia.Domain.Models.Order", "Order")
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .HasConstraintName("fk_order_import_run_change");
+
+                    b.Navigation("ImportRun");
+
+                    b.Navigation("ImportRunBlock");
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("Ambrosia.Domain.Models.MaisVendasAccount", b =>
+                {
+                    b.HasOne("Ambrosia.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .IsRequired()
+                        .HasConstraintName("fk_user_mais_vendas_account");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Ambrosia.Domain.Models.Order", b =>
                 {
                     b.HasOne("Ambrosia.Domain.Models.Customer", "Customer")
@@ -401,11 +869,18 @@ namespace Ambrosia.Infra.Migrations
 
             modelBuilder.Entity("Ambrosia.Domain.Models.OrderItem", b =>
                 {
+                    b.HasOne("Ambrosia.Domain.Models.StoredImage", "Image")
+                        .WithMany()
+                        .HasForeignKey("ImageId")
+                        .HasConstraintName("fk_stored_image_order_item");
+
                     b.HasOne("Ambrosia.Domain.Models.Order", "Order")
                         .WithMany("Items")
                         .HasForeignKey("OrderId")
                         .IsRequired()
                         .HasConstraintName("fk_order_order_item");
+
+                    b.Navigation("Image");
 
                     b.Navigation("Order");
                 });
@@ -424,6 +899,11 @@ namespace Ambrosia.Infra.Migrations
             modelBuilder.Entity("Ambrosia.Domain.Models.Customer", b =>
                 {
                     b.Navigation("Orders");
+                });
+
+            modelBuilder.Entity("Ambrosia.Domain.Models.ImportRun", b =>
+                {
+                    b.Navigation("Blocks");
                 });
 
             modelBuilder.Entity("Ambrosia.Domain.Models.Order", b =>

@@ -27,6 +27,9 @@ public class UnauthorizedAccessTests
     private const string ISSUER = "ambrosia";
     private const string AUDIENCE = "ambrosia";
 
+    /// <summary>Única rota protegida que exige <c>multipart/form-data</c> (gravação pelo servidor, feature 004).</summary>
+    private const string MULTIPART_PATH = "/images";
+
     /// <summary>Operações protegidas: verbo + caminho.</summary>
     public static TheoryData<string, string> ProtectedOperations => new()
     {
@@ -46,7 +49,16 @@ public class UnauthorizedAccessTests
         { "POST", "/images/uploads/1/confirm" },
         { "GET", "/images/1" },
         { "POST", "/images" },
-        { "DELETE", "/images/1" }
+        { "DELETE", "/images/1" },
+
+        // Feature 006 (T037/T093): as seis rotas de importação do +Vendas. Sem token ninguém inicia
+        // uma coleta com credenciais de terceiros nem descobre que uma execução existe.
+        { "GET", "/imports/mais-vendas/defaults" },
+        { "POST", "/imports/mais-vendas/runs" },
+        { "GET", "/imports/mais-vendas/runs/current" },
+        { "GET", "/imports/mais-vendas/runs/1" },
+        { "GET", "/imports/mais-vendas/runs" },
+        { "POST", "/imports/mais-vendas/runs/1/cancel" }
     };
 
     private readonly ApiTestFixture _fixture;
@@ -156,6 +168,11 @@ public class UnauthorizedAccessTests
         var response = method switch
         {
             "GET" => await request.AllowAnyHttpStatus().GetAsync(),
+            // POST /images só aceita multipart ([Consumes]): o ASP.NET Core aplica essa restrição na
+            // seleção do endpoint, ANTES da autorização, e um corpo JSON morreria em 415 sem o token
+            // ser conferido. O teste é de autenticação, então manda o formato que a rota aceita.
+            "POST" when path == MULTIPART_PATH => await request.AllowAnyHttpStatus()
+                .PostMultipartAsync(form => form.AddString("mimeType", "image/jpeg")),
             "POST" => await request.AllowAnyHttpStatus().PostJsonAsync(new { }),
             "PUT" => await request.AllowAnyHttpStatus().PutJsonAsync(new { }),
             "DELETE" => await request.AllowAnyHttpStatus().DeleteAsync(),

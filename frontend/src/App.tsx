@@ -11,6 +11,7 @@ const CustomersPage = lazy(() => import('@/pages/CustomersPage'))
 const CustomerProfilePage = lazy(() => import('@/pages/CustomerProfilePage'))
 const OrdersPage = lazy(() => import('@/pages/OrdersPage'))
 const OrderDetailPage = lazy(() => import('@/pages/OrderDetailPage'))
+const ImportPage = lazy(() => import('@/pages/ImportPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 /** `VITE_SITE_BASENAME` vazio significa "na raiz da origem" (sem basename). */
@@ -41,6 +42,8 @@ export const App = () => (
           <Route path="/clientes/:id" element={<CustomerProfilePage />} />
           <Route path="/pedidos" element={<OrdersPage />} />
           <Route path="/pedidos/:id" element={<OrderDetailPage />} />
+          {/* Feature 006: importação do +Vendas. Protegida como as demais (FR-001). */}
+          <Route path="/importacao" element={<ImportPage />} />
           {/* FR-001: até a tela de "página não encontrada" é interna. */}
           <Route path="*" element={<NotFoundPage />} />
         </Route>

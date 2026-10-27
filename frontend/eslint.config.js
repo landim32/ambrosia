@@ -11,6 +11,8 @@ export default tseslint.config(
     ignores: [
       'dist/',
       'node_modules/',
+      // Cache de pré-bundling do Vite (`npm run dev`): código de terceiros, não versionado.
+      '.vite/',
       'test-results/',
       'coverage/',
       // Componentes gerados pelo shadcn/ui seguem o padrão da biblioteca.

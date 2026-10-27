@@ -1,16 +1,17 @@
 import { useCallback, useEffect } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { ChevronRight } from 'lucide-react'
 
+import { BackLink } from '@/components/common/BackLink'
 import { ErrorState } from '@/components/common/ErrorState'
 import { LoadingList } from '@/components/common/LoadingList'
 import { NotFound } from '@/components/common/NotFound'
+import { CustomerAvatar } from '@/components/customers/CustomerAvatar'
 import { OrderItemRow } from '@/components/orders/OrderItemRow'
 import { OrderKindBadge } from '@/components/orders/OrderKindBadge'
 import { OrderTotal } from '@/components/orders/OrderTotal'
 import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import { useOrder } from '@/hooks/useOrder'
 import { formatDateOnly } from '@/lib/dates'
 import { maskedCpfShape } from '@/lib/cpf'
@@ -67,48 +68,57 @@ export const OrderDetailSections = ({ order }: OrderDetailSectionsProps) => {
   const items = [...order.items].sort((a, b) => a.lineNo - b.lineNo)
 
   return (
-    <div className="flex flex-col gap-5">
-      <header className="flex min-w-0 flex-wrap items-start justify-between gap-x-4 gap-y-2">
-        <div className="min-w-0">
-          <h1 className="truncate text-xl font-semibold text-foreground">
+    <div className="flex flex-col gap-6">
+      <BackLink to="/pedidos" label={t('common.orders')} />
+
+      {/* Cabeçalho do pedido: título grande no estilo iOS e o total em destaque. */}
+      <header className="flex min-w-0 flex-col gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <OrderKindBadge kind={order.kind} />
+          <span className="text-sm text-muted-foreground tabular-nums">
+            {formatDateOnly(order.orderDate)}
+          </span>
+        </div>
+        <div className="flex min-w-0 flex-wrap items-end justify-between gap-x-4 gap-y-2">
+          <h1 className="min-w-0 truncate text-2xl font-bold tracking-tight text-foreground md:text-3xl">
             {t('orders.number')} <span className="font-mono">{order.orderNumber}</span>
           </h1>
-          <p className="mt-1 text-sm text-muted-foreground tabular-nums">
-            {formatDateOnly(order.orderDate)}
-          </p>
-        </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <OrderKindBadge kind={order.kind} />
           {/* FR-018: o total negativo de devolução/cancelamento já sai destacado. */}
-          <OrderTotal total={order.total} kind={order.kind} className="text-base" />
+          <OrderTotal
+            total={order.total}
+            kind={order.kind}
+            className="text-2xl font-bold tracking-tight md:text-3xl"
+          />
         </div>
       </header>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold text-muted-foreground">
+      <div className="grid gap-3 md:grid-cols-2">
+        <section className="flex min-w-0 flex-col rounded-2xl border border-border/70 bg-card">
+          <h2 className="px-4 pt-3 text-xs font-medium tracking-wide text-muted-foreground uppercase">
             {t('orders.customer')}
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex min-w-0 flex-col gap-1">
+          </h2>
           <Link
             to={`/clientes/${String(order.customerId)}`}
-            className="inline-flex min-h-11 items-center rounded-md text-sm font-medium text-foreground underline underline-offset-4 focus-visible:outline-none"
+            className="flex min-h-11 min-w-0 items-center gap-3 rounded-2xl px-4 py-3 transition-colors hover:bg-secondary/50 focus-visible:outline-none active:bg-secondary"
           >
-            <span className="min-w-0 truncate">{order.customer.name}</span>
+            <CustomerAvatar name={order.customer.name} photoUrl={order.customer.photoUrl} />
+            <span className="min-w-0 grow">
+              <span className="block truncate text-[0.9375rem] font-medium text-foreground">
+                {order.customer.name}
+              </span>
+              {/* FR-022: sempre mascarado. `order.customer` é `CustomerInfo`, que não
+                  tem o campo `cpf` — não há o que revelar aqui — e `maskedCpfShape`
+                  garante que nem um dado corrompido vira CPF completo na tela. */}
+              <span className="block font-mono text-xs text-muted-foreground tabular-nums">
+                {maskedCpfShape(order.customer.cpfMasked)}
+              </span>
+            </span>
+            <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground/60" />
           </Link>
-          {/* FR-022: sempre mascarado. `order.customer` é `CustomerInfo`, que não
-              tem o campo `cpf` — não há o que revelar aqui — e `maskedCpfShape`
-              garante que nem um dado corrompido vira CPF completo na tela. */}
-          <span className="font-mono text-xs text-muted-foreground tabular-nums">
-            {maskedCpfShape(order.customer.cpfMasked)}
-          </span>
-        </CardContent>
-      </Card>
+        </section>
 
-      <Card>
-        <CardContent className="grid gap-4 pt-4 sm:grid-cols-2">
-          <dl className="contents">
+        <section className="min-w-0 rounded-2xl border border-border/70 bg-card px-4 py-3">
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-3">
             <Field label={t('orders.channelLabel')}>{orDash(order.channel) ?? dash}</Field>
             <Field label={t('orders.status')}>
               <span className="truncate">{orDash(order.status) ?? dash}</span>
@@ -127,26 +137,30 @@ export const OrderDetailSections = ({ order }: OrderDetailSectionsProps) => {
               </Field>
             )}
           </dl>
-        </CardContent>
-      </Card>
+        </section>
+      </div>
 
-      <Separator />
-
-      <section className="flex min-w-0 flex-col gap-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">
-          {t('orders.items')} · {t('orders.itemsCount', { count: items.length })}
+      <section className="flex min-w-0 flex-col gap-3">
+        <h2 className="flex items-baseline gap-2 text-lg font-semibold tracking-tight text-foreground">
+          {t('orders.items')}
+          <span className="text-sm font-normal text-muted-foreground">
+            {t('orders.itemsCount', { count: items.length })}
+          </span>
         </h2>
 
         {items.length === 0 ? (
-          <p className="text-sm text-muted-foreground" data-testid="no-items">
+          <p
+            className="rounded-2xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground"
+            data-testid="no-items"
+          >
             {t('orders.noItems')}
           </p>
         ) : (
-          <ul role="list" className="flex min-w-0 flex-col">
+          // Fotos em destaque: 2 colunas no celular (~140 px a 320 px de tela),
+          // 3 no tablet e 4 no desktop. Cada `OrderItemRow` já é o `<li>`.
+          <ul role="list" className="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
             {items.map((item) => (
-              <li key={item.id} className="min-w-0">
-                <OrderItemRow item={item} />
-              </li>
+              <OrderItemRow key={item.id} item={item} />
             ))}
           </ul>
         )}

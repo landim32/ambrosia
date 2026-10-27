@@ -16,6 +16,8 @@ export interface OrderInfo {
   status: string | null
   /** Negativo em devolução/cancelamento (FR-018). */
   total: number
+  /** Como o pedido entrou: manual ou importado do +Vendas (feature 006). */
+  source: 'manual' | 'maisVendas'
   itemsCount: number
   createdAt: string
   updatedAt: string
@@ -29,7 +31,10 @@ export interface OrderItemInfo {
   skuRef: string | null
   size: string | null
   price: number | null
+  /** URL de origem da foto (referência; não é exibida por ser da sessão do +Vendas). */
   imageUrl: string | null
+  /** Foto copiada para o storage na importação (feature 006); `null` sem foto ou com erro. */
+  imageId: number | null
 }
 
 /** Todos os tipos de pedido aceitos pela API. */

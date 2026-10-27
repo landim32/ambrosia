@@ -11,6 +11,13 @@ obj/
 .vs/
 TestResults/
 *.log
+packages/
+
+# Node (frontend tem o próprio .gitignore; estes cobrem scripts na raiz)
+node_modules/
+dist/
+build/
+coverage/
 
 # Ambiente
 .env

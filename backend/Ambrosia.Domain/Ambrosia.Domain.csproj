@@ -14,6 +14,10 @@
          abstrações (nenhuma implementação de logging nem o SDK de storage) entram no Domain. -->
     <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.22" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.22" />
+    <!-- Feature 006: a gravação de cada pedido importado acontece em um escopo de DI próprio (research
+         §7), para que a transação curta seja por pedido e um DbContext novo seja usado. Só a
+         abstração entra aqui — nenhuma implementação de DI ou de logging. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.22" />
   </ItemGroup>
 
   <ItemGroup>

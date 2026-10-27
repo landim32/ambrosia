@@ -21,4 +21,11 @@ public class AmbrosiaSettings
 
     /// <summary>Storage de imagens compatível com S3 (feature 004, research §12).</summary>
     public ObjectStorageSettings ObjectStorage { get; set; } = new();
+
+    /// <summary>
+    /// Importação do +Vendas (feature 006, research §13): qual coletor registrar, tamanho de bloco,
+    /// limites de período/tentativa e ritmo da coleta. As faixas são conferidas no startup e
+    /// <c>Collector=Fake</c> é recusado em Production.
+    /// </summary>
+    public MaisVendasSettings MaisVendas { get; set; } = new();
 }

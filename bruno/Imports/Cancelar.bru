@@ -1,0 +1,23 @@
+meta {
+  name: Cancelar
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/imports/mais-vendas/runs/{{importRunId}}/cancel
+  body: none
+  auth: inherit
+}
+
+docs {
+  Pede o cancelamento (FR-019): `queued` cancela na hora; `running` encerra ao fim do
+  bloco em curso (resposta com `cancelRequested: true`). 409 quando a execução já
+  terminou; 404 para execução de outra vendedora.
+}
+
+tests {
+  test("status 202 ou 409", function () {
+    expect([202, 409]).to.include(res.status);
+  });
+}

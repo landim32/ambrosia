@@ -1,0 +1,28 @@
+meta {
+  name: Defaults
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/imports/mais-vendas/defaults
+  body: none
+  auth: inherit
+}
+
+docs {
+  Datas sugeridas da tela (FR-002): `suggestedStartDate` é a data do último pedido
+  importado (null sem histórico) e `suggestedEndDate` é hoje em America/Sao_Paulo.
+  `lockedUntil` ≠ null quando novos inícios estão bloqueados por recusas (FR-008a).
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("traz os limites vigentes", function () {
+    expect(res.body.blockDays).to.be.a('number');
+    expect(res.body.maxRangeDays).to.be.a('number');
+  });
+}

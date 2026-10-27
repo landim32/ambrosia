@@ -8,8 +8,8 @@
 | Campo | Valor |
 |---|---|
 | ID | 004 |
-| Status | Planejada (próxima a ser desenvolvida) |
-| Spec | — |
+| Status | Implementada (aguardando validação manual do quickstart e primeira execução real em simulação) |
+| Spec | [`006-mais-vendas-import`](../../specs/006-mais-vendas-import/) |
 | Depende de | [001](001-api-cadastro-clientes-pedidos.md) (API, modelo e proteção do CPF), [002](002-frontend-web-perfil-cliente-pedidos.md) (frontend e sessão) e [003](003-armazenamento-imagens-s3.md) (storage de imagens, spec [`004-s3-image-storage`](../../specs/004-s3-image-storage/)) |
 | Base | [Doc 01](../01-analise-sistema-mais-vendas.md) (análise do +Vendas), [doc 02](../02-modelo-de-dados.md) (modelo) e [doc 03](../03-bot-playwright.md) (bot) |
 | Código previsto | `frontend/` (tela de importação), `backend/` (endpoints de importação e o coletor Playwright, rodando no servidor) |

@@ -1,0 +1,21 @@
+meta {
+  name: Imports
+  seq: 6
+}
+
+docs {
+  Importação do +Vendas (feature 006). Fluxo:
+
+  1. `Defaults` traz a data inicial sugerida (último pedido importado), hoje em
+     São Paulo, o tamanho do bloco, o limite do período e `lockedUntil`.
+  2. `Iniciar Importacao` responde 202 com a execução `queued` e salva `importRunId`.
+  3. `Execucao Atual` acompanha o progresso (204 quando não há execução ativa).
+  4. `Relatorio` traz blocos, rastro pedido a pedido e o agrupamento.
+  5. `Historico` lista as execuções; `Cancelar` encerra ao fim do bloco em curso.
+
+  CREDENCIAIS: `maisVendasLogin` e `maisVendasPassword` são variáveis de ambiente.
+  Em homologação o coletor é o Fake e os valores são cenários de teste — login
+  `conta+cenario` (ex.: `s482+ok`, `s482+falha-bloco3`, `s482+2fa`) e senha `v1`,
+  `v2`, `v3` ou `recusada`. NUNCA coloque login ou senha reais do +Vendas em arquivo
+  versionado: a senha é `vars:secret` e fica só no seu Bruno local.
+}

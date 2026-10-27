@@ -149,6 +149,16 @@ public class OrderService : IOrderService
 
         order.UpdateStatusAndTotal(info.Status, info.Total, _clock.UtcNow);
 
+        // T074a / FR-023: editar à mão um pedido importado tira dele a impressão digital do conteúdo.
+        // Sem isso a reimportação seguinte veria o mesmo hash, classificaria o pedido como "inalterado"
+        // e a origem nunca voltaria a prevalecer — a edição da vendedora ficaria escondida para sempre.
+        // Com hash nulo, a próxima passada aplica os campos da origem e o relatório mostra "atualizado"
+        // com os campos que mudaram (quickstart §4 item 5).
+        if (order.Source == OrderSource.MaisVendas)
+        {
+            order.SourceHash = null;
+        }
+
         var saved = await _orders.UpdateAsync(order);
 
         return MapToDetail(saved);
@@ -177,6 +187,7 @@ public class OrderService : IOrderService
         Origin = order.Origin,
         Status = order.Status,
         Total = order.Total,
+        Source = order.Source,
         ItemsCount = order.Items.Count,
         CreatedAt = order.CreatedAt,
         UpdatedAt = order.UpdatedAt
@@ -194,6 +205,7 @@ public class OrderService : IOrderService
         Origin = order.Origin,
         Status = order.Status,
         Total = order.Total,
+        Source = order.Source,
         ItemsCount = order.Items.Count,
         CreatedAt = order.CreatedAt,
         UpdatedAt = order.UpdatedAt,
@@ -212,7 +224,8 @@ public class OrderService : IOrderService
                 SkuRef = i.SkuRef,
                 Size = i.Size,
                 Price = i.Price,
-                ImageUrl = i.ImageUrl
+                ImageUrl = i.ImageUrl,
+                ImageId = i.ImageId
             })
             .ToList()
     };

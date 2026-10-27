@@ -164,7 +164,7 @@ describe('integração: cadeia de providers com sessão válida', () => {
     localStorage.clear()
     renderApp('/clientes')
 
-    expect(await screen.findByRole('heading', { name: /Ambrosia/i })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: /Ambrosio/i })).toBeInTheDocument()
     expect(mockFetch).not.toHaveBeenCalled()
   })
 })

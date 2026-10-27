@@ -9,8 +9,9 @@
 | Endereço | `http://localhost:5000/swagger` | `http://localhost:8080/api/swagger` | `https://ambrosiaai.site/api/swagger` |
 | HTTPS | Não | Não | Cloudflare (Full strict) + Origin Certificate no nginx |
 | Migrações | `dotnet ef database update` | Serviço `migrator` (bundle EF) no `up` | Job `migrate` do pipeline |
-| Storage de imagens | Spaces real (`ambrosio`), chaves no ambiente | Spaces real (`ambrosio`), chaves do `.env` | Spaces (`ambrosia-prod`), chaves dos GitHub Secrets |
+| Storage de imagens | Spaces real (`emagine`, pasta `ambrosio/`), chaves no ambiente | Spaces real (`emagine`, pasta `ambrosio/`), chaves do `.env` | Spaces (`ambrosia-prod`), chaves dos GitHub Secrets |
 | `/auth/register` e `/auth/login` | Sim | Sim | Sim |
+| Coletor do +Vendas (`MaisVendas__Collector`) | `Playwright` (Chromium local) | `Playwright` (`Fake` só para a suíte de API) | `Playwright` (obrigatório) |
 
 Autenticação: `POST /auth/register` (cadastro com nome, e-mail e senha) e `POST /auth/login` (e-mail + senha) são rotas anônimas da API, disponíveis nos três ambientes, como o `POST /auth/google` — atrás do gateway elas ficam em `/api/auth/*`, e o `/auth/` sem prefixo continua reservado à HU 008. Não existe emissão de token sem credencial em ambiente nenhum: a antiga entrada de desenvolvimento foi removida pela spec [`003-email-password-jwt-auth`](../specs/003-email-password-jwt-auth/) e responde 404 em Development, Homolog e Production (nem aparece no Swagger).
 
@@ -89,10 +90,10 @@ Development e homologação. O que muda na prática:
 
   ```bash
   curl -s -o /dev/null -w '%{http_code}\n' \
-    https://ambrosio.nyc3.digitaloceanspaces.com/users/0/qualquer-coisa.jpg   # 403 (bucket privado)
+    https://emagine.nyc3.digitaloceanspaces.com/ambrosio/users/0/qualquer-coisa.jpg   # 403 (bucket privado)
 
   curl -s -i -X OPTIONS \
-    "https://ambrosio.nyc3.digitaloceanspaces.com/users/0/qualquer-coisa.jpg" \
+    "https://emagine.nyc3.digitaloceanspaces.com/ambrosio/users/0/qualquer-coisa.jpg" \
     -H 'Origin: http://localhost:8080' -H 'Access-Control-Request-Method: PUT' |
     grep -i access-control-allow            # a origem autorizada e o método PUT
   ```
@@ -102,6 +103,43 @@ Development e homologação. O que muda na prática:
   (`frontend/nginx/default.conf.template` é um template com envsubst), que o compose preenche com
   `OBJECT_STORAGE_PUBLIC_ORIGIN`. Sem a variável, o default do Dockerfile é o endpoint do Spaces.
 
+
+## Importação do +Vendas (feature 006)
+
+A coleta roda **dentro da API**, num Chromium headless controlado pelo `Microsoft.Playwright` (versão
+fixa no `Ambrosia.Infra.csproj`). O `backend/Dockerfile` baixa o navegador dessa mesma versão num
+estágio próprio (`playwright`) e a imagem final traz as bibliotecas de sistema do Chromium e o
+diretório `/ms-playwright`. Login e senha do +Vendas **não** são configuração: a vendedora os informa a
+cada execução, e eles vivem só em memória durante a coleta (FR-005/FR-006).
+
+| Configuração | Homolog | Produção |
+|---|---|---|
+| `MaisVendas__Collector` | `Playwright` (padrão do `docker-compose.yml`; `Fake` com `MAIS_VENDAS_COLLECTOR=Fake` para a suíte de API) | `Playwright` (padrão do `docker-compose-prod.yml`) |
+| `shm_size` do serviço `api` | `512m` | `512m` — com os 64 MB padrão de `/dev/shm` o Chromium aborta no meio da navegação |
+| `mem_limit` recomendado do `api` | — | `1536m` (API + um Chromium por execução, `MaxConcurrentRuns = 2`) |
+
+- **`Fake` é recusado em Production**: a API não sobe com `MaisVendas__Collector=Fake` e
+  `ASPNETCORE_ENVIRONMENT=Production` (`Program.ValidateSettings`). Um fake "importando com sucesso"
+  gravaria pedidos inventados na base da vendedora; o deploy falha cedo e visível em vez disso.
+- **Uma réplica da API**: a fila de importação é em memória (`Channel<ImportJob>`) porque uma fila
+  externa persistiria os argumentos do job — e eles contêm a senha. Escalar a API horizontalmente
+  exigiria rever esse desenho (plan.md, Complexity Tracking).
+- **Reinício no meio de uma execução**: no arranque, execuções `queued`/`running` órfãs viram
+  `failed` com "Execução interrompida pela reinicialização do servidor." (FR-020); o que foi gravado
+  fica, e a vendedora repete o período sem duplicar nada.
+- Em Development, sem Docker, instale o navegador uma vez depois do build:
+  `pwsh backend/Ambrosia.API/bin/Debug/net8.0/playwright.ps1 install chromium`.
+
+### Checklist de liberação em produção
+
+1. Confirmar com a Somalabs/termos de uso do +Vendas que a leitura automatizada da própria conta da
+   vendedora é permitida.
+2. Primeira execução real em **simulação** ("Simular (não gravar)") com um período curto; conferir no
+   relatório que as contagens batem com as abas do +Vendas e, nos logs da API, que só rotas da
+   allowlist (`maisvendas.somalabs.com.br`, `api.mais-vendas.somalabs.com.br`) foram visitadas.
+3. Ajustar seletores, se necessário, só no `PlaywrightMaisVendasCollectorAppService` — o Domain não
+   muda (research §10).
+4. Só então a primeira execução em gravação, de um período curto, conferida em `/pedidos`.
 
 ## Homolog (docker compose no WSL)
 

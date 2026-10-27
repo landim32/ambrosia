@@ -15,6 +15,14 @@ public sealed class HttpCallResult
 
     public string? Location { get; init; }
 
+    /// <summary>
+    /// Cabeçalhos da resposta, para as asserções que olham o cabeçalho e não o corpo. Hoje é o
+    /// <c>Retry-After</c> do bloqueio de importação (FR-008a): o teste precisa provar que ele traz
+    /// <b>segundos</b>, e não o horário absoluto — o que não dá para saber lendo o corpo.
+    /// </summary>
+    public IReadOnlyDictionary<string, string?> Headers { get; init; } =
+        new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
     public bool IsSuccess => StatusCode is >= 200 and < 300;
 
     internal static async Task<HttpCallResult> From(IFlurlResponse response)
@@ -25,13 +33,26 @@ public sealed class HttpCallResult
         // TryGetFirst compara nomes sem diferenciar maiúsculas, como exige o HTTP.
         response.Headers.TryGetFirst("Location", out var location);
 
+        var headers = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var name in new[] { "Retry-After", "Location", "Content-Type" })
+        {
+            response.Headers.TryGetFirst(name, out var value);
+            headers[name] = value;
+        }
+
         return new HttpCallResult
         {
             StatusCode = response.StatusCode,
             Body = body,
-            Location = location
+            Location = location,
+            Headers = headers
         };
     }
+
+    /// <summary>Valor de um cabeçalho; <c>null</c> quando ausente.</summary>
+    public string? Header(string name) =>
+        Headers.TryGetValue(name, out var value) ? value : null;
 
     /// <summary>Corpo desserializado com as opções do contrato (camelCase, enums como string).</summary>
     public T As<T>() => ApiTestFixture.Deserialize<T>(Body);

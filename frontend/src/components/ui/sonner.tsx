@@ -8,13 +8,13 @@ import {
 import { Toaster as Sonner, type ToasterProps } from 'sonner'
 
 /**
- * Toasts da aplicação (skill `react-alert`). O app é sempre claro e não tem
- * seletor de tema, então o `theme` fica fixo em "light" — sem dependência de
- * `next-themes` (constituição §II: stack fixa).
+ * Toasts da aplicação (skill `react-alert`). O app é sempre ESCURO (tema único
+ * do Ambrosio) e não tem seletor de tema, então o `theme` fica fixo em "dark" —
+ * sem dependência de `next-themes` (constituição §II: stack fixa).
  */
 const Toaster = ({ ...props }: ToasterProps) => (
   <Sonner
-    theme="light"
+    theme="dark"
     className="toaster group"
     icons={{
       success: <CircleCheckIcon className="size-4" />,
