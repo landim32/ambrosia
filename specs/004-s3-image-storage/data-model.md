@@ -10,7 +10,7 @@ Convenções da constituição §V (snake_case, PK `bigint identity`, `timestamp
 |---|---|---|---|
 | `stored_image_id` | `bigint` identity always | não | PK `stored_images_pkey` |
 | `user_id` | `bigint` | não | FK `fk_user_stored_image` → `users.user_id`, `ClientSetNull` |
-| `storage_key` | `varchar(260)` | não | `users/{userId}/images/{sha256}.{ext}` |
+| `storage_key` | `varchar(260)` | não | `ambrosio/users/{userId}/images/{sha256}.{ext}` |
 | `sha256` | `varchar(64)` | não | hex minúsculo, 64 caracteres |
 | `mime_type` | `varchar(100)` | não | um dos `AllowedMimeTypes` |
 | `size_bytes` | `bigint` | não | 1..`MaxUploadBytes` |
@@ -42,7 +42,7 @@ StoredImage
   static CreateAvailable(userId, sha256, mimeType, sizeBytes, width, height, source, now)  → envio pelo servidor
   MarkAvailable(width?, height?, now)      Pending → Available
   MarkFailed(now)                          Pending → Failed
-  static BuildStorageKey(userId, sha256, mimeType) → "users/{userId}/images/{sha256}.{ext}"
+  static BuildStorageKey(userId, sha256, mimeType) → "ambrosio/users/{userId}/images/{sha256}.{ext}"
 ```
 
 Extensões: `image/jpeg → jpg`, `image/png → png`, `image/webp → webp`. A tabela de extensões vive no Domain, junto da regra de chave.

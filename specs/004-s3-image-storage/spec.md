@@ -162,7 +162,7 @@ Envios declarados e nunca confirmados, e envios recusados, não ficam para sempr
 
 - **FR-001**: O sistema DEVE armazenar o conteúdo das imagens exclusivamente em um storage de objetos compatível com S3; o banco DEVE guardar apenas metadados (chave do objeto, tipo, tamanho, hash, dimensões, situação, origem, dono e datas), nunca o binário.
 - **FR-002**: O sistema DEVE funcionar com qualquer storage compatível com S3 configurável por endereço do serviço, região, bucket, estilo de endereçamento (por caminho ou por subdomínio) e credenciais, sem depender de recursos exclusivos de um provedor. Trocar o storage local pelo provedor de produção DEVE exigir apenas configuração.
-- **FR-003**: A chave de cada objeto DEVE seguir o formato `users/{userId}/images/{sha256}.{ext}`, agrupando os objetos por usuário.
+- **FR-003**: A chave de cada objeto DEVE seguir o formato `ambrosio/users/{userId}/images/{sha256}.{ext}`, agrupando os objetos por usuário.
 - **FR-004**: O bucket DEVE ser privado: nenhum objeto pode ser legível sem assinatura, e o sistema NUNCA DEVE gravar objetos com permissão pública.
 
 **Envio pelo cliente (US1)**

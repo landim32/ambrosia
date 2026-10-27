@@ -106,7 +106,7 @@ Falhas de storage num ciclo são registradas em log (sem URL nem credencial) e t
 
 ## §10 Exclusão de todas as imagens de um usuário
 
-**Decision**: `IObjectStorageAppService.DeletePrefixAsync("users/{userId}/")` com `ListObjectsV2` paginado + `DeleteObjects` em lotes de até 1000, seguido de remoção dos metadados do usuário. Exposto só como método do `IImageService` (sem endpoint), para o futuro fluxo de exclusão de conta.
+**Decision**: `IObjectStorageAppService.DeletePrefixAsync("ambrosio/users/{userId}/")` com `ListObjectsV2` paginado + `DeleteObjects` em lotes de até 1000, seguido de remoção dos metadados do usuário. Exposto só como método do `IImageService` (sem endpoint), para o futuro fluxo de exclusão de conta.
 
 **Rationale**: FR-017. `DeleteObjects` exige checksum no corpo; com `WHEN_REQUIRED` o SDK continua calculando-o (é obrigatório pela API S3).
 

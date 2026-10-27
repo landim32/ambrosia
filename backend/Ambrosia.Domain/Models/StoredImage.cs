@@ -142,16 +142,27 @@ public class StoredImage
         UpdatedAt = now;
     }
 
+    /// <summary>Pasta raiz do bucket onde ficam todos os objetos da aplicação.</summary>
+    public const string StorageRootFolder = "ambrosio";
+
     /// <summary>
-    /// Chave canônica do objeto: <c>users/{userId}/images/{sha256}.{ext}</c> (FR-016). Ela é
-    /// determinística pelo conteúdo, o que dá a deduplicação física, e prefixada pelo dono, o que
+    /// Prefixo de todos os objetos de um usuário: <c>ambrosio/users/{userId}/</c>. Usado na chave
+    /// canônica e na exclusão em massa da conta (FR-017).
+    /// </summary>
+    /// <param name="userId">Dono das imagens.</param>
+    public static string BuildUserPrefix(long userId) =>
+        $"{StorageRootFolder}/users/{userId}/";
+
+    /// <summary>
+    /// Chave canônica do objeto: <c>ambrosio/users/{userId}/images/{sha256}.{ext}</c> (FR-016). Ela
+    /// é determinística pelo conteúdo, o que dá a deduplicação física, e prefixada pelo dono, o que
     /// permite apagar todas as imagens de um usuário de uma vez (FR-017).
     /// </summary>
     /// <param name="userId">Dono da imagem.</param>
     /// <param name="sha256">Hash em hex minúsculo.</param>
     /// <param name="mimeType">Tipo aceito (ver <see cref="ExtensionByMimeType"/>).</param>
     public static string BuildStorageKey(long userId, string sha256, string mimeType) =>
-        $"users/{userId}/images/{sha256}.{ExtensionByMimeType(mimeType)}";
+        $"{BuildUserPrefix(userId)}images/{sha256}.{ExtensionByMimeType(mimeType)}";
 
     private static readonly Dictionary<string, string> ExtensionByMimeTypeMap = new(StringComparer.OrdinalIgnoreCase)
     {

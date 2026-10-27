@@ -292,7 +292,7 @@ public class ImageService : IImageService
     {
         // FR-017: primeiro os objetos sob o prefixo da conta, depois os metadados. Sem endpoint — o
         // único chamador é o futuro fluxo de exclusão de conta.
-        await _storage.DeletePrefixAsync($"users/{userId}/");
+        await _storage.DeletePrefixAsync(StoredImage.BuildUserPrefix(userId));
         await _images.DeleteAllByUserAsync(userId);
 
         _logger.LogInformation("Imagens do usuário {UserId} removidas.", userId);

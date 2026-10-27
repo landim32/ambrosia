@@ -78,7 +78,7 @@
 | Tema | Regra |
 |---|---|
 | Fonte de verdade | O banco guarda **só metadados** (chave, mime, tamanho, hash, dimensões). O binário nunca vai para o PostgreSQL ([doc 02](../02-modelo-de-dados.md#armazenamento-de-fotos)) |
-| Chave do objeto | `users/{userId}/images/{sha256}.{ext}`. O prefixo por usuário facilita isolamento, exclusão em massa (LGPD) e auditoria. O hash no nome garante deduplicação |
+| Chave do objeto | `ambrosio/users/{userId}/images/{sha256}.{ext}`. O prefixo por usuário facilita isolamento, exclusão em massa (LGPD) e auditoria. O hash no nome garante deduplicação |
 | Deduplicação | Única por `(user_id, sha256)`. Entre usuários diferentes não há deduplicação, para não criar vínculo entre dados pessoais de contas distintas |
 | Tipos aceitos | `image/jpeg`, `image/png` e `image/webp` (configurável). HEIC fica como pergunta em aberto |
 | Tamanho | `MaxUploadBytes` configurável. Padrão proposto: 10 MB |
@@ -95,7 +95,7 @@ erDiagram
     stored_images {
         bigint stored_image_id PK
         bigint user_id FK
-        varchar storage_key UK "users/{userId}/images/{sha256}.{ext}"
+        varchar storage_key UK "ambrosio/users/{userId}/images/{sha256}.{ext}"
         varchar sha256 "único por user_id"
         varchar mime_type
         bigint size_bytes

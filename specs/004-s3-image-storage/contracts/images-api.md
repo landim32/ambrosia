@@ -130,5 +130,5 @@ Com `status` `pending` ou `failed`, `url` e `urlExpiresAt` vêm `null` (FR-015).
 
 ## Operações internas (sem rota)
 
-- `IImageService.DeleteAllForUserAsync(userId)`: remove todos os objetos sob `users/{userId}/` e os metadados (FR-017).
+- `IImageService.DeleteAllForUserAsync(userId)`: remove todos os objetos sob `ambrosio/users/{userId}/` e os metadados (FR-017).
 - `IImageService.PurgeStaleAsync(now)`: chamada pelo job de limpeza (FR-018).

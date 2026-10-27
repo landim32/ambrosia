@@ -20,7 +20,7 @@ Decisões detalhadas em [research.md](./research.md).
 - Homolog: imagens `minio/minio` e `minio/mc` com tag `RELEASE.*` fixa
 - Testes de API: xUnit + Flurl.Http + FluentAssertions (`Ambrosia.ApiTests`)
 
-**Storage**: PostgreSQL (nova tabela `stored_images`, migração `AddStoredImages`); storage de objetos S3 compatível (MinIO em homolog/dev, Spaces em produção), chave `users/{userId}/images/{sha256}.{ext}`
+**Storage**: PostgreSQL (nova tabela `stored_images`, migração `AddStoredImages`); storage de objetos S3 compatível (MinIO em homolog/dev, Spaces em produção), chave `ambrosio/users/{userId}/images/{sha256}.{ext}`
 
 **Testing**: `Ambrosia.ApiTests` contra Homolog (`http://localhost:8080/api`) com MinIO, e uma vez contra um bucket de teste no Spaces (SC-001). Nenhum teste unitário novo no backend (§VIII). O frontend não muda de código (só a configuração do nginx).
 
