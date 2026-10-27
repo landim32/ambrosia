@@ -87,6 +87,12 @@ services:
     image: ambrosia-frontend:homolog
     container_name: ambrosia-homolog-frontend
     restart: unless-stopped
+    # CSP do container (feature 004, T054): a origem publica do bucket entra por
+    # variavel de RUNTIME -- o nginx faz envsubst do template no startup -- entao
+    # nenhuma origem de storage fica fixa na imagem (FR-023). Sem a variavel, o
+    # default do Dockerfile e o endpoint do Spaces.
+    environment:
+      STORAGE_ORIGIN: ${OBJECT_STORAGE_PUBLIC_ORIGIN:-https://ambrosio.nyc3.digitaloceanspaces.com}
     networks:
       - ambrosia-homolog
 
