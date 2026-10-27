@@ -30,7 +30,7 @@
 
 ## 2. Contexto e objetivo
 
-- Primeira entrega do Ambrosia: **somente a API** (.NET 8, EF Core 9, PostgreSQL). Não inclui front-end, bot Playwright ([doc 03](../03-bot-playwright.md)) nem MCP ([doc 04](../04-mcp-consultas-llm.md)).
+- Primeira entrega do Ambrosio: **somente a API** (.NET 8, EF Core 9, PostgreSQL). Não inclui front-end, bot Playwright ([doc 03](../03-bot-playwright.md)) nem MCP ([doc 04](../04-mcp-consultas-llm.md)).
 - Modelo inspirado no [doc 02](../02-modelo-de-dados.md), adaptado à constituição do projeto: o conceito de `salesperson` virou **usuário** autenticado.
 - A spec divide a entrega em 4 sub-histórias, todas P1: US1 (autenticação), US2 (clientes), US3 (pedidos) e US4 (isolamento por usuário).
 
@@ -125,7 +125,7 @@ Base: `http://localhost:5000`. Swagger em `/swagger`, com o botão **Authorize**
 
 | Método | Rota | Autenticação | Resumo | Respostas |
 |---|---|---|---|---|
-| POST | `/auth/google` | Anônima | Troca um ID token do Google por um JWT do Ambrosia | 200, 400 |
+| POST | `/auth/google` | Anônima | Troca um ID token do Google por um JWT do Ambrosio | 200, 400 |
 | POST | `/auth/dev-login` | Anônima, **só em Development** | Emite um JWT a partir de e-mail e nome, sem Google. Fora de Development responde 404 e some do Swagger | 200, 400, 404 |
 | GET | `/users/me` | Bearer | Perfil do usuário (`id`, `email`, `name`, `provider`, `createdAt`) | 200, 401, 404 |
 | GET | `/customers` | Bearer | Lista paginada (`search`, `page`, `pageSize`) com CPF mascarado | 200, 400, 401 |
@@ -141,14 +141,14 @@ Enums são serializados como string minúscula: `sale`, `return`, `cancellation`
 
 ### Autenticação
 
-JWT HS256 emitido pela própria API, com claims `sub`, `email` e `name`, `iss` e `aud` iguais a `ambrosia` e validade de 480 minutos (configurável).
+JWT HS256 emitido pela própria API, com claims `sub`, `email` e `name`, `iss` e `aud` iguais a `ambrosio` e validade de 480 minutos (configurável).
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant C as Cliente (app / curl)
     participant G as Google
-    participant A as Ambrosia API
+    participant A as Ambrosio API
     participant DB as PostgreSQL
 
     alt Produção
@@ -226,20 +226,20 @@ erDiagram
     }
 ```
 
-Todas as tabelas, exceto `order_items`, têm `created_at` e `updated_at`. Migração: `backend/Ambrosia.Infra/Migrations/20261025215230_InitialCreate.cs`.
+Todas as tabelas, exceto `order_items`, têm `created_at` e `updated_at`. Migração: `backend/Ambrosio.Infra/Migrations/20261025215230_InitialCreate.cs`.
 
 ---
 
 ## 7. Como rodar
 
-Pré-requisitos: .NET SDK 8, `dotnet-ef` 9 e PostgreSQL acessível em `localhost:5432` com o banco `ambrosia_dev`. O `appsettings.Development.json` já traz os segredos de desenvolvimento.
+Pré-requisitos: .NET SDK 8, `dotnet-ef` 9 e PostgreSQL acessível em `localhost:5432` com o banco `ambrosio_dev`. O `appsettings.Development.json` já traz os segredos de desenvolvimento.
 
 | Passo | Comando (PowerShell, a partir de `backend/`) |
 |---|---|
-| 1. Banco | `powershell -File scripts/ensure-postgres.ps1` sobe o container `ambrosia-postgres` no Docker do WSL2 e mantém o WSL ativo. Para liberar: `-Release` |
+| 1. Banco | `powershell -File scripts/ensure-postgres.ps1` sobe o container `ambrosio-postgres` no Docker do WSL2 e mantém o WSL ativo. Para liberar: `-Release` |
 | 2. Build | `dotnet build` |
-| 3. Migração | `dotnet ef database update --project Ambrosia.Infra --startup-project Ambrosia.API` |
-| 4. API | `powershell -File scripts/run-api.ps1` roda em background (`--no-build`), espera o Swagger responder e grava o log em `backend/logs/`. Alternativa interativa: `dotnet run --project Ambrosia.API` |
+| 3. Migração | `dotnet ef database update --project Ambrosio.Infra --startup-project Ambrosio.API` |
+| 4. API | `powershell -File scripts/run-api.ps1` roda em background (`--no-build`), espera o Swagger responder e grava o log em `backend/logs/`. Alternativa interativa: `dotnet run --project Ambrosio.API` |
 | 5. Parar | `powershell -File scripts/stop-api.ps1` encerra também o host filho, que trava as DLLs |
 
 Para testar em Production: `scripts/run-api.ps1 -EnvironmentName Production`. Nesse modo `/auth/dev-login` deve responder 404.
@@ -252,19 +252,19 @@ Os cenários manuais com `curl` (autenticação, clientes, pedidos e isolamento)
 
 ```powershell
 cd backend
-dotnet test Ambrosia.Tests                      # unitários, não precisam da API
+dotnet test Ambrosio.Tests                      # unitários, não precisam da API
 powershell -File scripts/run-api.ps1            # API no ar em Development
-dotnet test Ambrosia.ApiTests                   # HTTP, autenticam via /auth/dev-login
+dotnet test Ambrosio.ApiTests                   # HTTP, autenticam via /auth/dev-login
 powershell -File scripts/stop-api.ps1
 ```
 
-`Ambrosia.ApiTests` lê `ApiBaseUrl` de `appsettings.Test.json`, que pode ser sobrescrito por variável de ambiente. O fixture cria dois usuários por sessão (Ana e Bia).
+`Ambrosio.ApiTests` lê `ApiBaseUrl` de `appsettings.Test.json`, que pode ser sobrescrito por variável de ambiente. O fixture cria dois usuários por sessão (Ana e Bia).
 
 ---
 
 ## 9. Testes existentes
 
-### Unitários: `backend/Ambrosia.Tests` (xUnit, Moq, EF InMemory)
+### Unitários: `backend/Ambrosio.Tests` (xUnit, Moq, EF InMemory)
 
 | Arquivo | Cobertura | Casos* |
 |---|---|---|
@@ -284,7 +284,7 @@ powershell -File scripts/stop-api.ps1
 
 \* Quantidade de atributos `[Fact]`/`[Theory]`. Um `[Theory]` pode gerar vários casos.
 
-### HTTP: `backend/Ambrosia.ApiTests` (xUnit, Flurl, FluentAssertions)
+### HTTP: `backend/Ambrosio.ApiTests` (xUnit, Flurl, FluentAssertions)
 
 | Arquivo | Testes |
 |---|---|

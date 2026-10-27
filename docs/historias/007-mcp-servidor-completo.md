@@ -12,19 +12,19 @@
 | Spec | — |
 | Depende de | [001](001-api-cadastro-clientes-pedidos.md) (domínio e REST) e [006](006-graphql-clientes-pedidos.md) (GraphQL) |
 | Habilita | [008](008-oauth-mcp-chatgpt.md), [009](009-mcp-app-chatgpt.md) e [010](010-banco-imagens-clientes-chatgpt.md) |
-| Código previsto | `backend/Ambrosia.Mcp/` (tools) e `backend/Ambrosia.McpServer/` (host ASP.NET Core) |
+| Código previsto | `backend/Ambrosio.Mcp/` (tools) e `backend/Ambrosio.McpServer/` (host ASP.NET Core) |
 
 ---
 
 ## 1. História
 
-**Como** vendedora, **quero** conversar com uma LLM (ChatGPT, Claude ou outra compatível com MCP) que consulte e, com a minha confirmação, cadastre clientes e pedidos no Ambrosia, **para** fazer em linguagem natural o que hoje exige telas ou Swagger.
+**Como** vendedora, **quero** conversar com uma LLM (ChatGPT, Claude ou outra compatível com MCP) que consulte e, com a minha confirmação, cadastre clientes e pedidos no Ambrosio, **para** fazer em linguagem natural o que hoje exige telas ou Swagger.
 
 ## 2. Contexto e objetivo
 
 - O [doc 04](../04-mcp-consultas-llm.md) previa um MCP **somente leitura**, em TypeScript, via **stdio**, lendo a base direto com um usuário de banco `SELECT`-only.
 - Esta HU amplia esse escopo: **todos** os recursos da API (clientes, pedidos, itens e usuário atual) e a consulta flexível do GraphQL viram tools, com transporte **HTTP streamable** para uso remoto.
-- A autenticação OAuth 2.1 exigida pelo ChatGPT fica na [008](008-oauth-mcp-chatgpt.md). Nesta HU o MCP aceita o JWT atual do Ambrosia, para desenvolvimento e testes.
+- A autenticação OAuth 2.1 exigida pelo ChatGPT fica na [008](008-oauth-mcp-chatgpt.md). Nesta HU o MCP aceita o JWT atual do Ambrosio, para desenvolvimento e testes.
 
 ### Mudança de escopo em relação ao doc 04
 
@@ -130,11 +130,11 @@ Os nomes em português seguem o [doc 04](../04-mcp-consultas-llm.md#tools-sugeri
 | Deploy | Independente | Processo separado, mas compartilha o build da solução |
 | Erros | Precisa traduzir `ErrorResult` HTTP para resultado de tool | Exceções e resultados de domínio tratados diretamente |
 
-**Recomendação: reutilizar o domínio em processo.** O MCP fica num projeto `Ambrosia.Mcp` (as tools) hospedado em `Ambrosia.McpServer` (ASP.NET Core), que chama o mesmo `ConfigureServices` da camada `Application`. Para o GraphQL, o host registra o mesmo schema do `Ambrosia.GraphQL` e executa as consultas em processo com o `IRequestExecutor` do HotChocolate, passando o `ClaimsPrincipal` do usuário. Os motivos principais:
+**Recomendação: reutilizar o domínio em processo.** O MCP fica num projeto `Ambrosio.Mcp` (as tools) hospedado em `Ambrosio.McpServer` (ASP.NET Core), que chama o mesmo `ConfigureServices` da camada `Application`. Para o GraphQL, o host registra o mesmo schema do `Ambrosio.GraphQL` e executa as consultas em processo com o `IRequestExecutor` do HotChocolate, passando o `ClaimsPrincipal` do usuário. Os motivos principais:
 
 1. Evita o *token passthrough*, que a especificação MCP proíbe, e evita criar *token exchange* só para isso.
 2. Um único conjunto de regras e validações para REST, GraphQL e MCP.
-3. Mantém o MCP como serviço separado da API, com escala e *rate limit* próprios, mesmo no mesmo domínio: o nginx roteia `https://ambrosiaai.site/mcp` (o `resource` da [008](008-oauth-mcp-chatgpt.md)) para o `Ambrosia.McpServer` e `https://ambrosiaai.site/api` para a `Ambrosia.API`.
+3. Mantém o MCP como serviço separado da API, com escala e *rate limit* próprios, mesmo no mesmo domínio: o nginx roteia `https://ambrosiaai.site/mcp` (o `resource` da [008](008-oauth-mcp-chatgpt.md)) para o `Ambrosio.McpServer` e `https://ambrosiaai.site/api` para a `Ambrosio.API`.
 
 ### Demais decisões
 
@@ -142,8 +142,8 @@ Os nomes em português seguem o [doc 04](../04-mcp-consultas-llm.md#tools-sugeri
 |---|---|
 | SDK | `ModelContextProtocol` e `ModelContextProtocol.AspNetCore` (C#). Tools com `[McpServerToolType]` e `[McpServerTool]`, anotações pelos parâmetros do atributo (`ReadOnly`, `Destructive`, `Idempotent`, `OpenWorld`, `Title`) |
 | Transporte | HTTP streamable em `/mcp`. Avaliar o modo *stateless* do SDK (sem sessão no servidor), que simplifica a escala horizontal |
-| Autenticação (provisória) | `AddJwtBearer` com os mesmos parâmetros da API (HS256, `iss` e `aud` = `ambrosia`). A [008](008-oauth-mcp-chatgpt.md) troca por tokens do authorization server `https://ambrosiaai.site/auth` com `aud` = `https://ambrosiaai.site/mcp` |
-| Publicação | Mesmo domínio, serviço separado: o `Ambrosia.McpServer` roda como processo próprio e o nginx de `ambrosiaai.site` repassa `/mcp` sem reescrever o caminho (por isso o `MapMcp("/mcp")` dispensa `PathBase`). O nginx também repassa ao MCP o Protected Resource Metadata da 008 (`/.well-known/oauth-protected-resource/mcp`), que fica na raiz do domínio, fora de `/mcp` |
+| Autenticação (provisória) | `AddJwtBearer` com os mesmos parâmetros da API (HS256, `iss` e `aud` = `ambrosio`). A [008](008-oauth-mcp-chatgpt.md) troca por tokens do authorization server `https://ambrosiaai.site/auth` com `aud` = `https://ambrosiaai.site/mcp` |
+| Publicação | Mesmo domínio, serviço separado: o `Ambrosio.McpServer` roda como processo próprio e o nginx de `ambrosiaai.site` repassa `/mcp` sem reescrever o caminho (por isso o `MapMcp("/mcp")` dispensa `PathBase`). O nginx também repassa ao MCP o Protected Resource Metadata da 008 (`/.well-known/oauth-protected-resource/mcp`), que fica na raiz do domínio, fora de `/mcp` |
 | Confirmação de escrita | Em camadas: (1) anotações, para o cliente pedir aprovação (ChatGPT e Claude pedem confirmação em tools que não são somente leitura); (2) parâmetro `confirmar` (padrão `false`), em que a primeira chamada devolve uma prévia e só a chamada com `confirmar: true` grava; (3) *elicitation* do MCP, quando o cliente suportar |
 | Formato de saída | `structuredContent` (JSON tipado) e um `content` de texto curto em português para o modelo. Valores em `R$` e datas `dd/mm/aaaa` no texto |
 | Data dos dados | Toda saída inclui `consultado_em`. Quando o bot existir ([004](004-bot-migracao-mais-vendas.md)), também `capturado_em` |
@@ -160,10 +160,10 @@ flowchart LR
         CL[Claude / outros]
         IN[MCP Inspector]
     end
-    subgraph MS[Ambrosia.McpServer - ambrosiaai.site/mcp]
+    subgraph MS[Ambrosio.McpServer - ambrosiaai.site/mcp]
         T[/mcp - HTTP streamable/]
         AU[Validação do Bearer + Origin]
-        TO[Tools - Ambrosia.Mcp]
+        TO[Tools - Ambrosio.Mcp]
         GX[IRequestExecutor - schema da HU 006]
     end
     subgraph Núcleo compartilhado
@@ -171,7 +171,7 @@ flowchart LR
         RP[Repositórios - Query userId]
     end
     DB[(PostgreSQL)]
-    API[Ambrosia.API - ambrosiaai.site/api, REST e /api/graphql]
+    API[Ambrosio.API - ambrosiaai.site/api, REST e /api/graphql]
 
     CG & CL & IN --> T --> AU --> TO
     TO --> SV
@@ -212,4 +212,4 @@ flowchart LR
 3. `top_produtos` entra aqui (exige agregação por `sku_ref` na 006) ou numa HU de relatórios?
 4. Modo *stateless* ou com sessão? Depende de usar notificações e *elicitation*.
 
-Resolvida em 25/10/2026 (host separado ou mesmo host): mesmo domínio, serviço separado. O MCP fica em `https://ambrosiaai.site/mcp`, atrás do mesmo nginx da API, mas o `Ambrosia.McpServer` continua como processo próprio, com escala e *rate limit* independentes.
+Resolvida em 25/10/2026 (host separado ou mesmo host): mesmo domínio, serviço separado. O MCP fica em `https://ambrosiaai.site/mcp`, atrás do mesmo nginx da API, mas o `Ambrosio.McpServer` continua como processo próprio, com escala e *rate limit* independentes.

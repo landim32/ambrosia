@@ -15,7 +15,7 @@ pbkdf2-sha256$600000$<salt base64>$<hash base64>
 
 (~90 caracteres; cabe com folga no `varchar(260)` existente). A comparação usa
 `CryptographicOperations.FixedTimeEquals`. Implementado em `PasswordHashAppService`
-(`Ambrosia.Infra/AppServices`) atrás de `IPasswordHashAppService` (`Ambrosia.Infra.Interfaces`),
+(`Ambrosio.Infra/AppServices`) atrás de `IPasswordHashAppService` (`Ambrosio.Infra.Interfaces`),
 registrado como singleton no `Startup.cs`.
 
 **Justificativa**: zero dependência nova (constituição §II, stack fixa); PBKDF2 com 600k
@@ -116,7 +116,7 @@ Corpo JSON malformado continua caindo em `ModelStateError()` (400 com campo `bod
 não tiver outro uso). `Program.cs` perde o `DocumentFilter` e a descrição do esquema Bearer
 passa a citar `POST /auth/login` e `/auth/register`. Com a ação apagada, a rota responde 404
 pelo roteamento normal — indistinguível de rota inexistente (FR-012), sem código condicional
-por ambiente. Em `Ambrosia.Tests`: apagar `DevLoginInfoValidatorTest` e os dois casos de
+por ambiente. Em `Ambrosio.Tests`: apagar `DevLoginInfoValidatorTest` e os dois casos de
 `AuthServiceTest` que chamam `DevLoginAsync` (ajuste mínimo para compilar; nenhum teste
 unitário novo — constituição §VIII).
 
@@ -205,7 +205,7 @@ READMEs e o hábito já documentado; o nome continua verdadeiro (prova do pacote
 `userName`/`userEmail`/`userPassword`, grava `token` se 201) e `bruno/Auth/Login com senha.bru`
 (seq 2, `POST /auth/login`, grava `token` se 200); `Google Login.bru` passa a seq 3;
 `Dev Login.bru` apagado. `environments/Homolog.bru`: `devEmail`/`devName` → `userEmail`
-(`homolog@ambrosia.test`) e `userName` (`Homologação`) em `vars`; `userPassword` entra em
+(`homolog@ambrosio.test`) e `userName` (`Homologação`) em `vars`; `userPassword` entra em
 `vars:secret` junto de `token` e `googleIdToken`. `collection.bru`: mesmas variáveis em
 `vars:pre-request` (sem o token hard-coded expirado) e `docs` com o novo passo 2 ("Criar conta"
 na primeira vez, "Login com senha" nas seguintes — o cadastro repetido responde 409 e não grava
@@ -228,7 +228,7 @@ restritiva) na aprovação do PR.
 
 ## §12. Sem migração de banco
 
-**Decisão**: nenhuma migração EF. Verificado em `AmbrosiaContext.ConfigureUser`:
+**Decisão**: nenhuma migração EF. Verificado em `AmbrosioContext.ConfigureUser`:
 `password_hash varchar(260)` nulo, `ux_users_email` único, `provider integer`. O formato do §1
-cabe no tamanho; a unicidade resolve a concorrência; o enum muda só o nome. `AmbrosiaContextModelSnapshot`
+cabe no tamanho; a unicidade resolve a concorrência; o enum muda só o nome. `AmbrosioContextModelSnapshot`
 não muda (nenhuma anotação de coluna é alterada).

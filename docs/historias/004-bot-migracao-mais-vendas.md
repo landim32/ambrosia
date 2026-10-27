@@ -18,13 +18,13 @@
 
 ## 1. História
 
-**Como** vendedora, **quero** abrir uma tela no Ambrosia, informar o meu login e senha do +Vendas e o período que desejo trazer, **para** importar os meus pedidos, clientes e fotos dos produtos sem duplicar nada e sem que o Ambrosia guarde a minha senha.
+**Como** vendedora, **quero** abrir uma tela no Ambrosio, informar o meu login e senha do +Vendas e o período que desejo trazer, **para** importar os meus pedidos, clientes e fotos dos produtos sem duplicar nada e sem que o Ambrosio guarde a minha senha.
 
 ## 2. Contexto e objetivo
 
 - O [doc 03](../03-bot-playwright.md) define a coleta: Playwright, somente leitura, allowlist, ritmo lento, etapas de coleta e validação por contadores.
 - O [doc 01](../01-analise-sistema-mais-vendas.md#3-tela-cota-cotapiloto) mostra que o +Vendas **altera vendas** até o fim do primeiro dia útil depois do fechamento, e que o mês de cota **fecha no dia 25**. Por isso a importação precisa ser **idempotente**: pode ser repetida sobre o mesmo período sem duplicar registros, atualizando só o que mudou.
-- O Ambrosia da 001 já tem a chave natural de pedido `(user_id, order_number, order_date, kind)` e a unicidade de cliente `(user_id, cpf_hash)`, alinhadas ao [doc 02, princípio de idempotência](../02-modelo-de-dados.md#princípios) e ao [doc 01, ponto 4](../01-analise-sistema-mais-vendas.md#7-pontos-em-aberto) (número do pedido sozinho não é chave).
+- O Ambrosio da 001 já tem a chave natural de pedido `(user_id, order_number, order_date, kind)` e a unicidade de cliente `(user_id, cpf_hash)`, alinhadas ao [doc 02, princípio de idempotência](../02-modelo-de-dados.md#princípios) e ao [doc 01, ponto 4](../01-analise-sistema-mais-vendas.md#7-pontos-em-aberto) (número do pedido sozinho não é chave).
 - O storage de imagens da 003 já está pronto: `IImageService.StoreFromServerAsync` grava em `ambrosio/users/{userId}/images/{sha256}.{ext}` com deduplicação por hash, e `ImageSource.Bot` já está reservado para esta HU.
 - **Mudança em relação à versão anterior desta HU:** a importação deixa de ser um CLI agendado com credenciais no `.env`. Ela passa a ser disparada **pela própria vendedora no frontend**, que informa as credenciais a cada execução.
 
@@ -112,7 +112,7 @@ O que **não** se reaproveita: credenciais em `.env` e `auth/state.json` (substi
 | 19 | Em "Simular", nada é gravado (pedidos, clientes nem imagens), e o relatório mostra o que seria inserido, atualizado e mantido | Comparar contagens antes e depois |
 | 20 | Duas execuções simultâneas da mesma usuária não acontecem: a segunda recebe 409 "já existe importação em andamento" | Abrir em duas abas |
 | 21 | Pedidos que sumiram da origem dentro do período não são apagados. Aparecem no relatório como "não encontrados nesta execução". Só entram nessa conta os blocos que terminaram sem falha | Simular ausência |
-| 22 | O total líquido do Ambrosia no período 26/09 a 25/10/2026 confere com a tela do +Vendas: R$ 123.300,58 em 49 pedidos | `GET /orders` |
+| 22 | O total líquido do Ambrosio no período 26/09 a 25/10/2026 confere com a tela do +Vendas: R$ 123.300,58 em 49 pedidos | `GET /orders` |
 
 ### Clientes
 
@@ -234,7 +234,7 @@ Cuidados com as credenciais na API: o DTO da requisição não é logado (nem em
 sequenceDiagram
     autonumber
     participant F as Frontend (/importacao)
-    participant A as Ambrosia API
+    participant A as Ambrosio API
     participant W as Coletor (BackgroundService + Playwright)
     participant MV as +Vendas (somente leitura)
     participant S as Storage (003)
@@ -286,7 +286,7 @@ A [008](008-oauth-mcp-chatgpt.md) deixou de ser dependência: a importação usa
 | Risco | Impacto | Mitigação |
 |---|---|---|
 | Termos de uso da Somalabs restringem automação | Bloqueio da conta ou problema contratual | Conferir antes de liberar ([doc 03, regra 5](../03-bot-playwright.md#regras-de-segurança-do-bot)) |
-| Senha do +Vendas trafega pelo Ambrosia | Vazamento da credencial de outro sistema | Só HTTPS, nunca persistida nem logada, descartada no fim, testes dos critérios 6 a 8 |
+| Senha do +Vendas trafega pelo Ambrosio | Vazamento da credencial de outro sistema | Só HTTPS, nunca persistida nem logada, descartada no fim, testes dos critérios 6 a 8 |
 | +Vendas com segundo fator ou captcha no login | Coleta não consegue entrar | Detectar e falhar com mensagem clara; ver pergunta em aberto |
 | A interface do +Vendas muda sem aviso | Coleta quebra ou lê dado errado | Testes de fumaça dos seletores e validação por contadores (o bloco falha em vez de gravar parcial) |
 | Chromium na imagem da API | Imagem maior e mais memória por execução | Uma execução por usuário, fila com limite global (proposta: 2 simultâneas) |

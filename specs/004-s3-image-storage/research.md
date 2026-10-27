@@ -94,7 +94,7 @@ O `ObjectStorageAppService` mantém dois `IAmazonS3`: um para operações e outr
 
 ## §9 Limpeza de pendentes e falhas
 
-**Decision**: `PendingImageCleanupService : BackgroundService` (em `Ambrosia.Application/HostedServices`, registrado no `Startup`), com `PeriodicTimer` de `CleanupIntervalMinutes` (padrão 15). A cada ciclo, cria um escopo e chama `IImageService.PurgeStaleAsync(now)`:
+**Decision**: `PendingImageCleanupService : BackgroundService` (em `Ambrosio.Application/HostedServices`, registrado no `Startup`), com `PeriodicTimer` de `CleanupIntervalMinutes` (padrão 15). A cada ciclo, cria um escopo e chama `IImageService.PurgeStaleAsync(now)`:
 - `pending` com `created_at < now − PendingTtlMinutes` → `DeleteObject` (ignora inexistente) + remove o metadado.
 - `failed` com `updated_at < now − PendingTtlMinutes` → remove só o metadado.
 
@@ -128,7 +128,7 @@ Storage fora do ar → `StorageUnavailableException` (Domain) → **503** `Error
 
 ## §12 Configuração e validação no startup
 
-**Decision**: `ObjectStorageSettings` em `Ambrosia.DTO/Settings`, ligado à seção `ObjectStorage`, com validação em `ValidateSettings` (`Program.cs`), no mesmo estilo de `CpfProtection`:
+**Decision**: `ObjectStorageSettings` em `Ambrosio.DTO/Settings`, ligado à seção `ObjectStorage`, com validação em `ValidateSettings` (`Program.cs`), no mesmo estilo de `CpfProtection`:
 
 | Chave | Padrão | Regra |
 |---|---|---|
@@ -153,8 +153,8 @@ A mensagem de erro nomeia a variável (`ObjectStorage__Bucket está vazio.`) e n
 
 | Ambiente | Storage | `ServiceUrl` / `PublicServiceUrl` | Bucket | Prazos (leitura/envio/pendente/intervalo, min) |
 |---|---|---|---|---|
-| Development (`dotnet run`) | MinIO da homologação, porta exposta no host | `http://localhost:9000` / igual | `ambrosia-dev` | 15 / 5 / 60 / 15 |
-| Homolog (compose) | serviço `storage` (MinIO) + `storage-init` | `http://storage:9000` / `http://localhost:${STORAGE_PORT:-9000}` | `ambrosia-homolog` | **1 / 1 / 2 / 1** (curtos, para os testes de expiração e limpeza) |
+| Development (`dotnet run`) | MinIO da homologação, porta exposta no host | `http://localhost:9000` / igual | `ambrosio-dev` | 15 / 5 / 60 / 15 |
+| Homolog (compose) | serviço `storage` (MinIO) + `storage-init` | `http://storage:9000` / `http://localhost:${STORAGE_PORT:-9000}` | `ambrosio-homolog` | **1 / 1 / 2 / 1** (curtos, para os testes de expiração e limpeza) |
 | Production | DigitalOcean Spaces | `https://<região>.digitaloceanspaces.com` / igual | `ambrosia-prod` | 15 / 5 / 60 / 15 |
 
 - Valores não secretos em `appsettings.{Ambiente}.json`; `AccessKey`/`SecretKey` vêm do `.env` (homolog) e dos GitHub Secrets (`OBJECT_STORAGE_ACCESS_KEY`, `OBJECT_STORAGE_SECRET_KEY`) em produção. Development guarda as credenciais locais do MinIO no `appsettings.Development.json` (valores de dev, como o JWT de dev).
@@ -162,7 +162,7 @@ A mensagem de erro nomeia a variável (`ObjectStorage__Bucket está vazio.`) e n
 
 **Imagem do MinIO**: tag `RELEASE.*` fixa (nunca `latest`), tanto para `minio/minio` quanto para `minio/mc`. A distribuição de binários/imagens da edição comunitária do MinIO mudou em 2025; verificar na implementação que a tag escolhida continua disponível. Se não houver tag utilizável, o substituto é outro servidor S3 compatível auto-hospedado (ex.: SeaweedFS ou Garage), sem mudança no código da API — só no compose.
 
-**Criação dos buckets**: serviço `storage-init` (imagem `minio/mc`, `restart: "no"`) que roda após o `storage` ficar saudável: `mc alias set`, `mc mb --ignore-existing` para `ambrosia-homolog` e `ambrosia-dev`, `mc anonymous set none` em ambos. A `api` depende de `storage-init` com `service_completed_successfully` (SC-009).
+**Criação dos buckets**: serviço `storage-init` (imagem `minio/mc`, `restart: "no"`) que roda após o `storage` ficar saudável: `mc alias set`, `mc mb --ignore-existing` para `ambrosio-homolog` e `ambrosio-dev`, `mc anonymous set none` em ambos. A `api` depende de `storage-init` com `service_completed_successfully` (SC-009).
 
 ## §14 CORS do bucket
 
@@ -170,7 +170,7 @@ A mensagem de erro nomeia a variável (`ObjectStorage__Bucket está vazio.`) e n
 - **Homolog/Dev (MinIO)**: CORS por variável de servidor `MINIO_API_CORS_ALLOW_ORIGIN=http://localhost:8080,http://localhost:5173` (MinIO não aplica CORS por bucket). Os dois buckets locais aceitam as duas origens.
 - **Production (Spaces)**: regra CORS no bucket `ambrosia-prod` com `AllowedOrigins = https://ambrosiaai.site`, `AllowedMethods = GET, PUT, HEAD`, `AllowedHeaders = Content-Type`, `MaxAgeSeconds = 3600`, aplicada uma vez (painel ou `PutBucketCors`) e documentada em `deploy/README.md`.
 
-**Desvio registrado**: FR-022 pede CORS "por ambiente" em cada bucket local. No MinIO a regra é do servidor, então `ambrosia-dev` e `ambrosia-homolog` aceitam as duas origens locais. Só afeta ambientes locais com dados descartáveis; em produção a regra é exatamente a origem única. Registrar em `decisions.md`.
+**Desvio registrado**: FR-022 pede CORS "por ambiente" em cada bucket local. No MinIO a regra é do servidor, então `ambrosio-dev` e `ambrosio-homolog` aceitam as duas origens locais. Só afeta ambientes locais com dados descartáveis; em produção a regra é exatamente a origem única. Registrar em `decisions.md`.
 
 ## §15 CSP do frontend
 
@@ -182,7 +182,7 @@ A mensagem de erro nomeia a variável (`ObjectStorage__Bucket está vazio.`) e n
 
 ## §16 Testes de API
 
-**Decision**: nova classe `ImagesControllerTests` (skill `dotnet-test-api`), com fixtures binárias em `Ambrosia.ApiTests/Fixtures/Images/` (JPEG com EXIF GPS, PNG, WebP, PDF renomeado `.jpg`). O SHA-256 é calculado no próprio teste. O `PUT` pré-assinado e o `GET` sem assinatura são feitos com `HttpClient` simples, direto no storage.
+**Decision**: nova classe `ImagesControllerTests` (skill `dotnet-test-api`), com fixtures binárias em `Ambrosio.ApiTests/Fixtures/Images/` (JPEG com EXIF GPS, PNG, WebP, PDF renomeado `.jpg`). O SHA-256 é calculado no próprio teste. O `PUT` pré-assinado e o `GET` sem assinatura são feitos com `HttpClient` simples, direto no storage.
 
 - O endereço do objeto sem assinatura é a `url` de leitura sem a query string.
 - Testes de expiração (leitura, envio) e de limpeza leem os prazos esperados de `appsettings.Test.json` (`Storage:PresignedReadMinutes`, `Storage:PresignedUploadMinutes`, `Storage:PendingTtlMinutes`, `Storage:CleanupIntervalMinutes`) e são **pulados** quando a espera ultrapassaria 5 minutos (ex.: contra o Spaces com prazos de produção). Contra homolog rodam sempre (~1–4 min cada).

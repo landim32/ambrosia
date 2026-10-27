@@ -1,0 +1,6 @@
+@Ambrosio.API_HostAddress = http://localhost:5149
+
+GET {{Ambrosio.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

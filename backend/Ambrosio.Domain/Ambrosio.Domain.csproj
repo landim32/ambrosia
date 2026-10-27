@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Domain: modelos ricos, enums (via DTO), serviços, validators, value objects. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="11.12.0" />
+    <!-- Feature 004: o ImageService e o ImageUploadInsertInfoValidator leem limites e tipos aceitos
+         de IOptions<ObjectStorageSettings>, e o serviço registra contagem de limpeza. Só as
+         abstrações (nenhuma implementação de logging nem o SDK de storage) entram no Domain. -->
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.22" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.22" />
+    <!-- Feature 006: a gravação de cada pedido importado acontece em um escopo de DI próprio (research
+         §7), para que a transação curta seja por pedido e um DbContext novo seja usado. Só a
+         abstração entra aqui — nenhuma implementação de DI ou de logging. -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="9.0.22" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ambrosio.Infra.Interfaces\Ambrosio.Infra.Interfaces.csproj" />
+    <ProjectReference Include="..\Ambrosio.DTO\Ambrosio.DTO.csproj" />
+  </ItemGroup>
+
+</Project>

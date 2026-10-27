@@ -1,4 +1,4 @@
-# Documentação do Ambrosia
+# Documentação do Ambrosio
 
 > Índice da documentação: análises e arquitetura, e histórias de usuário.
 
@@ -30,7 +30,7 @@
 | [006](historias/006-graphql-clientes-pedidos.md) | [GraphQL para consultas de clientes e pedidos](historias/006-graphql-clientes-pedidos.md) | Planejada | — |
 | [007](historias/007-mcp-servidor-completo.md) | [Servidor MCP completo (REST e GraphQL como tools)](historias/007-mcp-servidor-completo.md) | Planejada | — |
 | [008](historias/008-oauth-mcp-chatgpt.md) | [OAuth 2.1 para usar o MCP no ChatGPT](historias/008-oauth-mcp-chatgpt.md) | Planejada | — |
-| [009](historias/009-mcp-app-chatgpt.md) | [MCP do Ambrosia como app no ChatGPT](historias/009-mcp-app-chatgpt.md) | Planejada | — |
+| [009](historias/009-mcp-app-chatgpt.md) | [MCP do Ambrosio como app no ChatGPT](historias/009-mcp-app-chatgpt.md) | Planejada | — |
 | [010](historias/010-banco-imagens-clientes-chatgpt.md) | [Banco de imagens de clientes alimentado pelo ChatGPT](historias/010-banco-imagens-clientes-chatgpt.md) | Planejada | — |
 
 ### Endereços de produção

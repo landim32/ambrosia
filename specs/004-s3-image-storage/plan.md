@@ -6,7 +6,7 @@
 
 ## Summary
 
-Criar a infraestrutura única de imagens do Ambrosia: binários num storage **compatível com S3 e privado**, metadados na nova tabela `stored_images`, e acesso só por **URLs pré-assinadas** geradas a cada resposta. A Infra ganha `ObjectStorageAppService` (`AWSSDK.S3` 4.x com `ServiceURL`/`ForcePathStyle` configuráveis, checksums `WHEN_REQUIRED`, endpoint público separado só para assinar URLs) e `ImageProcessingAppService` (ImageSharp 3.1: tipo pelo conteúdo, dimensões, remoção de EXIF). O Domain ganha `ImageService`, com os fluxos de envio pelo cliente (declarar → `PUT` direto no storage → confirmar com `HeadObject` + download + SHA-256 + *magic bytes*), gravação pelo servidor, consulta, exclusão e limpeza. A API expõe cinco rotas autenticadas em `/images` (clarificação 1) e um `BackgroundService` limpa pendentes e falhas antigas. A homologação sobe MinIO (`storage`) + `storage-init` (buckets `ambrosia-homolog` e `ambrosia-dev`, privados, CORS). Development usa esse MinIO pela porta do host (clarificação 3). Produção aponta para o DigitalOcean Spaces só por configuração. A CSP do frontend passa a incluir o endpoint do storage via template do nginx. Os testes de API cobrem os 12 critérios da HU.
+Criar a infraestrutura única de imagens do Ambrosio: binários num storage **compatível com S3 e privado**, metadados na nova tabela `stored_images`, e acesso só por **URLs pré-assinadas** geradas a cada resposta. A Infra ganha `ObjectStorageAppService` (`AWSSDK.S3` 4.x com `ServiceURL`/`ForcePathStyle` configuráveis, checksums `WHEN_REQUIRED`, endpoint público separado só para assinar URLs) e `ImageProcessingAppService` (ImageSharp 3.1: tipo pelo conteúdo, dimensões, remoção de EXIF). O Domain ganha `ImageService`, com os fluxos de envio pelo cliente (declarar → `PUT` direto no storage → confirmar com `HeadObject` + download + SHA-256 + *magic bytes*), gravação pelo servidor, consulta, exclusão e limpeza. A API expõe cinco rotas autenticadas em `/images` (clarificação 1) e um `BackgroundService` limpa pendentes e falhas antigas. A homologação sobe MinIO (`storage`) + `storage-init` (buckets `ambrosio-homolog` e `ambrosio-dev`, privados, CORS). Development usa esse MinIO pela porta do host (clarificação 3). Produção aponta para o DigitalOcean Spaces só por configuração. A CSP do frontend passa a incluir o endpoint do storage via template do nginx. Os testes de API cobrem os 12 critérios da HU.
 
 Decisões detalhadas em [research.md](./research.md).
 
@@ -18,11 +18,11 @@ Decisões detalhadas em [research.md](./research.md).
 - Backend (existentes): ASP.NET Core 8, EF Core 9.x + Npgsql, FluentValidation 11, Swashbuckle 8
 - Backend (**novos**): `AWSSDK.S3` 4.x (Infra), `SixLabors.ImageSharp` 3.1.x (Infra), `Microsoft.Extensions.Hosting.Abstractions` 9.0.x (Application, para o `BackgroundService`)
 - Homolog: imagens `minio/minio` e `minio/mc` com tag `RELEASE.*` fixa
-- Testes de API: xUnit + Flurl.Http + FluentAssertions (`Ambrosia.ApiTests`)
+- Testes de API: xUnit + Flurl.Http + FluentAssertions (`Ambrosio.ApiTests`)
 
 **Storage**: PostgreSQL (nova tabela `stored_images`, migração `AddStoredImages`); storage de objetos S3 compatível (MinIO em homolog/dev, Spaces em produção), chave `ambrosio/users/{userId}/images/{sha256}.{ext}`
 
-**Testing**: `Ambrosia.ApiTests` contra Homolog (`http://localhost:8080/api`) com MinIO, e uma vez contra um bucket de teste no Spaces (SC-001). Nenhum teste unitário novo no backend (§VIII). O frontend não muda de código (só a configuração do nginx).
+**Testing**: `Ambrosio.ApiTests` contra Homolog (`http://localhost:8080/api`) com MinIO, e uma vez contra um bucket de teste no Spaces (SC-001). Nenhum teste unitário novo no backend (§VIII). O frontend não muda de código (só a configuração do nginx).
 
 **Target Platform**: API Linux em container atrás do gateway nginx (`/api`); storage acessado diretamente pelo navegador via URL assinada
 
@@ -53,7 +53,7 @@ Decisões detalhadas em [research.md](./research.md).
 | V | Banco de dados | `stored_images` em snake_case plural, PK `stored_image_id` bigint identity, `stored_images_pkey`, FK `fk_user_stored_image` com `ClientSetNull`, `timestamp without time zone`, `varchar` com tamanho, `status`/`source` `integer` com default. Sem cascata: a exclusão é explícita no serviço. | ✅ |
 | VI | Autenticação e segurança | `ImagesController` com `[Authorize]`, sem `[AllowAnonymous]`. `userId` só do `sub` (nenhum DTO carrega dono). Repositório filtra por `userId` como primeira cláusula; outro usuário → 404. Segredos do storage vêm do ambiente, com validação no startup. **Exceção justificada**: `ListStaleAsync` (limpeza) lê sem `userId`, usada só pelo `BackgroundService` e nunca por endpoint (ver Complexity Tracking). | ✅ (1 exceção justificada) |
 | VII | Ambientes e testes de API | Os três ambientes pela `dotnet-env`. Homolog sobe tudo no compose, inclusive storage e buckets (SC-009). Development continua **sem Docker para a API** e só consome o storage da homologação pela porta do host (clarificação 3, sem compose próprio de dev). Os endpoints novos ganham testes no mesmo ciclo; a homologação é reconstruída e a suíte roda contra ela. | ✅ |
-| VIII | Estratégia de testes | Backend só com testes de API. Nenhum teste unitário criado ou ajustado em `Ambrosia.Tests` (desvio pré-existente, não ampliado). Frontend sem mudança de código e sem E2E. | ✅ |
+| VIII | Estratégia de testes | Backend só com testes de API. Nenhum teste unitário criado ou ajustado em `Ambrosio.Tests` (desvio pré-existente, não ampliado). Frontend sem mudança de código e sem E2E. | ✅ |
 | — | Variáveis de ambiente | Novas: `ObjectStorage__*` no backend (tabela no research §12); `STORAGE_*` no `.env` de homolog; `OBJECT_STORAGE_ACCESS_KEY` / `OBJECT_STORAGE_SECRET_KEY` nos GitHub Secrets; `STORAGE_ORIGIN` no container do frontend (configuração do nginx, não é `VITE_*` porque não entra no bundle). | ✅ |
 | — | Tratamento de erros | `try/catch` nos controllers no padrão existente: `ValidationException` → 400, `ImageRejectedException` → 400, `NotFoundException` → 404, `StorageUnavailableException` → 503 (antes do `catch (Exception) → 500`). A Infra nunca coloca endpoint, bucket ou chave no `Message` das exceções relançadas, para o `ex.Message` do 500 não vazar dados (FR-021). | ✅ |
 
@@ -82,38 +82,38 @@ specs/004-s3-image-storage/
 
 ```text
 backend/
-├── Ambrosia.DTO/
+├── Ambrosio.DTO/
 │   ├── Enums/ImageStatus.cs, Enums/ImageSource.cs                     # NOVOS
 │   ├── Images/ImageUploadInsertInfo.cs, ImageUploadResult.cs, ImageInfo.cs   # NOVOS (API)
 │   ├── Images/ObjectHead.cs, PresignedUrl.cs, ImageInspection.cs, ProcessedImage.cs   # NOVOS (transporte)
 │   └── Settings/ObjectStorageSettings.cs                              # NOVO
-├── Ambrosia.Domain/
+├── Ambrosio.Domain/
 │   ├── Models/StoredImage.cs                                          # NOVO (+ regra de chave e extensões)
 │   ├── Interfaces/IImageService.cs                                    # NOVO
 │   ├── Services/ImageService.cs                                       # NOVO
 │   ├── Exceptions/ImageRejectedException.cs, StorageUnavailableException.cs   # NOVOS
 │   └── Validators/ImageUploadInsertInfoValidator.cs                   # NOVO (usa IOptions<ObjectStorageSettings>)
-├── Ambrosia.Infra.Interfaces/
+├── Ambrosio.Infra.Interfaces/
 │   ├── AppServices/IObjectStorageAppService.cs, IImageProcessingAppService.cs   # NOVOS
 │   └── Repository/IStoredImageRepository.cs                           # NOVO
-├── Ambrosia.Infra/
-│   ├── Ambrosia.Infra.csproj                                          # + AWSSDK.S3, SixLabors.ImageSharp
+├── Ambrosio.Infra/
+│   ├── Ambrosio.Infra.csproj                                          # + AWSSDK.S3, SixLabors.ImageSharp
 │   ├── AppServices/ObjectStorageAppService.cs                         # NOVO (cliente interno + cliente de assinatura)
 │   ├── AppServices/ImageProcessingAppService.cs                       # NOVO
 │   ├── Repository/StoredImageRepository.cs                            # NOVO
-│   ├── Context/AmbrosiaContext.cs                                     # + DbSet<StoredImage> e Fluent API
+│   ├── Context/AmbrosioContext.cs                                     # + DbSet<StoredImage> e Fluent API
 │   └── Migrations/*_AddStoredImages.cs                                # NOVO (dotnet ef)
-├── Ambrosia.Application/
-│   ├── Ambrosia.Application.csproj                                    # + Microsoft.Extensions.Hosting.Abstractions
-│   ├── Settings/AmbrosiaSettings.cs                                   # + ObjectStorage
+├── Ambrosio.Application/
+│   ├── Ambrosio.Application.csproj                                    # + Microsoft.Extensions.Hosting.Abstractions
+│   ├── Settings/AmbrosioSettings.cs                                   # + ObjectStorage
 │   ├── HostedServices/PendingImageCleanupService.cs                   # NOVO
 │   └── Startup.cs                                                     # registra settings, repo, AppServices, ImageService, hosted service
-├── Ambrosia.API/
+├── Ambrosio.API/
 │   ├── Controllers/ImagesController.cs                                # NOVO: 5 rotas [Authorize]
 │   ├── Controllers/ApiControllerBase.cs                               # + ImageRejectedError (400), StorageUnavailableError (503)
 │   ├── Program.cs                                                     # lê/valida ObjectStorage; descrição do Swagger
 │   └── appsettings*.json                                              # seção ObjectStorage por ambiente (sem segredos fora de Development)
-├── Ambrosia.ApiTests/
+├── Ambrosio.ApiTests/
 │   ├── Controllers/ImagesControllerTests.cs                           # NOVO
 │   ├── Controllers/UnauthorizedAccessTests.cs                         # + rotas /images
 │   ├── Helpers/StorageHttp.cs                                         # NOVO: PUT/GET diretos no storage, SHA-256

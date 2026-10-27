@@ -44,7 +44,7 @@ description: "Lista de tarefas da feature 002 — Frontend web de consulta de cl
 - [X] T008 Adicionar componentes shadcn/ui em `frontend/src/components/ui/`: `npx shadcn@latest add button card input label select badge avatar skeleton separator sonner` (depende de T007)
 - [X] T009 [P] Criar arquivos de ambiente: `frontend/.env.example` (documentando `VITE_API_URL=/api`, `VITE_SITE_BASENAME=`, `VITE_GOOGLE_CLIENT_ID=`, `VITE_DEV_LOGIN=`), `frontend/.env.development` (`VITE_API_URL=/api`, `VITE_DEV_LOGIN=true`), `frontend/.env.homolog` (`VITE_API_URL=/api`, `VITE_DEV_LOGIN=true`) e `frontend/.env.production` (`VITE_API_URL=/api`, SEM `VITE_DEV_LOGIN`); declarar as variáveis em `frontend/src/vite-env.d.ts` (`interface ImportMetaEnv { readonly VITE_API_URL: string; readonly VITE_SITE_BASENAME?: string; readonly VITE_GOOGLE_CLIENT_ID?: string; readonly VITE_DEV_LOGIN?: string }`) e adicionar `.env.local`, `dist/`, `test-results/` a `frontend/.gitignore`
 - [X] T010 [P] Configurar ESLint em `frontend/eslint.config.js` (typescript-eslint strict, `react-hooks`, regra `@typescript-eslint/no-explicit-any: error`, `@typescript-eslint/consistent-type-definitions: ['error', 'interface']`, `prefer-arrow-callback`, `func-style: ['error', 'expression']`), ignorando `src/components/ui/**` (gerado)
-- [X] T011 [P] Criar `frontend/index.html` com `<html lang="pt-BR">`, `<meta name="viewport" content="width=device-width, initial-scale=1">`, `<title>Ambrosia</title>` e `frontend/public/favicon.svg`
+- [X] T011 [P] Criar `frontend/index.html` com `<html lang="pt-BR">`, `<meta name="viewport" content="width=device-width, initial-scale=1">`, `<title>Ambrosio</title>` e `frontend/public/favicon.svg`
 
 ---
 
@@ -152,14 +152,14 @@ description: "Lista de tarefas da feature 002 — Frontend web de consulta de cl
 
 ### Tests for User Story 3 ⚠️
 
-- [X] T063 [P] [US3] Adicionar caso em `backend/Ambrosia.Tests/Infra/Repository/OrderRepositoryTest.cs`: com pedido de canal `Linx`, `channel = "lin"` retorna o pedido; `channel = "LINX"` retorna; `channel = "xyz"` retorna vazio; e pedido de outra vendedora com `Linx` nunca aparece (filtro `userId` primeiro). Deve FALHAR antes de T067
+- [X] T063 [P] [US3] Adicionar caso em `backend/Ambrosio.Tests/Infra/Repository/OrderRepositoryTest.cs`: com pedido de canal `Linx`, `channel = "lin"` retorna o pedido; `channel = "LINX"` retorna; `channel = "xyz"` retorna vazio; e pedido de outra vendedora com `Linx` nunca aparece (filtro `userId` primeiro). Deve FALHAR antes de T067
 - [X] T064 [P] [US3] Teste do parser em `frontend/src/lib/filters.test.ts`: `parseOrderFilters` aceita `de`/`ate` `AAAA-MM-DD` válidos; descarta data inválida; se `de > ate`, ignora ambos; `tipo` ∈ `sale|return|cancellation` senão descarta; `canal` com `trim` e "texto ≤ 60" (acima disso descarta); `busca` com `trim` e "texto ≤ 60 (limite da API)"; `pagina` inteiro ≥ 1, padrão 1; `toSearchParams` faz o caminho inverso omitindo vazios e `pagina=1` (data-model §4, tabela de filtros)
 - [X] T065 [P] [US3] Teste de `frontend/src/components/orders/OrderFiltersBar.test.tsx`: todos os campos têm rótulo acessível; alterar tipo chama `onChange` com `page: 1`; "Limpar filtros" zera tudo; campos de texto usam debounce
 
 ### Implementation for User Story 3
 
-- [X] T067 [US3] Ajustar `backend/Ambrosia.Infra/Repository/OrderRepository.cs` (linha ~90): `o.Channel.ToLower() == channel` → `o.Channel.ToLower().Contains(channel)`, mantendo `userId` como primeira cláusula e o `Trim().ToLower()` existente (skill `dotnet-architecture`; faz passar T063; rodar `dotnet test backend/Ambrosia.Tests --filter OrderRepositoryTest`)
-- [X] T068 [P] [US3] Atualizar a documentação do parâmetro `channel`: XML doc de `backend/Ambrosia.API/Controllers/OrdersController.cs` (linha ~30, "compara por igualdade" → "filtra por trecho, sem diferenciar maiúsculas/minúsculas") e a descrição em `specs/001-api-cadastro-clientes-pedidos/contracts/openapi.yaml` (`paths./orders.get.parameters` → `description: Trecho do canal (case-insensitive)`); verificar se `backend/Ambrosia.ApiTests/Controllers/OrdersControllerTests.cs` depende de igualdade e ajustar se necessário
+- [X] T067 [US3] Ajustar `backend/Ambrosio.Infra/Repository/OrderRepository.cs` (linha ~90): `o.Channel.ToLower() == channel` → `o.Channel.ToLower().Contains(channel)`, mantendo `userId` como primeira cláusula e o `Trim().ToLower()` existente (skill `dotnet-architecture`; faz passar T063; rodar `dotnet test backend/Ambrosio.Tests --filter OrderRepositoryTest`)
+- [X] T068 [P] [US3] Atualizar a documentação do parâmetro `channel`: XML doc de `backend/Ambrosio.API/Controllers/OrdersController.cs` (linha ~30, "compara por igualdade" → "filtra por trecho, sem diferenciar maiúsculas/minúsculas") e a descrição em `specs/001-api-cadastro-clientes-pedidos/contracts/openapi.yaml` (`paths./orders.get.parameters` → `description: Trecho do canal (case-insensitive)`); verificar se `backend/Ambrosio.ApiTests/Controllers/OrdersControllerTests.cs` depende de igualdade e ajustar se necessário
 - [X] T069 [P] [US3] Implementar `frontend/src/lib/filters.ts` com `parseOrderFilters(sp: URLSearchParams): OrderFilters` e `toSearchParams(f: OrderFilters): URLSearchParams` mapeando URL ↔ API (`de`→`from`, `ate`→`to`, `tipo`→`kind`, `canal`→`channel`, `busca`→`search`, `pagina`→`page`) com as validações de T064, e `parsePage(sp)` reutilizável (faz passar T064)
 - [X] T070 [US3] Implementar `frontend/src/hooks/useOrderFilters.ts`: lê `useSearchParams` → `parseOrderFilters`; `setFilters(partial)` reposiciona `page: 1` e usa `replace`; `setPage(n)` usa `push`; `clearFilters()`; remove da URL parâmetros inválidos na próxima navegação (depende de T069)
 - [X] T071 [US3] Implementar `frontend/src/Contexts/OrderContext.tsx`: `interface OrderContextType { orders: OrderInfo[]; totalCount: number; selectedOrder: OrderDetailInfo | null; loading: boolean; error: string | null; notFound: boolean; loadOrders(filters: OrderFilters): Promise<void>; loadOrder(id: number): Promise<void>; clearSelected(): void; clearError(): void }` (mesmo tratamento de erros do `CustomerContext`; `loadOrder` implementado em US4) e `frontend/src/hooks/useOrder.ts` com null-check; registrar `OrderProvider` dentro de `CustomerProvider` em `frontend/src/main.tsx` (depende de T053)
@@ -300,7 +300,7 @@ Task: "OrderKindBadge + OrderTotal + lib/orderKind.ts"
 
 ```bash
 # Backend e frontend em paralelo:
-Task: "Caso de trecho em backend/Ambrosia.Tests/Infra/Repository/OrderRepositoryTest.cs"
+Task: "Caso de trecho em backend/Ambrosio.Tests/Infra/Repository/OrderRepositoryTest.cs"
 Task: "Teste de parseOrderFilters em frontend/src/lib/filters.test.ts"
 Task: "Teste de OrderFiltersBar em frontend/src/components/orders/OrderFiltersBar.test.tsx"
 ```

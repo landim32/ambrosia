@@ -10,7 +10,7 @@
 
 ## Contexto
 
-O Ambrosia vai guardar fotos pessoais (fotos de clientes na HU 010 e, no futuro, imagens de produto do bot na HU 009). O modelo de dados já decidiu que o banco guarda **apenas metadados** da imagem (chave, tipo, tamanho, hash, dimensões, dono), nunca o binário, com deduplicação por hash.
+O Ambrosio vai guardar fotos pessoais (fotos de clientes na HU 010 e, no futuro, imagens de produto do bot na HU 009). O modelo de dados já decidiu que o banco guarda **apenas metadados** da imagem (chave, tipo, tamanho, hash, dimensões, dono), nunca o binário, com deduplicação por hash.
 
 Esta feature entrega a **infraestrutura** de armazenamento que essas histórias vão usar: um storage de objetos **compatível com S3**, **privado**, acessado só por **links temporários assinados**, desde o primeiro dia (sem fase de disco local). O provedor provável de produção é o DigitalOcean Spaces, mas o sistema não pode depender dele: trocar de provedor deve exigir apenas configuração. Nos ambientes locais, um storage S3 compatível auto-hospedado (MinIO) faz o papel do provedor.
 
@@ -22,7 +22,7 @@ Não há telas nesta feature: quem a consome são outras partes da API (e, depoi
 
 - Q: Como a infraestrutura de imagens é exposta na API? → A: Endpoints públicos autenticados de imagem (declarar envio, confirmar, gravar pelo servidor via arquivo enviado à API, consultar e excluir), todos disponíveis em produção.
 - Q: Imagens enviadas diretamente pelo navegador com EXIF/GPS: o que fazer? → A: Aceitar como enviadas; o servidor não remove nem recusa EXIF nesse caminho. Remover EXIF antes do envio é responsabilidade das HUs consumidoras com tela.
-- Q: Qual storage o ambiente Development usa, dado que Dev roda sem Docker? → A: Reaproveita o MinIO do `docker compose` da homologação (porta exposta no host), com bucket separado `ambrosia-dev` criado pelo mesmo compose.
+- Q: Qual storage o ambiente Development usa, dado que Dev roda sem Docker? → A: Reaproveita o MinIO do `docker compose` da homologação (porta exposta no host), com bucket separado `ambrosio-dev` criado pelo mesmo compose.
 - Q: Há cota de armazenamento ou de envios por usuário? → A: Não nesta entrega; apenas o limite por arquivo e a limpeza de pendentes.
 - Q: O que acontece com imagens que falharam? → A: Ficam como "falhou" e a limpeza periódica as remove após 1 hora; não contam para a deduplicação (novo envio do mesmo hash cria um envio novo).
 
@@ -202,7 +202,7 @@ Envios declarados e nunca confirmados, e envios recusados, não ficam para sempr
 - **FR-019**: Endereço do serviço, região, bucket, estilo de endereçamento, chave de acesso, chave secreta, prazo de leitura, prazo de envio, limite de tamanho (padrão 10 MB) e lista de tipos aceitos (padrão JPEG, PNG e WebP) DEVEM ser configuráveis por arquivo de configuração e por variáveis de ambiente, com segredos fora do controle de versão.
 - **FR-020**: A API NÃO DEVE iniciar se endereço do serviço, bucket, chave de acesso ou chave secreta estiverem vazios, se os prazos estiverem fora das faixas permitidas, se o limite de tamanho não for positivo ou se a lista de tipos estiver vazia; a mensagem DEVE nomear a configuração inválida sem exibir valores secretos.
 - **FR-021**: Credenciais do storage e links assinados completos NUNCA DEVEM aparecer em log, resposta de erro ou documentação interativa da API.
-- **FR-022**: A homologação local DEVE subir um storage S3 compatível com dois buckets já criados e privados — o da homologação e o `ambrosia-dev`, usado pelo ambiente Development (que roda sem Docker e acessa esse storage pela porta exposta no host) — cada um com regras de acesso pelo navegador (leitura e envio) liberadas apenas para a origem do frontend do respectivo ambiente; a produção DEVE liberar apenas a origem `https://ambrosiaai.site`.
+- **FR-022**: A homologação local DEVE subir um storage S3 compatível com dois buckets já criados e privados — o da homologação e o `ambrosio-dev`, usado pelo ambiente Development (que roda sem Docker e acessa esse storage pela porta exposta no host) — cada um com regras de acesso pelo navegador (leitura e envio) liberadas apenas para a origem do frontend do respectivo ambiente; a produção DEVE liberar apenas a origem `https://ambrosiaai.site`.
 - **FR-023**: A política de segurança de conteúdo do frontend DEVE permitir carregar imagens e enviar arquivos para o endereço do storage configurado no ambiente, e só para ele.
 
 **Exposição na API**
@@ -246,8 +246,8 @@ Envios declarados e nunca confirmados, e envios recusados, não ficam para sempr
 - **Hash no envio pelo cliente**: a conferência do hash é feita pela API na confirmação. Se o provedor também validar o hash no próprio envio, isso é um reforço opcional, não um requisito.
 - **EXIF** (Clarifications 2026-10-26): removido somente quando o servidor processa o arquivo (US3). Arquivos enviados diretamente pelo cliente ao storage são guardados como enviados, sem recusa por EXIF; remover EXIF no próprio navegador antes do envio é responsabilidade das HUs consumidoras com tela (ex.: 010).
 - **Miniaturas e HEIC**: miniaturas/redimensionamento e aceitação de HEIC (com conversão) ficam fora desta entrega; a lista de tipos é configurável.
-- **Ambientes (constituição §VII; Clarifications 2026-10-26)**: Development roda sem Docker e aponta para o MinIO da homologação exposto no host (bucket `ambrosia-dev`), com valores de dev não secretos; usar Development exige a homologação (ou ao menos o serviço de storage dela) no ar. Homolog sobe o MinIO no `docker compose` do WSL, com bucket e regras criados automaticamente; Production aponta para o provedor contratado, sem MinIO.
-- **Credencial de produção**: a chave de acesso de produção tem permissão restrita ao bucket do Ambrosia (a confirmar no painel do provedor).
+- **Ambientes (constituição §VII; Clarifications 2026-10-26)**: Development roda sem Docker e aponta para o MinIO da homologação exposto no host (bucket `ambrosio-dev`), com valores de dev não secretos; usar Development exige a homologação (ou ao menos o serviço de storage dela) no ar. Homolog sobe o MinIO no `docker compose` do WSL, com bucket e regras criados automaticamente; Production aponta para o provedor contratado, sem MinIO.
+- **Credencial de produção**: a chave de acesso de produção tem permissão restrita ao bucket do Ambrosio (a confirmar no painel do provedor).
 - **Backups do bucket**: política de retenção de backups e propagação da exclusão LGPD para eles ficam fora desta HU.
 - **Sem cota por usuário** (Clarifications 2026-10-26): não há limite de espaço total, de quantidade de imagens nem de envios por período por usuário nesta entrega; o controle de custo/abuso se limita ao limite por arquivo (FR-019) e à limpeza de pendentes (FR-018). Cotas e rate limiting ficam para uma feature futura.
 - **Limpeza**: roda dentro da própria API em intervalo regular (por exemplo, a cada 15 minutos), sem infraestrutura adicional de agendamento.

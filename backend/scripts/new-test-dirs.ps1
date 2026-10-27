@@ -3,8 +3,8 @@ param(
     [string]$Root = (Split-Path -Parent $PSScriptRoot)
 )
 
-$tests = Join-Path $Root 'Ambrosia.Tests'
-$apiTests = Join-Path $Root 'Ambrosia.ApiTests'
+$tests = Join-Path $Root 'Ambrosio.Tests'
+$apiTests = Join-Path $Root 'Ambrosio.ApiTests'
 
 $testDirs = @(
     'Domain/Services', 'Domain/Models', 'Domain/ValueObjects', 'Domain/Validators',

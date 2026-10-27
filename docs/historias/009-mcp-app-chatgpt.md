@@ -1,4 +1,4 @@
-# 009 — MCP do Ambrosia como app no ChatGPT
+# 009 — MCP do Ambrosio como app no ChatGPT
 
 > Documento da história de usuário 009: disponibilizar o MCP como app/conector no ChatGPT (o "plug-in"), do modo desenvolvedor até a publicação.
 
@@ -12,14 +12,14 @@
 | Spec | — |
 | Depende de | [007](007-mcp-servidor-completo.md) (MCP) e [008](008-oauth-mcp-chatgpt.md) (OAuth 2.1) |
 | Habilita | [010](010-banco-imagens-clientes-chatgpt.md) |
-| Código previsto | `backend/Ambrosia.Mcp/` (metadados das tools), infraestrutura de publicação (proxy, TLS e DNS) |
+| Código previsto | `backend/Ambrosio.Mcp/` (metadados das tools), infraestrutura de publicação (proxy, TLS e DNS) |
 | Referência | Documentação do [Apps SDK da OpenAI](https://developers.openai.com/apps-sdk/build/auth), consultada em 25/10/2026 |
 
 ---
 
 ## 1. História
 
-**Como** vendedora, **quero** encontrar o Ambrosia como app dentro do ChatGPT, conectar com a minha conta e pedir coisas como "quem são minhas clientes que não compram há 3 meses?", **para** usar o Ambrosia sem sair da conversa.
+**Como** vendedora, **quero** encontrar o Ambrosio como app dentro do ChatGPT, conectar com a minha conta e pedir coisas como "quem são minhas clientes que não compram há 3 meses?", **para** usar o Ambrosio sem sair da conversa.
 
 ## 2. Contexto e objetivo
 
@@ -75,7 +75,7 @@
 
 | Tool | `securitySchemes` |
 |---|---|
-| `sobre_ambrosia` (proposta: explica o que o app faz e como conectar) | `noauth` |
+| `sobre_ambrosio` (proposta: explica o que o app faz e como conectar) | `noauth` |
 | Leituras de clientes | `oauth2`, `customers:read` |
 | Leituras de pedidos | `oauth2`, `orders:read` |
 | `historico_cliente`, `consultar_graphql` | `oauth2`, `customers:read` e `orders:read` |
@@ -102,7 +102,7 @@ Resultado de tool quando falta autorização (ilustrativo):
 ```json
 {
   "isError": true,
-  "content": [{ "type": "text", "text": "É preciso conectar sua conta do Ambrosia para ver suas clientes." }],
+  "content": [{ "type": "text", "text": "É preciso conectar sua conta do Ambrosio para ver suas clientes." }],
   "_meta": {
     "mcp/www_authenticate": [
       "Bearer resource_metadata=\"https://ambrosiaai.site/.well-known/oauth-protected-resource/mcp\", error=\"insufficient_scope\", scope=\"customers:write\""
@@ -116,7 +116,7 @@ sequenceDiagram
     autonumber
     actor U as Usuária
     participant CG as ChatGPT
-    participant MCP as Ambrosia MCP
+    participant MCP as Ambrosio MCP
 
     U->>CG: "Cadastre a cliente Maria Souza, CPF ..."
     CG->>MCP: tools/call cadastrar_cliente (token só com customers:read)
@@ -169,8 +169,8 @@ sequenceDiagram
 | 5 | "Quantas devoluções tive na semana passada?" | `devolucoes_cancelamentos` |
 | 6 | "Cadastre a cliente Ana Lima, CPF ..." | `cadastrar_cliente` com confirmação |
 | 7 | "Mude o nome da cliente 12 para Ana Lima Souza" | `atualizar_cliente` com confirmação |
-| 8 | "Qual é o meu e-mail no Ambrosia?" | `obter_usuario_atual` |
-| 9 | "O que é o Ambrosia?" (sem conta conectada) | `sobre_ambrosia` |
+| 8 | "Qual é o meu e-mail no Ambrosio?" | `obter_usuario_atual` |
+| 9 | "O que é o Ambrosio?" (sem conta conectada) | `sobre_ambrosio` |
 | 10 | Pergunta fora do domínio ("previsão do tempo") | Nenhuma tool |
 
 ---
@@ -202,6 +202,6 @@ sequenceDiagram
 
 1. O app será publicado para qualquer usuário do ChatGPT ou fica restrito (modo desenvolvedor ou workspace da empresa)?
 2. Quem é o responsável legal pelo app (pessoa física ou empresa) para a submissão e para a política de privacidade?
-3. Haverá a tool `noauth` `sobre_ambrosia`, ou todas as tools exigem conta?
+3. Haverá a tool `noauth` `sobre_ambrosio`, ou todas as tools exigem conta?
 4. Quais são os requisitos de submissão vigentes (ícone, capturas, verificação de domínio)? Confirmar na documentação no início da spec. O domínio a verificar já está definido: `ambrosiaai.site`.
 5. Quando entram os widgets de UI (por exemplo, um card de cliente com foto)?

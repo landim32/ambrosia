@@ -1,7 +1,7 @@
 /**
  * Import Types — importação do +Vendas (feature 006, contracts/imports-api.md).
  *
- * Espelho exato dos DTOs de `Ambrosia.DTO/Imports`: enums como as strings
+ * Espelho exato dos DTOs de `Ambrosio.DTO/Imports`: enums como as strings
  * camelCase que a API devolve (`JsonStringEnumConverter`), datas como
  * `AAAA-MM-DD` e instantes como ISO-8601 UTC.
  *

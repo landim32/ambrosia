@@ -3,11 +3,11 @@
 **Feature Branch**: `001-api-cadastro-clientes-pedidos`
 **Created**: 2026-10-25
 **Status**: Draft
-**Input**: "Criar a API do Ambrosia em .NET com PostgreSQL, para cadastrar e consultar clientes e pedidos (nos moldes do +Vendas, conforme /docs), com usuários (email, nome, senha), login via OAuth e isolamento de dados por usuário."
+**Input**: "Criar a API do Ambrosio em .NET com PostgreSQL, para cadastrar e consultar clientes e pedidos (nos moldes do +Vendas, conforme /docs), com usuários (email, nome, senha), login via OAuth e isolamento de dados por usuário."
 
 ## Contexto
 
-O Ambrosia é uma base própria de vendas e clientes de vendedoras, inspirada no sistema +Vendas (docs 01 e 02). Esta primeira entrega é **somente a API**: não há front-end, bot (doc 03) nem MCP (doc 04). A API permite cadastrar e consultar clientes e pedidos (com itens), e cada usuário enxerga apenas os seus próprios dados.
+O Ambrosio é uma base própria de vendas e clientes de vendedoras, inspirada no sistema +Vendas (docs 01 e 02). Esta primeira entrega é **somente a API**: não há front-end, bot (doc 03) nem MCP (doc 04). A API permite cadastrar e consultar clientes e pedidos (com itens), e cada usuário enxerga apenas os seus próprios dados.
 
 ## User Scenarios & Testing *(mandatory)*
 

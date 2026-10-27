@@ -113,7 +113,7 @@ Esperado: `http://localhost:8080/` abre o frontend (com formulário de dev, pois
 
 ```powershell
 cd backend
-dotnet test Ambrosia.Tests --filter OrderRepositoryTest
+dotnet test Ambrosio.Tests --filter OrderRepositoryTest
 ```
 
 Esperado: casos `channel=lin` → casa `Linx`; `channel=LINX` → casa; `channel=xyz` → vazio.
@@ -129,7 +129,7 @@ Automatizado e à revelia do navegador (executado nesta máquina):
 | Build de produção | `npm run build -- --mode production` | entry `index-DnwvLCKQ.js` = **98,75 kB gzip** (orçamento: 250 kB) |
 | SC-008 | `npm run verify:prod` | **PASS**: nenhuma ocorrência de `dev-login`/`DevLoginForm` em `dist/` |
 | Build de homolog | `npm run build -- --mode homolog` | gera o chunk `DevLoginForm-*.js` (o dev-login existe onde deve) |
-| Backend (trecho de canal) | `dotnet test Ambrosia.Tests --filter OrderRepositoryTest` | **14 aprovados, 0 falhas** |
+| Backend (trecho de canal) | `dotnet test Ambrosio.Tests --filter OrderRepositoryTest` | **14 aprovados, 0 falhas** |
 | Imagem Docker | `docker compose --profile frontend build frontend` | build ok; container `healthy` |
 | Gateway + headers | `curl -D - http://localhost:8080/clientes` | 200, CSP/Referrer-Policy/nosniff presentes, `index.html` com `no-store` |
 | Cache de asset | `curl -D - /assets/index-*.js` | `Cache-Control: public, immutable` + `max-age=31536000` |
@@ -139,7 +139,7 @@ Automatizado e à revelia do navegador (executado nesta máquina):
 | Filtros da API | `kind=cancellation`, `search=00004751`, `search=Maria`, `from/to`, `page=99`, data invertida | 200 com os conjuntos esperados; invertida → 400 |
 
 **C3.2 no container (revalidado após rebuild da API):** na primeira rodada,
-`channel=lin` devolveu 0 porque o container `ambrosia-homolog-api` ainda rodava a
+`channel=lin` devolveu 0 porque o container `ambrosio-homolog-api` ainda rodava a
 imagem construída antes do ajuste da T067. Após `docker compose build api migrator`
 e `up -d`, a mesma bateria passou: `channel=lin` → 2, `channel=LINX` → 2,
 `channel=Linx` → 2, `channel=ins` → 1 (trecho de "Instagram Direct"),

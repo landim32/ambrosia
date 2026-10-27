@@ -9,7 +9,7 @@ Este documento é o guia de verificação ponta a ponta da implementação. A va
 registro do resultado vai em `decisions.md` (seção "tasks · SC-001").
 
 > **Mudança aplicada nesta revisão (T066)**: o plano previa um MinIO em container na homologação
-> (`storage` + `storage-init`, buckets `ambrosia-homolog`/`ambrosia-dev`, porta 9000). As imagens
+> (`storage` + `storage-init`, buckets `ambrosio-homolog`/`ambrosio-dev`, porta 9000). As imagens
 > `minio/minio` e `minio/mc` não existem mais no Docker Hub, e a decisão registrada em
 > [`decisions.md`](./decisions.md) (seção "tasks · imagem do storage") é usar o **DigitalOcean Spaces
 > real** em homolog e Development. Não há, portanto, serviço de storage no `docker-compose.yml`: o que
@@ -49,7 +49,7 @@ Os testes de sanitização precisam de um JPEG com metadado de GPS. Os fixtures 
 gere um:
 
 ```bash
-cp backend/Ambrosia.ApiTests/Fixtures/Images/small.jpg /tmp/foto-com-gps.jpg
+cp backend/Ambrosio.ApiTests/Fixtures/Images/small.jpg /tmp/foto-com-gps.jpg
 exiftool -G1 -a -s /tmp/foto-com-gps.jpg | grep -i gps   # tem de mostrar GPSLatitude/GPSLongitude
 ```
 
@@ -81,7 +81,7 @@ $env:ObjectStorage__PresignedUploadMinutes = '1'
 $env:ObjectStorage__PendingTtlMinutes = '2'
 $env:ObjectStorage__CleanupIntervalMinutes = '1'
 dotnet tool restore
-dotnet ef database update --project Ambrosia.Infra --startup-project Ambrosia.API
+dotnet ef database update --project Ambrosio.Infra --startup-project Ambrosio.API
 powershell -File scripts/run-api.ps1
 ```
 
@@ -177,7 +177,7 @@ conhecem (FR-022). Não há mais `MINIO_API_CORS_ALLOW_ORIGIN`: o Spaces aplica 
 ## 9. Configuração inválida (US5)
 
 ```bash
-cd backend/Ambrosia.API
+cd backend/Ambrosio.API
 ObjectStorage__Bucket= dotnet run          # startup falha: "ObjectStorage__Bucket está vazio."
 ObjectStorage__PresignedReadMinutes=0 dotnet run   # falha: faixa 1-60
 ObjectStorage__AllowedMimeTypes__0=image/tiff dotnet run  # falha: só jpeg/png/webp
@@ -206,8 +206,8 @@ apaga o binário do reenvio (§8 da pesquisa) — ver `Cleanup_ShouldNotDeleteAn
 ## 11. Suíte de testes de API (fim do ciclo, constituição §VII)
 
 ```bash
-ApiBaseUrl=http://localhost:8080/api dotnet test backend/Ambrosia.ApiTests      # homolog
-ApiBaseUrl=http://localhost:5000     dotnet test backend/Ambrosia.ApiTests      # Development (§3.2)
+ApiBaseUrl=http://localhost:8080/api dotnet test backend/Ambrosio.ApiTests      # homolog
+ApiBaseUrl=http://localhost:5000     dotnet test backend/Ambrosio.ApiTests      # Development (§3.2)
 ```
 
 O projeto tem uma coleção serial (`ApiTests`) para os testes HTTP não competirem pela API em background

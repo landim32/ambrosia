@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Garante que o PostgreSQL (container ambrosia-postgres no Docker do WSL2) esteja de pé e
+    Garante que o PostgreSQL (container ambrosio-postgres no Docker do WSL2) esteja de pé e
     acessível em localhost:5432.
 .DESCRIPTION
     Nesta máquina o Docker Engine roda dentro da distro WSL2 (skill `wsl-docker`) e o WSL
@@ -17,7 +17,7 @@
 #>
 param(
     [int]$Port = 5432,
-    [string]$Container = 'ambrosia-postgres',
+    [string]$Container = 'ambrosio-postgres',
     [int]$TimeoutSeconds = 30,
     [switch]$Release
 )

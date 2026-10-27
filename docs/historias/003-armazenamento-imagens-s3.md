@@ -18,12 +18,12 @@
 
 ## 1. História
 
-**Como** responsável técnico do Ambrosia, **quero** que toda imagem do sistema fique num storage compatível com S3, com acesso só por URLs temporárias, **para** não guardar binários no banco, não depender de um provedor específico e não expor fotos pessoais por links públicos.
+**Como** responsável técnico do Ambrosio, **quero** que toda imagem do sistema fique num storage compatível com S3, com acesso só por URLs temporárias, **para** não guardar binários no banco, não depender de um provedor específico e não expor fotos pessoais por links públicos.
 
 ## 2. Contexto e objetivo
 
 - O [doc 02](../02-modelo-de-dados.md#armazenamento-de-fotos) já decidiu que o banco guarda **só metadados e o `storage_key`**, com deduplicação por `sha256`. Ele sugeria começar com disco local e migrar depois para S3.
-- **Mudança registrada:** o Ambrosia passa a usar storage S3 compatível desde o início. Disco local fica descartado, inclusive em dev, onde o MinIO faz o papel do S3.
+- **Mudança registrada:** o Ambrosio passa a usar storage S3 compatível desde o início. Disco local fica descartado, inclusive em dev, onde o MinIO faz o papel do S3.
 - O provedor provável é o **DigitalOcean Spaces**, mas o código não pode depender dele: só o SDK S3 com endpoint configurável.
 - Esta HU entrega a **infraestrutura** (abstração, configuração, tabela de metadados, URLs pré-assinadas e validação). Quem usa são as HUs [010](010-banco-imagens-clientes-chatgpt.md) (fotos de clientes) e, no futuro, as imagens de produto do bot ([004](004-bot-migracao-mais-vendas.md)).
 
@@ -131,7 +131,7 @@ erDiagram
 |---|---|---|---|
 | `ObjectStorage:ServiceUrl` | `ObjectStorage__ServiceUrl` | `https://nyc3.digitaloceanspaces.com` | `http://localhost:9000` |
 | `ObjectStorage:Region` | `ObjectStorage__Region` | `nyc3` | `us-east-1` |
-| `ObjectStorage:Bucket` | `ObjectStorage__Bucket` | `ambrosia-prod` | `ambrosia-dev` |
+| `ObjectStorage:Bucket` | `ObjectStorage__Bucket` | `ambrosia-prod` | `ambrosio-dev` |
 | `ObjectStorage:ForcePathStyle` | `ObjectStorage__ForcePathStyle` | `false` | `true` |
 | `ObjectStorage:AccessKey` | `ObjectStorage__AccessKey` | (segredo) | `minioadmin` |
 | `ObjectStorage:SecretKey` | `ObjectStorage__SecretKey` | (segredo) | `minioadmin` |
@@ -148,7 +148,7 @@ Os segredos ficam no `.env` (fora do git) e no `appsettings.Development.json` s�
 sequenceDiagram
     autonumber
     participant F as Frontend / cliente
-    participant A as Ambrosia API
+    participant A as Ambrosio API
     participant DB as PostgreSQL
     participant S as Storage S3 (Spaces / MinIO)
 

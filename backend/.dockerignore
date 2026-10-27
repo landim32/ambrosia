@@ -5,8 +5,8 @@
 **/TestResults/
 logs/
 scripts/
-Ambrosia.Tests/
-Ambrosia.ApiTests/
+Ambrosio.Tests/
+Ambrosio.ApiTests/
 .env
 .env.*
 *.user

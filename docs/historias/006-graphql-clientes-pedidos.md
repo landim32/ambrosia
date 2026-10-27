@@ -12,7 +12,7 @@
 | Spec | — |
 | Depende de | [001](001-api-cadastro-clientes-pedidos.md) (modelo, repositórios, JWT) |
 | Habilita | [007](007-mcp-servidor-completo.md) (consulta flexível no MCP) |
-| Código previsto | `backend/Ambrosia.GraphQL/` (novo), registrado no `Ambrosia.API` |
+| Código previsto | `backend/Ambrosio.GraphQL/` (novo), registrado no `Ambrosio.API` |
 
 ---
 
@@ -141,7 +141,7 @@ Os nomes finais dos tipos de filtro e de ordenação são os gerados pelo HotCho
 
 | Tema | Proposta |
 |---|---|
-| Projeto | `Ambrosia.GraphQL` (skill `dotnet-graphql`), referenciado pela API e mapeado em `/graphql`. HotChocolate 14.x, versão fixada pela constituição 3.0.0 (Princípio II) |
+| Projeto | `Ambrosio.GraphQL` (skill `dotnet-graphql`), referenciado pela API e mapeado em `/graphql`. HotChocolate 14.x, versão fixada pela constituição 3.0.0 (Princípio II) |
 | Autenticação | `HotChocolate.AspNetCore.Authorization` com `[Authorize]` na raiz `Query`. O mesmo JWT HS256 da API (claim `sub`) |
 | Isolamento | Cada resolver de raiz recebe o `userId` do `ClaimsPrincipal` e chama um método de repositório `Query(userId)` que já devolve `IQueryable` filtrado. Navegações (`customer.orders`) partem de entidades já filtradas e, por segurança, também aplicam `UserId == userId` |
 | Proteção extra | Avaliar um *global query filter* do EF Core por `user_id` com um `ICurrentUser` *scoped*. Fica como pergunta, porque afeta o REST da 001 |

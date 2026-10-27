@@ -1,7 +1,7 @@
 -- Carga para SC-003 (T095): ~2.000 clientes e ~10.000 pedidos com 1-3 itens para UM usuário.
 --
 -- Uso (usuário já existente, ex.: criado por /auth/register):
---   psql -U postgres -d ambrosia_dev -v user_id=1 -f backend/scripts/seed-load-test.sql
+--   psql -U postgres -d ambrosio_dev -v user_id=1 -f backend/scripts/seed-load-test.sql
 --
 -- Os dados são fictícios e marcados: clientes "Carga Teste NNNN" e pedidos "LT-NNNNN".
 -- O script é idempotente: remove a carga anterior do mesmo usuário antes de inserir.

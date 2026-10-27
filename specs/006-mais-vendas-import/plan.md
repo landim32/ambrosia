@@ -18,11 +18,11 @@ Decisões detalhadas em [research.md](./research.md).
 - Backend (existentes): ASP.NET Core 8, EF Core 9.x + Npgsql, FluentValidation 11, Swashbuckle 8, `AWSSDK.S3` via `IImageService` (feature 004), `Microsoft.Extensions.Hosting.Abstractions` (BackgroundService)
 - Backend (**novo**): `Microsoft.Playwright` 1.x (versão fixa; só na Infra) + Chromium headless instalado na imagem Docker da API (research §2)
 - Frontend (existentes, sem pacote novo): React Router 6, Tailwind 4 + shadcn/ui, i18next 25, sonner, Fetch via `apiRequest`
-- Testes: xUnit + Flurl.Http + FluentAssertions (`Ambrosia.ApiTests`); Vitest + Testing Library (frontend)
+- Testes: xUnit + Flurl.Http + FluentAssertions (`Ambrosio.ApiTests`); Vitest + Testing Library (frontend)
 
 **Storage**: PostgreSQL — migração `AddMaisVendasImport` (4 tabelas novas, 2 alteradas, research §6/§8, [data-model.md](./data-model.md)); storage S3 da feature 004 para as fotos (`ImageSource.Bot`, dedup por SHA-256). **Nenhuma** credencial do +Vendas em banco, arquivo, log ou storage.
 
-**Testing**: `Ambrosia.ApiTests` contra Homolog (`http://localhost:8080/api`) com `MaisVendas:Collector=Fake` (cenários por login/senha, research §3/§16); testes unitários Vitest no frontend; nenhum teste unitário novo no backend (§VIII); coletor real validado manualmente em modo simulação (quickstart §7).
+**Testing**: `Ambrosio.ApiTests` contra Homolog (`http://localhost:8080/api`) com `MaisVendas:Collector=Fake` (cenários por login/senha, research §3/§16); testes unitários Vitest no frontend; nenhum teste unitário novo no backend (§VIII); coletor real validado manualmente em modo simulação (quickstart §7).
 
 **Target Platform**: API Linux em container (Debian `aspnet:8.0` + Chromium) atrás do gateway nginx (`/api`); frontend SPA estático
 
@@ -84,7 +84,7 @@ specs/006-mais-vendas-import/
 
 ```text
 backend/
-├── Ambrosia.DTO/
+├── Ambrosio.DTO/
 │   ├── Enums/OrderSource.cs, ImportRunMode.cs, ImportRunStatus.cs, ImportBlockStatus.cs, ImportChangeAction.cs   # NOVOS
 │   ├── Imports/ImportRunStartInfo.cs, ImportDefaultsInfo.cs, ImportRunInfo.cs, ImportRunDetailInfo.cs,
 │   │   ImportRunBlockInfo.cs, ImportRunChangeInfo.cs, ImportRunBreakdownInfo.cs, ImportRunCountsInfo.cs, ImportRunListQuery.cs   # NOVOS (API)
@@ -92,10 +92,10 @@ backend/
 │   │   CollectedOrderItem.cs, CollectedImage.cs                                                      # NOVOS (transporte)
 │   ├── Orders/OrderInfo.cs, OrderDetailInfo.cs, OrderItemInfo.cs                                    # + source / imageId
 │   └── Settings/MaisVendasSettings.cs                                                                # NOVO
-├── Ambrosia.Infra.Interfaces/
+├── Ambrosio.Infra.Interfaces/
 │   ├── Repository/IImportRunRepository.cs, IMaisVendasAccountRepository.cs                           # NOVOS
 │   └── AppServices/IMaisVendasCollectorAppService.cs, IAccountHashAppService.cs                      # NOVOS
-├── Ambrosia.Domain/
+├── Ambrosio.Domain/
 │   ├── Models/ImportRun.cs, ImportRunBlock.cs, ImportRunChange.cs, MaisVendasAccount.cs              # NOVOS
 │   ├── Models/Order.cs, OrderItem.cs                                                                 # + Source/SourceHash/CapturedAt/SourceChangedAt, ApplyImported; ImageId
 │   ├── Common/ImportBlockPlanner.cs, SourceHashCalculator.cs, MaisVendasNormalizer.cs, BlockValidator.cs, ImportJob.cs   # NOVOS
@@ -103,26 +103,26 @@ backend/
 │   ├── Services/ImportRunService.cs, ImportExecutionService.cs                                       # NOVOS
 │   ├── Exceptions/ImportLockedException.cs, ImportRunNotCancellableException.cs                      # NOVOS
 │   └── Validators/ImportRunStartInfoValidator.cs, ImportRunListQueryValidator.cs                     # NOVOS
-├── Ambrosia.Infra/
-│   ├── Ambrosia.Infra.csproj                                                                         # + Microsoft.Playwright
+├── Ambrosio.Infra/
+│   ├── Ambrosio.Infra.csproj                                                                         # + Microsoft.Playwright
 │   ├── AppServices/MaisVendas/PlaywrightMaisVendasCollectorAppService.cs, NavigationGuard.cs, OriginRateLimiter.cs   # NOVOS
 │   ├── AppServices/MaisVendas/FakeMaisVendasCollectorAppService.cs, FakeScenarios.cs                 # NOVOS (homolog)
 │   ├── AppServices/AccountHashAppService.cs                                                          # NOVO
 │   ├── Repository/ImportRunRepository.cs, MaisVendasAccountRepository.cs                             # NOVOS
-│   ├── Context/AmbrosiaContext.cs                                                                    # + 4 DbSets, Fluent API, colunas novas
+│   ├── Context/AmbrosioContext.cs                                                                    # + 4 DbSets, Fluent API, colunas novas
 │   └── Migrations/*_AddMaisVendasImport.cs                                                           # NOVO (dotnet ef)
-├── Ambrosia.Application/
-│   ├── Settings/AmbrosiaSettings.cs                                                                  # + MaisVendas
+├── Ambrosio.Application/
+│   ├── Settings/AmbrosioSettings.cs                                                                  # + MaisVendas
 │   ├── Imports/ImportRunQueue.cs                                                                     # NOVO (Channel)
 │   ├── HostedServices/ImportRunWorker.cs                                                             # NOVO
 │   └── Startup.cs                                                                                    # settings, repos, AppServices (coletor por config), services, fila, worker
-├── Ambrosia.API/
+├── Ambrosio.API/
 │   ├── Controllers/ImportsController.cs                                                              # NOVO: 6 rotas [Authorize]
 │   ├── Controllers/ApiControllerBase.cs                                                              # + ImportLockedError (429), NotCancellableError (409)
 │   ├── Program.cs                                                                                    # lê/valida MaisVendas; descrição do Swagger
 │   ├── appsettings*.json                                                                             # seção MaisVendas por ambiente
 │   └── Dockerfile                                                                                    # Chromium + deps (research §2)
-├── Ambrosia.ApiTests/
+├── Ambrosio.ApiTests/
 │   ├── Controllers/ImportsControllerTests.cs                                                         # NOVO
 │   ├── Controllers/UnauthorizedAccessTests.cs, IsolationTests.cs                                     # + rotas /imports
 │   ├── Helpers/ImportRunWaiter.cs                                                                    # NOVO (polling até status final)

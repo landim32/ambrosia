@@ -60,16 +60,16 @@ regressão desta feature.
 | Dev-login disponível (será removido na US3) | `POST /auth/dev-login` | **200** |
 
 **Nota 1 (pré-existente, não é regressão):** a API está em execução em `localhost:5000`
-(processo `Ambrosia.API.exe`, PID 17864) e segura as DLLs de `Ambrosia.API/bin`, de modo que o
+(processo `Ambrosio.API.exe`, PID 17864) e segura as DLLs de `Ambrosio.API/bin`, de modo que o
 `dotnet build` da solução inteira falha com `MSB3026/MSB3027` (arquivo bloqueado) ao copiar as
 referências. As compilações por projeto passam. **Consequência prática:** cada checkpoint de build
 desta feature é feito com `dotnet build <projeto>.csproj` nos projetos afetados; o build da
 solução inteira (T057, T079) exige parar a API antes — e reiniciá-la para rodar os testes de API.
 
 **Warnings pré-existentes (não introduzidos pela feature):**
-`OrderService.cs(102)` CS8601; `Ambrosia.Tests/.../CpfTest.cs` CS8602 (4×);
+`OrderService.cs(102)` CS8601; `Ambrosio.Tests/.../CpfTest.cs` CS8602 (4×);
 `OrderInsertInfoValidatorTest.cs(375)` xUnit1025; `OrderServiceTest.cs(267)` xUnit2013.
-A §VIII manda não ajustar `Ambrosia.Tests` — nada é tocado.
+A §VIII manda não ajustar `Ambrosio.Tests` — nada é tocado.
 
 ## tasks · inventário dev-login (T002 — checklist da Phase 6 / US3)
 
@@ -77,26 +77,26 @@ A §VIII manda não ajustar `Ambrosia.Tests` — nada é tocado.
 fora de `specs/` → **48 arquivos**. Distribuição e tarefa que resolve cada um:
 
 **Backend — código (remover/renomear)**
-1. `backend/Ambrosia.DTO/Enums/AuthProvider.cs` — T003 (`Dev = 2` → `Password = 2`)
-2. `backend/Ambrosia.DTO/Auth/DevLoginInfo.cs` — T052 (apagar)
-3. `backend/Ambrosia.Domain/Validators/DevLoginInfoValidator.cs` — T052 (apagar)
-4. `backend/Ambrosia.Domain/Interfaces/IAuthService.cs` — T052 (remover `DevLoginAsync`)
-5. `backend/Ambrosia.Domain/Services/AuthService.cs` — T003/T052
-6. `backend/Ambrosia.Domain/Models/User.cs` — T004 (XML doc cita dev-login)
-7. `backend/Ambrosia.API/Controllers/AuthController.cs` — T053 (apagar ação + `IHostEnvironment`)
-8. `backend/Ambrosia.API/Swagger/DevLoginDocumentFilter.cs` — T054 (apagar)
-9. `backend/Ambrosia.API/Extensions/HostEnvironmentExtensions.cs` — T055 (apagar se `Homolog` ficar sem uso)
-10. `backend/Ambrosia.API/Program.cs` — T054 (sem `DocumentFilter`, descrição do Bearer)
+1. `backend/Ambrosio.DTO/Enums/AuthProvider.cs` — T003 (`Dev = 2` → `Password = 2`)
+2. `backend/Ambrosio.DTO/Auth/DevLoginInfo.cs` — T052 (apagar)
+3. `backend/Ambrosio.Domain/Validators/DevLoginInfoValidator.cs` — T052 (apagar)
+4. `backend/Ambrosio.Domain/Interfaces/IAuthService.cs` — T052 (remover `DevLoginAsync`)
+5. `backend/Ambrosio.Domain/Services/AuthService.cs` — T003/T052
+6. `backend/Ambrosio.Domain/Models/User.cs` — T004 (XML doc cita dev-login)
+7. `backend/Ambrosio.API/Controllers/AuthController.cs` — T053 (apagar ação + `IHostEnvironment`)
+8. `backend/Ambrosio.API/Swagger/DevLoginDocumentFilter.cs` — T054 (apagar)
+9. `backend/Ambrosio.API/Extensions/HostEnvironmentExtensions.cs` — T055 (apagar se `Homolog` ficar sem uso)
+10. `backend/Ambrosio.API/Program.cs` — T054 (sem `DocumentFilter`, descrição do Bearer)
 
 **Backend — testes**
-11. `backend/Ambrosia.ApiTests/appsettings.Test.json` — T045
-12. `backend/Ambrosia.ApiTests/Fixtures/ApiTestFixture.cs` — T046
-13. `backend/Ambrosia.ApiTests/Controllers/AuthControllerTests.cs` — T049
-14. `backend/Ambrosia.ApiTests/Controllers/UsersControllerTests.cs` — T047
-15. `backend/Ambrosia.ApiTests/Controllers/UnauthorizedAccessTests.cs` — T048
-16. `backend/Ambrosia.Tests/Domain/Services/AuthServiceTest.cs` — T003 (APAGAR o arquivo)
-17. `backend/Ambrosia.Tests/Domain/Validators/DevLoginInfoValidatorTest.cs` — T003 (APAGAR o arquivo)
-18. `backend/Ambrosia.Tests/Domain/Services/UserServiceTest.cs` — T003 (apagar os casos de `AuthProvider`)
+11. `backend/Ambrosio.ApiTests/appsettings.Test.json` — T045
+12. `backend/Ambrosio.ApiTests/Fixtures/ApiTestFixture.cs` — T046
+13. `backend/Ambrosio.ApiTests/Controllers/AuthControllerTests.cs` — T049
+14. `backend/Ambrosio.ApiTests/Controllers/UsersControllerTests.cs` — T047
+15. `backend/Ambrosio.ApiTests/Controllers/UnauthorizedAccessTests.cs` — T048
+16. `backend/Ambrosio.Tests/Domain/Services/AuthServiceTest.cs` — T003 (APAGAR o arquivo)
+17. `backend/Ambrosio.Tests/Domain/Validators/DevLoginInfoValidatorTest.cs` — T003 (APAGAR o arquivo)
+18. `backend/Ambrosio.Tests/Domain/Services/UserServiceTest.cs` — T003 (apagar os casos de `AuthProvider`)
 
 **Frontend**
 19. `frontend/src/pages/DevLoginForm.tsx` — T058 (apagar)
@@ -146,19 +146,19 @@ stack (C#/.NET: `bin/ obj/ *.user *.suo packages/`; Node/TS: `node_modules/ dist
 
 ## tasks · follow-up §VIII (T056 — 2026-10-26)
 
-`git grep -n "AuthProvider\|DevLogin\|AuthService" -- backend/Ambrosia.Tests` → **1 ocorrência**:
+`git grep -n "AuthProvider\|DevLogin\|AuthService" -- backend/Ambrosio.Tests` → **1 ocorrência**:
 `Domain/Services/UserServiceTest.cs:14`, dentro do `<summary>` que explica que os casos de
 `AuthProvider` foram apagados. É prosa, não código — nenhum teste unitário remanescente
 **referencia** a autenticação.
 
 Conferido no diff: `AuthServiceTest.cs` e `DevLoginInfoValidatorTest.cs` foram **apagados
 inteiros**; em `UserServiceTest.cs` saíram só o helper `NewUser()`, o caso
-`GetByIdAsync_ShouldMapProfileWithoutPassword` e o `using Ambrosia.DTO.Enums` (os três dependiam
+`GetByIdAsync_ShouldMapProfileWithoutPassword` e o `using Ambrosio.DTO.Enums` (os três dependiam
 de `AuthProvider.Dev`). O caso sobrevivente, `UserInfo_ShouldNotExposeAnyPasswordProperty`, é
 pré-existente (HU 002, T030) e usa reflexão sobre o DTO — não toca autenticação. Nenhum teste
 unitário do backend foi criado, ajustado ou executado nesta feature (constituição §VIII).
 
-**Follow-up — remover o projeto `Ambrosia.Tests` inteiro, em ciclo próprio (fora do escopo da
+**Follow-up — remover o projeto `Ambrosio.Tests` inteiro, em ciclo próprio (fora do escopo da
 003):** a §VIII determina que o backend é coberto somente por testes de API. O projeto é um
 desvio pré-existente que esta feature **reduziu** (cobertura de autenticação foi a zero) mas não
 eliminou. A remoção deve levar junto o `.csproj`, a pasta, a referência na solution e qualquer
@@ -209,7 +209,7 @@ exatamente **uma** verificação PBKDF2 nos dois caminhos (contra o hash do usu�
 A inspeção tem de ser por **chave** JSON, não por substring: desde a 003 o valor de
 `user.provider` é literalmente `"password"`, então um `NotContain("password")` falharia em toda
 resposta autenticada sem que nenhum segredo tivesse vazado. (Caí exatamente nesse falso positivo
-na primeira medição; o helper `Ambrosia.ApiTests/Helpers/AuthBodyAssertions.cs` já estava escrito
+na primeira medição; o helper `Ambrosio.ApiTests/Helpers/AuthBodyAssertions.cs` já estava escrito
 do jeito certo, percorrendo o JSON recursivamente pelos nomes de propriedade.)
 
 Contagem de chaves `"password"` / `"passwordHash"` nos corpos reais observados em Homolog:
@@ -249,7 +249,7 @@ Dois impeditivos concretos:
 1. O CLI do Bruno não está instalado nesta máquina — `bru --version` devolve
    `'bru' não é reconhecido como um comando interno ou externo`.
 2. A coleção depende da variável **secreta** `userPassword` do ambiente Homolog, cujo valor não
-   está disponível aqui. Como `homolog@ambrosia.test` já existe no banco de Homolog, "Criar conta"
+   está disponível aqui. Como `homolog@ambrosio.test` já existe no banco de Homolog, "Criar conta"
    responderia 409 e "Login com senha" precisaria da senha real; sem token, Users/Customers/Orders
    falhariam em cascata.
 
@@ -305,7 +305,7 @@ Classificação das 28 ocorrências remanescentes:
 
 | Onde | n | Por que precisa existir |
 |---|---|---|
-| `backend/Ambrosia.ApiTests/Controllers/AuthControllerTests.cs` | 7 | **T051** manda criar `DevLogin_ShouldReturn404InAnyEnvironment` (que faz `POST /auth/dev-login`) e o teste do Swagger que assevera `NotContain("dev-login")` / `NotContain("DevLoginInfo")`. Uma prova de ausência precisa nomear o que está provando ausente. |
+| `backend/Ambrosio.ApiTests/Controllers/AuthControllerTests.cs` | 7 | **T051** manda criar `DevLogin_ShouldReturn404InAnyEnvironment` (que faz `POST /auth/dev-login`) e o teste do Swagger que assevera `NotContain("dev-login")` / `NotContain("DevLoginInfo")`. Uma prova de ausência precisa nomear o que está provando ausente. |
 | `docs/historias/001` + `002` | 10 | **T070** diz "acrescentar nota **sem reescrever o histórico**": as linhas de tabela, o diagrama e as perguntas em aberto das HU 001/002 descrevem o que era verdade na época e ficam como estavam. |
 | `.specify/memory/constitution.md` | 5 | **T072** aplica `constitution-amendment.md` à risca: a regra nova cita "(ex.: o antigo `POST /auth/dev-login`)" para proibi-lo nominalmente, e o Sync Impact Report + a nota histórica da emenda 3.0.0 registram a mudança. Proibir por nome exige o nome. |
 | `docs/historias/001`/`002`/`007` — notas novas | 5 | Mesma **T070**: a própria nota "isto não existe mais" menciona o termo que declara extinto (2 linhas na 001, 2 na 002, 1 na 007). |
@@ -325,7 +325,7 @@ Cenário 8 para um critério realizável, por exemplo excluir os três casos leg
 
 ```powershell
 git grep -n -i "dev-login\|devLogin\|VITE_DEV_LOGIN\|devEmail" -- . ":!specs/" ":!backend/.tmp-stage" `
-  ":!backend/Ambrosia.ApiTests/Controllers/AuthControllerTests.cs" ":!docs/historias/" `
+  ":!backend/Ambrosio.ApiTests/Controllers/AuthControllerTests.cs" ":!docs/historias/" `
   ":!MAESTRO.md" ":!.specify/memory/constitution.md"
 ```
 

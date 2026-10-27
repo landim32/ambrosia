@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import { LazyImage } from '@/components/common/LazyImage'
 
 /**
- * LazyImage (FR-023, T075): carrega sob demanda, não vaza a origem do Ambrosia
+ * LazyImage (FR-023, T075): carrega sob demanda, não vaza a origem do Ambrosio
  * ao servidor da imagem, e quando falta a URL (ou a imagem quebra) mostra o
  * placeholder no MESMO espaço — o layout da lista de itens não se move.
  */

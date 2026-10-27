@@ -6,7 +6,7 @@
 
 ## Summary
 
-Primeiro frontend do Ambrosia: SPA React 18 + TypeScript 5 + Vite 6, **somente leitura**, mobile-first, que permite à vendedora entrar com a conta Google (ou pelo dev-login fora de produção), encontrar clientes, ver o perfil com resumo de compras e CPF mascarado/revelável, consultar pedidos com filtros refletidos na URL e abrir o detalhe de cada pedido com seus itens. Consome exclusivamente a API REST da HU 001 na mesma origem (`/api`), guarda a sessão em `localStorage` conforme a constituição, segue a skill `react-architecture` (types → Services → Contexts → hooks → providers) com Tailwind CSS 4 + shadcn/ui, e é publicado como container nginx no profile `frontend` já previsto nos dois `docker-compose`.
+Primeiro frontend do Ambrosio: SPA React 18 + TypeScript 5 + Vite 6, **somente leitura**, mobile-first, que permite à vendedora entrar com a conta Google (ou pelo dev-login fora de produção), encontrar clientes, ver o perfil com resumo de compras e CPF mascarado/revelável, consultar pedidos com filtros refletidos na URL e abrir o detalhe de cada pedido com seus itens. Consome exclusivamente a API REST da HU 001 na mesma origem (`/api`), guarda a sessão em `localStorage` conforme a constituição, segue a skill `react-architecture` (types → Services → Contexts → hooks → providers) com Tailwind CSS 4 + shadcn/ui, e é publicado como container nginx no profile `frontend` já previsto nos dois `docker-compose`.
 
 Decisões tomadas com o solicitante nesta fase (ver [research.md](./research.md)): testes com **Vitest + RTL**, sem E2E no frontend (revisto em 2026-10-26: o Playwright foi retirado); login Google com **Google Identity Services direto**; e **ajuste do backend** para o filtro de canal passar de igualdade a trecho (FR-014).
 
@@ -128,8 +128,8 @@ frontend/                                  # NOVO — projeto Vite
         └── **/*.test.ts(x)                # Vitest + RTL
 
 backend/                                   # AJUSTE PONTUAL
-├── Ambrosia.Infra/Repository/OrderRepository.cs      # channel: igualdade → Contains (case-insensitive)
-└── Ambrosia.Tests/Infra/Repository/OrderRepositoryTest.cs  # caso de trecho
+├── Ambrosio.Infra/Repository/OrderRepository.cs      # channel: igualdade → Contains (case-insensitive)
+└── Ambrosio.Tests/Infra/Repository/OrderRepositoryTest.cs  # caso de trecho
 
 docker-compose.yml / docker-compose-prod.yml          # build.args do serviço frontend (VITE_DEV_LOGIN, VITE_GOOGLE_CLIENT_ID)
 specs/001-api-cadastro-clientes-pedidos/contracts/openapi.yaml   # descrição do parâmetro channel

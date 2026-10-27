@@ -8,7 +8,7 @@ Cada item resolve um "NEEDS CLARIFICATION" do Technical Context ou documenta uma
 
 ## 1. Fluxo OAuth em uma API sem front-end
 
-- **Decision**: *troca de ID token por JWT próprio*. O cliente (futuro front/bot/MCP, ou o Swagger durante testes) obtém um **ID token** do Google por conta própria e chama `POST /auth/google { idToken }`. A API valida o token com `Google.Apis.Auth` (`GoogleJsonWebSignature.ValidateAsync`, audiência = `Auth:GoogleClientId`), exige `email_verified = true`, faz *upsert* do usuário pelo e-mail e devolve um **JWT do Ambrosia** (`LoginResult { token, expiresAt, user }`). Todas as demais chamadas usam `Authorization: Bearer <token>`.
+- **Decision**: *troca de ID token por JWT próprio*. O cliente (futuro front/bot/MCP, ou o Swagger durante testes) obtém um **ID token** do Google por conta própria e chama `POST /auth/google { idToken }`. A API valida o token com `Google.Apis.Auth` (`GoogleJsonWebSignature.ValidateAsync`, audiência = `Auth:GoogleClientId`), exige `email_verified = true`, faz *upsert* do usuário pelo e-mail e devolve um **JWT do Ambrosio** (`LoginResult { token, expiresAt, user }`). Todas as demais chamadas usam `Authorization: Bearer <token>`.
 - **Rationale**: não exige navegador nem redirecionamentos na API; funciona no Swagger (botão *Authorize*); desacopla a sessão do provedor (expiração própria, claims próprios como `sub = user_id`); é o padrão para SPAs/mobile com "Sign in with Google".
 - **Alternatives considered**:
   - *Authorization code hospedado na API* (`/auth/google/login` → callback): precisa de navegador e estado de sessão; só faz sentido com front-end servido pela própria API.
@@ -22,7 +22,7 @@ Cada item resolve um "NEEDS CLARIFICATION" do Technical Context ou documenta uma
 
 ## 3. Emissão e validação do JWT
 
-- **Decision**: HS256 com `System.IdentityModel.Tokens.Jwt`; segredo em `Auth:JwtSecret` (≥ 32 bytes, obrigatório), `Auth:Issuer`/`Auth:Audience` = `ambrosia`, expiração `Auth:ExpirationMinutes` (padrão 480). Claims: `sub` (user_id), `email`, `name`. Validação pelo middleware `AddAuthentication().AddJwtBearer(...)` com `ClockSkew = 1 min`. `MapInboundClaims = false` para manter `sub` sem renomear.
+- **Decision**: HS256 com `System.IdentityModel.Tokens.Jwt`; segredo em `Auth:JwtSecret` (≥ 32 bytes, obrigatório), `Auth:Issuer`/`Auth:Audience` = `ambrosio`, expiração `Auth:ExpirationMinutes` (padrão 480). Claims: `sub` (user_id), `email`, `name`. Validação pelo middleware `AddAuthentication().AddJwtBearer(...)` com `ClockSkew = 1 min`. `MapInboundClaims = false` para manter `sub` sem renomear.
 - **Rationale**: um único segredo simétrico basta para uma API monolítica; biblioteca nativa, sem dependências extras.
 - **Alternatives considered**: RS256 com par de chaves (necessário só se outros serviços validarem o token — fase do MCP, se for o caso); *refresh tokens* (fora do escopo; sessões de 8 h são suficientes para a vendedora).
 
@@ -38,7 +38,7 @@ Cada item resolve um "NEEDS CLARIFICATION" do Technical Context ou documenta uma
 
 ## 5. Validação de CPF e *value object*
 
-- **Decision**: `Cpf` em `Ambrosia.Domain/ValueObjects` com `TryParse(string, out Cpf)`: remove pontuação, exige 11 dígitos, rejeita sequências repetidas (`111.111.111-11`) e valida os dois dígitos verificadores (módulo 11). Expõe `Digits` e `Masked`. O validator FluentValidation do `CustomerInsertInfo` usa `Cpf.IsValid`.
+- **Decision**: `Cpf` em `Ambrosio.Domain/ValueObjects` com `TryParse(string, out Cpf)`: remove pontuação, exige 11 dígitos, rejeita sequências repetidas (`111.111.111-11`) e valida os dois dígitos verificadores (módulo 11). Expõe `Digits` e `Masked`. O validator FluentValidation do `CustomerInsertInfo` usa `Cpf.IsValid`.
 - **Rationale**: regra pura de domínio, testável sem dependências; garante que o hash só é calculado sobre CPF canônico.
 - **Alternatives considered**: pacote NuGet de validação de documentos (dependência extra para 30 linhas).
 
@@ -56,7 +56,7 @@ Cada item resolve um "NEEDS CLARIFICATION" do Technical Context ou documenta uma
 
 ## 8. Validação de entrada e contrato de erro (FR-024)
 
-- **Decision**: FluentValidation (skill `dotnet-fluent-validation`), validators em `Ambrosia.Domain/Validators`, chamados nos serviços com `ValidateAndThrow`. Mensagens em português citando o campo. Controllers capturam:
+- **Decision**: FluentValidation (skill `dotnet-fluent-validation`), validators em `Ambrosio.Domain/Validators`, chamados nos serviços com `ValidateAndThrow`. Mensagens em português citando o campo. Controllers capturam:
   - `ValidationException` → **400** `{ "sucesso": false, "mensagem": "Dados inválidos.", "erros": [ { "campo": "cpf", "mensagem": "CPF inválido." } ] }`
   - `NotFoundException` → **404** `{ "sucesso": false, "mensagem": "Cliente não encontrado." }`
   - `DuplicateException` → **409** `{ "sucesso": false, "mensagem": "Já existe um cliente com este CPF." }`
@@ -86,7 +86,7 @@ Cada item resolve um "NEEDS CLARIFICATION" do Technical Context ou documenta uma
 
 ## 12. Layout da solução e nomes dos projetos
 
-- **Decision**: `backend/Ambrosia.sln` com `Ambrosia.API`, `Ambrosia.Application`, `Ambrosia.Domain`, `Ambrosia.Infra`, `Ambrosia.Infra.Interfaces`, `Ambrosia.DTO`, `Ambrosia.Tests`. `{NomeDoProjeto}` da constituição = `Ambrosia` (ex.: `ConnectionStrings__AmbrosiaContext`, `AmbrosiaContext`).
+- **Decision**: `backend/Ambrosio.sln` com `Ambrosio.API`, `Ambrosio.Application`, `Ambrosio.Domain`, `Ambrosio.Infra`, `Ambrosio.Infra.Interfaces`, `Ambrosio.DTO`, `Ambrosio.Tests`. `{NomeDoProjeto}` da constituição = `Ambrosio` (ex.: `ConnectionStrings__AmbrosioContext`, `AmbrosioContext`).
 - **Rationale**: confirmado com o solicitante; mantém a raiz do repositório para docs/specs e reserva `frontend/`.
 - **Alternatives considered**: projetos na raiz (mistura código com documentação e dificulta um futuro monorepo).
 
@@ -104,22 +104,22 @@ Cada item resolve um "NEEDS CLARIFICATION" do Technical Context ou documenta uma
 
 ## 15. Emenda da constituição (`TODO(AUTH_SCHEME)`)
 
-- **Decision**: esta feature adota **JWT Bearer (HS256) emitido pelo Ambrosia após OIDC Google**; a tabela do Princípio VI deve passar a: Esquema = "JWT Bearer emitido pela API após login OAuth/OIDC (Google)", Proteção = `[Authorize]`. A chave de storage do frontend (`"login-with-metamask:auth"`) não é tocada (sem front-end). A emenda (MINOR, 2.1.0) será proposta em PR separado após a implementação, conforme Governance.
+- **Decision**: esta feature adota **JWT Bearer (HS256) emitido pelo Ambrosio após OIDC Google**; a tabela do Princípio VI deve passar a: Esquema = "JWT Bearer emitido pela API após login OAuth/OIDC (Google)", Proteção = `[Authorize]`. A chave de storage do frontend (`"login-with-metamask:auth"`) não é tocada (sem front-end). A emenda (MINOR, 2.1.0) será proposta em PR separado após a implementação, conforme Governance.
 - **Rationale**: a constituição exige emenda por escrito; o plano não pode alterá-la diretamente.
 - **Alternatives considered**: nenhuma — é procedimento.
 
 ## 16. Configuração e segredos
 
-- **Decision**: `AmbrosiaSettings` (Application/Settings) com `ConnectionString`, `Auth { JwtSecret, Issuer, Audience, ExpirationMinutes, GoogleClientId }`, `CpfProtection { Pepper, EncryptionKey }`. Carregado de `appsettings*.json` + variáveis de ambiente (`__`). `appsettings.Development.json` traz valores de desenvolvimento (segredos fracos locais); produção recebe tudo por variáveis. `Program.cs` falha no *startup* se `JwtSecret`, `Pepper` ou `EncryptionKey` estiverem vazios.
+- **Decision**: `AmbrosioSettings` (Application/Settings) com `ConnectionString`, `Auth { JwtSecret, Issuer, Audience, ExpirationMinutes, GoogleClientId }`, `CpfProtection { Pepper, EncryptionKey }`. Carregado de `appsettings*.json` + variáveis de ambiente (`__`). `appsettings.Development.json` traz valores de desenvolvimento (segredos fracos locais); produção recebe tudo por variáveis. `Program.cs` falha no *startup* se `JwtSecret`, `Pepper` ou `EncryptionKey` estiverem vazios.
 - **Rationale**: skill `dotnet-env`; evita rodar com chave vazia (CPFs cifrados com chave errada ficam irrecuperáveis).
 - **Alternatives considered**: *user secrets* (bom para dev, mas o quickstart precisa ser reproduzível com variáveis).
 
 ## 17. Estratégia de testes
 
 - **Decision**:
-  - **Unitários** (`Ambrosia.Tests`, xUnit + Moq): `Cpf` (dígitos válidos/inválidos/máscara), validators (sinal do total por tipo, ≥ 1 item, data futura, CPF), `CustomerService`/`OrderService` (duplicidade, cliente de outro usuário, mapeamentos, nunca expor senha), `CpfProtectionAppService` (round-trip cifra/decifra, hash determinístico), `JwtTokenAppService` (claims e expiração).
+  - **Unitários** (`Ambrosio.Tests`, xUnit + Moq): `Cpf` (dígitos válidos/inválidos/máscara), validators (sinal do total por tipo, ≥ 1 item, data futura, CPF), `CustomerService`/`OrderService` (duplicidade, cliente de outro usuário, mapeamentos, nunca expor senha), `CpfProtectionAppService` (round-trip cifra/decifra, hash determinístico), `JwtTokenAppService` (claims e expiração).
   - **Repositórios** com `UseInMemoryDatabase` apenas para `OrderRepository.ListAsync` (filtros + isolamento) e `CustomerRepository.GetSummaryAsync`.
-  - **Ponta a ponta** (opcional, `Ambrosia.ApiTests` com Flurl): fixture autentica via `POST /auth/dev-login`; cobre os cenários do quickstart (SC-002, SC-004, SC-005).
+  - **Ponta a ponta** (opcional, `Ambrosio.ApiTests` com Flurl): fixture autentica via `POST /auth/dev-login`; cobre os cenários do quickstart (SC-002, SC-004, SC-005).
 - **Rationale**: skills `dotnet-test` e `dotnet-test-api`; o `dev-login` resolve a autenticação em testes automatizados.
 - **Alternatives considered**: Testcontainers para PostgreSQL (Docker indisponível localmente, constituição).
 

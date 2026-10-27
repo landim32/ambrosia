@@ -1,12 +1,12 @@
 <#
 .SYNOPSIS
-    Finaliza a API Ambrosia iniciada por run-api.ps1.
+    Finaliza a API Ambrosio iniciada por run-api.ps1.
 .DESCRIPTION
     run-api.ps1 dá Start-Process em `dotnet run`, que por sua vez inicia o host
-    `Ambrosia.API.exe` como filho. Matar apenas o pai (o PID gravado em .api.pid) deixaria o
+    `Ambrosio.API.exe` como filho. Matar apenas o pai (o PID gravado em .api.pid) deixaria o
     host vivo, segurando bin\Debug\*.dll e fazendo o próximo `dotnet build` falhar com MSB3027.
-    Por isso o script também encerra os processos chamados Ambrosia.API* e, em último caso,
-    qualquer dotnet/Ambrosia dono da porta da API.
+    Por isso o script também encerra os processos chamados Ambrosio.API* e, em último caso,
+    qualquer dotnet/Ambrosio dono da porta da API.
 #>
 param(
     [string]$BaseUrl = 'http://localhost:5000'
@@ -29,9 +29,9 @@ if (Test-Path $pidFile) {
 }
 
 # O host filho do `dotnet run`: é ele que trava as DLLs do build.
-Get-Process -Name 'Ambrosia.API' -ErrorAction SilentlyContinue | ForEach-Object {
+Get-Process -Name 'Ambrosio.API' -ErrorAction SilentlyContinue | ForEach-Object {
     Stop-Process -Id $_.Id -Force
-    Write-Output "host Ambrosia.API finalizado (pid $($_.Id))"
+    Write-Output "host Ambrosio.API finalizado (pid $($_.Id))"
     $stopped = $true
 }
 
@@ -40,7 +40,7 @@ $port = ([System.Uri]$BaseUrl).Port
 $conns = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
 foreach ($conn in $conns) {
     $owner = Get-Process -Id $conn.OwningProcess -ErrorAction SilentlyContinue
-    if ($owner -and ($owner.ProcessName -like 'dotnet*' -or $owner.ProcessName -like 'Ambrosia*')) {
+    if ($owner -and ($owner.ProcessName -like 'dotnet*' -or $owner.ProcessName -like 'Ambrosio*')) {
         Stop-Process -Id $owner.Id -Force
         Write-Output "processo órfão na porta finalizado (pid $($owner.Id))"
         $stopped = $true

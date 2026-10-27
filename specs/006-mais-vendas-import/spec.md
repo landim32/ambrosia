@@ -10,9 +10,9 @@
 
 ## Contexto
 
-A vendedora registra as vendas no +Vendas (sistema da Somalabs) e hoje precisa redigitar tudo no Ambrosia. O +Vendas ainda altera vendas até o fim do primeiro dia útil depois do fechamento do mês de cota (dia 25), então qualquer importação precisa poder ser **repetida sobre o mesmo período sem duplicar nada**, atualizando só o que mudou.
+A vendedora registra as vendas no +Vendas (sistema da Somalabs) e hoje precisa redigitar tudo no Ambrosio. O +Vendas ainda altera vendas até o fim do primeiro dia útil depois do fechamento do mês de cota (dia 25), então qualquer importação precisa poder ser **repetida sobre o mesmo período sem duplicar nada**, atualizando só o que mudou.
 
-Esta feature entrega uma **tela de importação** no Ambrosia: a vendedora informa o login e a senha do +Vendas e o período que quer trazer; o servidor coleta os pedidos do +Vendas **somente em leitura**, em **blocos de datas**, valida cada bloco contra os contadores e totais exibidos pela origem, grava de forma idempotente, cadastra os clientes quando aparecem no primeiro pedido e copia as fotos dos produtos para o storage de imagens já existente. As credenciais do +Vendas vivem só em memória durante a execução e **nunca** são guardadas.
+Esta feature entrega uma **tela de importação** no Ambrosio: a vendedora informa o login e a senha do +Vendas e o período que quer trazer; o servidor coleta os pedidos do +Vendas **somente em leitura**, em **blocos de datas**, valida cada bloco contra os contadores e totais exibidos pela origem, grava de forma idempotente, cadastra os clientes quando aparecem no primeiro pedido e copia as fotos dos produtos para o storage de imagens já existente. As credenciais do +Vendas vivem só em memória durante a execução e **nunca** são guardadas.
 
 A feature reaproveita o modelo e a proteção do CPF da feature 001, o frontend e a sessão da 002, a autenticação por e-mail e senha da 003 e o storage de imagens da 004 (`004-s3-image-storage`). A análise do +Vendas (doc 01), o modelo de dados (doc 02) e as regras de segurança da coleta (doc 03) continuam valendo; o que muda em relação à versão anterior da HU é que a importação deixa de ser um processo agendado com credenciais em arquivo e passa a ser **disparada pela própria vendedora**, a cada vez, com credenciais informadas na hora.
 
@@ -21,8 +21,8 @@ A feature reaproveita o modelo e a proteção do CPF da feature 001, o frontend 
 ### Session 2026-10-27
 
 - Q: Quando uma execução termina como "parcial" em vez de "concluída" ou "falhou"? → A: Quando todos os blocos terminaram sem falha, mas houve pelo menos um pedido "com erro", um conflito com pedido manual ou uma imagem com erro; "falhou" fica reservado para bloco falho, credenciais recusadas, login não suportado ou interrupção.
-- Q: O que acontece com a edição manual feita no Ambrosia de um pedido importado quando a origem muda e o período é reimportado? → A: A origem prevalece: os campos vindos do +Vendas são sobrescritos (o pedido conta como "atualizado", com a lista de campos alterados) e os campos que só existem no Ambrosia são preservados.
-- Q: O Ambrosia deve limitar tentativas seguidas com credenciais recusadas pelo +Vendas? → A: Sim; após 3 recusas seguidas da mesma vendedora, novos inícios ficam bloqueados por 15 minutos com mensagem clara; a contagem zera após um login aceito.
+- Q: O que acontece com a edição manual feita no Ambrosio de um pedido importado quando a origem muda e o período é reimportado? → A: A origem prevalece: os campos vindos do +Vendas são sobrescritos (o pedido conta como "atualizado", com a lista de campos alterados) e os campos que só existem no Ambrosio são preservados.
+- Q: O Ambrosio deve limitar tentativas seguidas com credenciais recusadas pelo +Vendas? → A: Sim; após 3 recusas seguidas da mesma vendedora, novos inícios ficam bloqueados por 15 minutos com mensagem clara; a contagem zera após um login aceito.
 - Q: O que fazer se a vendedora importar com uma conta do +Vendas diferente da usada antes? → A: Bloquear: na primeira importação com gravação, guarda-se só um hash com pepper do identificador da conta na origem; uma conta diferente depois faz a execução falhar antes de gravar, com mensagem clara.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -33,7 +33,7 @@ A vendedora autenticada abre a tela de importação, encontra a data inicial sug
 
 **Why this priority**: é a entrega central da HU. Sem ela a vendedora continua digitando pedidos à mão. Todas as demais jornadas dependem desta.
 
-**Independent Test**: com uma vendedora que tem pedidos no +Vendas entre 26/09 e 25/10/2026, importar esse período e conferir que o Ambrosia passa a exibir os mesmos 49 pedidos com total líquido de R$ 123.300,58, que a tela mostrou o progresso bloco a bloco e que o relatório final fecha com as mesmas contagens.
+**Independent Test**: com uma vendedora que tem pedidos no +Vendas entre 26/09 e 25/10/2026, importar esse período e conferir que o Ambrosio passa a exibir os mesmos 49 pedidos com total líquido de R$ 123.300,58, que a tela mostrou o progresso bloco a bloco e que o relatório final fecha com as mesmas contagens.
 
 **Acceptance Scenarios**:
 
@@ -44,15 +44,15 @@ A vendedora autenticada abre a tela de importação, encontra a data inicial sug
 5. **Given** data inicial depois da data final, data final no futuro, ou login ou senha vazios, **When** a vendedora tenta iniciar, **Then** o envio é bloqueado com mensagem no campo correspondente; se a mesma requisição chegar ao servidor sem passar pela tela, ela é recusada com erro de validação.
 6. **Given** um período maior que o limite configurado (366 dias por padrão), **When** a vendedora tenta iniciar, **Then** recebe uma mensagem clara informando o limite.
 7. **Given** um login ou senha recusados pelo +Vendas, **When** a execução começa, **Then** termina como "falhou" com o motivo "credenciais recusadas pelo +Vendas" e nada é gravado.
-8. **Given** uma venda que foi cancelada na origem, **When** o período que a contém é importado, **Then** o Ambrosia passa a ter dois registros: a venda (valor positivo) e o cancelamento (valor negativo), como no +Vendas.
-9. **Given** o mesmo número de pedido em duas datas diferentes (ex.: `41900001` em 28/set e em 05/out), **When** o período é importado, **Then** o Ambrosia cria dois pedidos distintos.
+8. **Given** uma venda que foi cancelada na origem, **When** o período que a contém é importado, **Then** o Ambrosio passa a ter dois registros: a venda (valor positivo) e o cancelamento (valor negativo), como no +Vendas.
+9. **Given** o mesmo número de pedido em duas datas diferentes (ex.: `41900001` em 28/set e em 05/out), **When** o período é importado, **Then** o Ambrosio cria dois pedidos distintos.
 10. **Given** um usuário não autenticado, **When** tenta abrir a tela de importação, **Then** é redirecionado ao login.
 
 ---
 
 ### User Story 2 - As credenciais do +Vendas nunca ficam guardadas (Priority: P1)
 
-A vendedora informa login e senha do +Vendas a cada execução. O Ambrosia usa as credenciais só enquanto a execução está em andamento e as descarta no fim (sucesso, falha ou cancelamento). Elas nunca aparecem em banco, arquivo, log, relatório, storage, respostas da API nem no armazenamento do navegador.
+A vendedora informa login e senha do +Vendas a cada execução. O Ambrosio usa as credenciais só enquanto a execução está em andamento e as descarta no fim (sucesso, falha ou cancelamento). Elas nunca aparecem em banco, arquivo, log, relatório, storage, respostas da API nem no armazenamento do navegador.
 
 **Why this priority**: a senha é de outro sistema, de terceiros. Um vazamento compromete a conta da vendedora no +Vendas. Sem essa garantia a feature não pode ser liberada.
 
@@ -79,21 +79,21 @@ Uma importação pode falhar no meio de um bloco (erro da origem, divergência d
 
 **Acceptance Scenarios**:
 
-1. **Given** uma importação de 5 blocos em que o 3º falha no 15º pedido, **When** a execução para, **Then** os blocos 1 e 2 e os 14 pedidos já gravados do bloco 3 continuam no Ambrosia, a execução fica "falhou", e o relatório mostra o bloco 3 como falho, o motivo e "14 pedidos gravados".
+1. **Given** uma importação de 5 blocos em que o 3º falha no 15º pedido, **When** a execução para, **Then** os blocos 1 e 2 e os 14 pedidos já gravados do bloco 3 continuam no Ambrosio, a execução fica "falhou", e o relatório mostra o bloco 3 como falho, o motivo e "14 pedidos gravados".
 2. **Given** o relatório de uma execução com bloco falho, **When** a vendedora aciona "Repetir este bloco", **Then** a tela de importação abre com as datas do bloco preenchidas e os campos de login e senha vazios para serem informados de novo.
 3. **Given** o bloco que falhou sendo repetido, **When** a execução termina, **Then** os 14 pedidos já gravados aparecem como "inalterados", os que faltavam aparecem como "inseridos" e nenhum pedido, item ou cliente foi duplicado.
 4. **Given** uma importação concluída, **When** o mesmo período é importado de novo sem nenhuma mudança na origem, **Then** o relatório mostra todos os pedidos como "inalterados" e nenhum inserido ou atualizado.
 5. **Given** um pedido já importado cujo valor ou status mudou na origem, **When** o período é importado de novo, **Then** o pedido é atualizado, aparece no relatório como "atualizado" e o relatório lista os campos que mudaram.
 6. **Given** um bloco cujo contador de pedidos exibido pela origem não bate com as linhas lidas, ou cujo total exibido não bate com a soma dos pedidos lidos, **When** a coleta do bloco termina, **Then** o bloco falha **antes** de gravar qualquer pedido dele, e a execução para.
 7. **Given** um pedido que existia na origem numa importação anterior e sumiu dentro do período numa nova importação, **When** o bloco que o contém termina sem falha, **Then** o pedido **não** é apagado e aparece no relatório como "não encontrado nesta execução"; pedidos de blocos que falharam não entram nessa conta.
-8. **Given** um pedido importado do +Vendas cujo valor a vendedora editou à mão no Ambrosia, **When** o período é importado de novo, **Then** o valor volta a ser o da origem, o pedido aparece como "atualizado" com o campo alterado listado, e os campos que só existem no Ambrosia continuam intactos.
-9. **Given** um pedido cadastrado manualmente no Ambrosia com a mesma chave natural de um pedido do +Vendas, **When** o período é importado, **Then** o pedido manual não é sobrescrito e o relatório mostra um conflito para aquele pedido.
+8. **Given** um pedido importado do +Vendas cujo valor a vendedora editou à mão no Ambrosio, **When** o período é importado de novo, **Then** o valor volta a ser o da origem, o pedido aparece como "atualizado" com o campo alterado listado, e os campos que só existem no Ambrosio continuam intactos.
+9. **Given** um pedido cadastrado manualmente no Ambrosio com a mesma chave natural de um pedido do +Vendas, **When** o período é importado, **Then** o pedido manual não é sobrescrito e o relatório mostra um conflito para aquele pedido.
 
 ---
 
 ### User Story 4 - Simular a importação sem gravar nada (Priority: P2)
 
-A vendedora marca "Simular (não gravar)" para ver o que a importação faria: quantos pedidos seriam inseridos, atualizados e mantidos, quantos clientes seriam criados e quantas fotos seriam gravadas, sem alterar nada no Ambrosia.
+A vendedora marca "Simular (não gravar)" para ver o que a importação faria: quantos pedidos seriam inseridos, atualizados e mantidos, quantos clientes seriam criados e quantas fotos seriam gravadas, sem alterar nada no Ambrosio.
 
 **Why this priority**: permite conferir a coleta antes de gravar (útil na primeira execução, em devoluções ainda não inspecionadas e depois de mudanças no +Vendas) sem risco para a base.
 
@@ -101,7 +101,7 @@ A vendedora marca "Simular (não gravar)" para ver o que a importação faria: q
 
 **Acceptance Scenarios**:
 
-1. **Given** a opção "Simular" marcada, **When** a execução termina, **Then** nenhum pedido, item, cliente ou imagem foi criado ou alterado no Ambrosia.
+1. **Given** a opção "Simular" marcada, **When** a execução termina, **Then** nenhum pedido, item, cliente ou imagem foi criado ou alterado no Ambrosio.
 2. **Given** uma simulação concluída, **When** a vendedora olha o relatório, **Then** ele mostra, por bloco, quantos pedidos seriam inseridos, atualizados e mantidos, quantos clientes seriam criados e quantas fotos seriam gravadas, e é identificado como simulação.
 3. **Given** uma simulação, **When** a execução percorre a origem, **Then** aplica as mesmas validações de contadores e totais de uma execução real, e falha o bloco nas mesmas condições.
 
@@ -127,7 +127,7 @@ Não há coleta separada de clientes: quando um pedido traz um CPF que ainda nã
 
 ### User Story 6 - Fotos dos produtos copiadas para o storage (Priority: P3)
 
-Cada foto de item de pedido é baixada da origem e gravada no storage de imagens do Ambrosia, na área da vendedora, identificada como vinda da importação; o item fica ligado à imagem e a URL de origem é mantida. A mesma foto em vários pedidos é gravada uma vez só. Uma foto que falha não impede a gravação do pedido.
+Cada foto de item de pedido é baixada da origem e gravada no storage de imagens do Ambrosio, na área da vendedora, identificada como vinda da importação; o item fica ligado à imagem e a URL de origem é mantida. A mesma foto em vários pedidos é gravada uma vez só. Uma foto que falha não impede a gravação do pedido.
 
 **Why this priority**: as fotos deixam o histórico de vendas mais útil (reconhecer peças, montar banco de fotos), mas a importação de pedidos e clientes já entrega valor sem elas.
 
@@ -220,14 +220,14 @@ A importação continua no servidor mesmo que a vendedora feche a aba. Ao voltar
 
 **Idempotência**
 
-- **FR-021**: Um pedido importado DEVE ser identificado pela chave natural (vendedora, número do pedido, data do pedido, tipo), a mesma unicidade já vigente no Ambrosia.
+- **FR-021**: Um pedido importado DEVE ser identificado pela chave natural (vendedora, número do pedido, data do pedido, tipo), a mesma unicidade já vigente no Ambrosio.
 - **FR-022**: O sistema DEVE detectar mudanças por uma impressão digital do conteúdo normalizado do pedido (campos do pedido, identificação protegida do cliente e itens em ordem fixa), que NÃO inclui a data da captura nem a imagem gravada.
-- **FR-023**: Na gravação, pedido inexistente DEVE ser inserido; pedido existente com o mesmo conteúdo DEVE ter apenas a data da última captura atualizada e contar como "inalterado"; pedido existente com conteúdo diferente DEVE ser atualizado, com os itens substituídos pelos da origem, registrando a data da mudança e a lista de campos alterados, e contar como "atualizado". Em pedidos de origem "+Vendas", a origem prevalece sobre edições manuais feitas no Ambrosia nos campos vindos da origem (inclusive os itens); os campos que só existem no Ambrosia são preservados. Uma edição manual, no Ambrosia, de um pedido de origem "+Vendas" invalida a impressão digital gravada. Na reimportação seguinte, o pedido volta a receber os valores da origem e conta como "atualizado", com a lista de campos alterados comparada com o conteúdo gravado.
+- **FR-023**: Na gravação, pedido inexistente DEVE ser inserido; pedido existente com o mesmo conteúdo DEVE ter apenas a data da última captura atualizada e contar como "inalterado"; pedido existente com conteúdo diferente DEVE ser atualizado, com os itens substituídos pelos da origem, registrando a data da mudança e a lista de campos alterados, e contar como "atualizado". Em pedidos de origem "+Vendas", a origem prevalece sobre edições manuais feitas no Ambrosio nos campos vindos da origem (inclusive os itens); os campos que só existem no Ambrosio são preservados. Uma edição manual, no Ambrosio, de um pedido de origem "+Vendas" invalida a impressão digital gravada. Na reimportação seguinte, o pedido volta a receber os valores da origem e conta como "atualizado", com a lista de campos alterados comparada com o conteúdo gravado.
 - **FR-024**: Repetir a mesma importação sem mudança na origem NÃO DEVE criar nem alterar nenhum pedido, item, cliente ou imagem; todos os pedidos contam como "inalterados".
 - **FR-025**: Repetir um bloco que falhou DEVE completar a importação sem duplicar nada, com resultado final idêntico ao de uma execução sem falha.
 - **FR-026**: O relatório de uma execução com bloco falho DEVE oferecer "Repetir este bloco", que abre a tela com as datas do bloco preenchidas e exige login e senha de novo.
 - **FR-027**: Pedidos importados antes e ausentes da origem dentro do período NÃO DEVEM ser apagados nem alterados; DEVEM ser listados no relatório como "não encontrados nesta execução", considerando apenas blocos que terminaram sem falha.
-- **FR-028**: Pedidos cadastrados manualmente no Ambrosia com a mesma chave natural de um pedido da origem NÃO DEVEM ser sobrescritos; o conflito DEVE constar no relatório.
+- **FR-028**: Pedidos cadastrados manualmente no Ambrosio com a mesma chave natural de um pedido da origem NÃO DEVEM ser sobrescritos; o conflito DEVE constar no relatório.
 - **FR-029**: Uma venda e o cancelamento dela DEVEM gerar dois registros distintos (venda com valor positivo e cancelamento com valor negativo), como na origem; devoluções seguem a mesma regra com tipo "devolução".
 - **FR-030**: Cada pedido importado DEVE registrar a origem "+Vendas", o identificador externo do pedido na origem quando disponível, a data e hora da última captura e a data e hora da última mudança de conteúdo.
 - **FR-031**: A normalização DEVE converter valores monetários em formato brasileiro para decimal com duas casas, manter o CPF só com dígitos e deduzir o ano das datas pelo período do bloco, confirmado pelo detalhe do pedido.
@@ -285,7 +285,7 @@ A importação continua no servidor mesmo que a vendedora feche a aba. Ao voltar
 
 ### Measurable Outcomes
 
-- **SC-001**: Após importar o período de 26/09 a 25/10/2026, o Ambrosia exibe exatamente 49 pedidos com total líquido de R$ 123.300,58, iguais à tela do +Vendas.
+- **SC-001**: Após importar o período de 26/09 a 25/10/2026, o Ambrosio exibe exatamente 49 pedidos com total líquido de R$ 123.300,58, iguais à tela do +Vendas.
 - **SC-002**: Repetir uma importação sem mudança na origem resulta em 0 pedidos inseridos, 0 atualizados e 100% inalterados, sem nenhum registro novo de pedido, item, cliente ou imagem.
 - **SC-003**: Depois de uma falha no meio de um bloco e da repetição desse bloco, o conjunto de pedidos, itens e clientes é idêntico ao de uma execução sem falha do mesmo período: 0 duplicatas e 0 pedidos faltando.
 - **SC-004**: Após uma execução completa, há 0 ocorrências do login, da senha e de CPF completo no banco, nos logs, nos arquivos do servidor, no storage, nas respostas dos endpoints de importação e no armazenamento do navegador.

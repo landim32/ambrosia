@@ -12,14 +12,14 @@
 | Spec | — |
 | Depende de | [007](007-mcp-servidor-completo.md) (MCP, que vira o resource server) e [001](001-api-cadastro-clientes-pedidos.md) (usuários e login Google) |
 | Habilita | [009](009-mcp-app-chatgpt.md) e [010](010-banco-imagens-clientes-chatgpt.md) |
-| Código previsto | `backend/Ambrosia.Auth/` (authorization server, novo) e ajustes em `backend/Ambrosia.McpServer/` |
+| Código previsto | `backend/Ambrosio.Auth/` (authorization server, novo) e ajustes em `backend/Ambrosio.McpServer/` |
 | Fonte dos requisitos | Documentação da OpenAI, [Apps SDK: Authentication](https://developers.openai.com/apps-sdk/build/auth), consultada em 25/10/2026, e especificação de autorização do MCP (revisão 2025-11-25) |
 
 ---
 
 ## 1. História
 
-**Como** vendedora, **quero** conectar o Ambrosia ao ChatGPT entrando com a minha conta Google e autorizando o que ele pode fazer, **para** que o ChatGPT acesse só os meus dados, com permissões que eu escolhi, sem eu copiar token nenhum.
+**Como** vendedora, **quero** conectar o Ambrosio ao ChatGPT entrando com a minha conta Google e autorizando o que ele pode fazer, **para** que o ChatGPT acesse só os meus dados, com permissões que eu escolhi, sem eu copiar token nenhum.
 
 ## 2. Contexto e objetivo
 
@@ -144,18 +144,18 @@ A entrada de desenvolvimento `/auth/dev-login` não existe mais: a 003 a removeu
 | RFC 9207 (`iss` na resposta) | Suportado nas versões recentes (a confirmar) | A verificar | Sim |
 | `resource` (RFC 8707) no `aud` | Controle total: `SetResources` ou handler próprio | Usa `audience`. Suporte a `resource`: a verificar | Não nativo: exige *mapper* de audiência |
 | Login Google | Federação com o handler do ASP.NET Core ou o cliente do OpenIddict | Conexão social pronta | *Identity provider* pronto |
-| Mapear para `users` do Ambrosia | Direto: mesma base e mesma regra da 001 | Por e-mail, com sincronização ou *just-in-time* | Por e-mail, com sincronização ou *just-in-time* |
+| Mapear para `users` do Ambrosio | Direto: mesma base e mesma regra da 001 | Por e-mail, com sincronização ou *just-in-time* | Por e-mail, com sincronização ou *just-in-time* |
 | Custo | Só infraestrutura | Plano gratuito com limites. Pago ao crescer | Infraestrutura (Java e banco próprios) |
 | Operação | Rotação de chaves, atualização de pacote e segurança por nossa conta | Gerenciado | Atualizações, backup e *hardening* por nossa conta |
 | Aderência à stack | Total (.NET 8, EF Core, PostgreSQL) | Externa | Externa (outra stack) |
 | Risco de segurança | Maior: implementamos fluxos sensíveis | Menor | Médio |
 
-**Recomendação: authorization server próprio no .NET com OpenIddict**, num processo `Ambrosia.Auth` publicado em `https://ambrosiaai.site/auth` (issuer `https://ambrosiaai.site/auth`), federando o login Google que já existe e gravando em `users` com a mesma regra da 001.
+**Recomendação: authorization server próprio no .NET com OpenIddict**, num processo `Ambrosio.Auth` publicado em `https://ambrosiaai.site/auth` (issuer `https://ambrosiaai.site/auth`), federando o login Google que já existe e gravando em `users` com a mesma regra da 001.
 
 Motivos:
 
 1. **CIMD e `resource` são os pontos mais novos dos requisitos.** Nos IdPs externos o suporte está incerto e fora do nosso controle; no OpenIddict os dois são handlers nossos.
-2. **Uma única base de usuários.** O `sub` do token é o `user_id` do Ambrosia, sem sincronização nem mapeamento por e-mail entre sistemas.
+2. **Uma única base de usuários.** O `sub` do token é o `user_id` do Ambrosio, sem sincronização nem mapeamento por e-mail entre sistemas.
 3. **Mesma stack** (.NET 8, EF Core e PostgreSQL), sem custo de licença e sem novo runtime para operar.
 4. **Fecha o `TODO(AUTH_SCHEME)`** da constituição com uma decisão explícita e reutilizável pela API e pelo frontend no futuro.
 
@@ -188,8 +188,8 @@ sequenceDiagram
     autonumber
     actor U as Usuária (navegador)
     participant CG as ChatGPT
-    participant MCP as Ambrosia MCP (resource server)
-    participant AS as Ambrosia Auth (OpenIddict)
+    participant MCP as Ambrosio MCP (resource server)
+    participant AS as Ambrosio Auth (OpenIddict)
     participant G as Google
     participant DB as PostgreSQL
 

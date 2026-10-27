@@ -44,7 +44,7 @@ operações `POST /auth/register` e `POST /auth/login` aparecem e `/auth/dev-log
 
 ```powershell
 cd backend
-dotnet test Ambrosia.ApiTests            # ApiBaseUrl padrão: http://localhost:5000
+dotnet test Ambrosio.ApiTests            # ApiBaseUrl padrão: http://localhost:5000
 ```
 
 Esperado: 100% verde, sem nenhum usuário criado manualmente; os logs do fixture mostram
@@ -98,7 +98,7 @@ algum termo proibido sobreviver). Depois:
 ```powershell
 cd backend
 $env:ApiBaseUrl = "http://localhost:8080/api"
-dotnet test Ambrosia.ApiTests
+dotnet test Ambrosio.ApiTests
 Remove-Item Env:ApiBaseUrl
 ```
 

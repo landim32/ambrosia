@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Infra.Interfaces: contratos de repositório/AppService. Depende apenas do DTO. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ambrosio.DTO\Ambrosio.DTO.csproj" />
+  </ItemGroup>
+
+</Project>

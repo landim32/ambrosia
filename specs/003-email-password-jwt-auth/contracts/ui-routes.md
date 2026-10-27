@@ -19,7 +19,7 @@ Regras comuns às duas rotas públicas:
 
 ```text
 ┌─────────────────────────────────────┐
-│ Entrar no Ambrosia                  │  h1 (login.title)
+│ Entrar no Ambrosio                  │  h1 (login.title)
 │ Consulte clientes e pedidos…        │  p  (login.subtitle)
 │ [alert: Sua sessão expirou]         │  só com motivo=expirada / expiryNotice
 │ [ Entrar com Google ]               │  GIS (some se VITE_GOOGLE_CLIENT_ID vazio)
@@ -83,7 +83,7 @@ Botão `type="button"` com `aria-pressed` e `aria-label` que alterna `type` entr
 | `login.noAccount` | Não tem conta? |
 | `login.createAccount` | Criar conta |
 | `register.title` | Criar conta |
-| `register.subtitle` | Use seu e-mail e uma senha para acessar o Ambrosia. |
+| `register.subtitle` | Use seu e-mail e uma senha para acessar o Ambrosio. |
 | `register.name` | Nome |
 | `register.confirmPassword` | Confirmar senha |
 | `register.submit` | Criar conta |
