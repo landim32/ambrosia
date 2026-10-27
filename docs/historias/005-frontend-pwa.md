@@ -17,7 +17,7 @@
 
 ## 1. História
 
-**Como** vendedora, **quero** instalar o Ambrosia na tela inicial do celular e consultar clientes e pedidos já vistos mesmo sem sinal na loja, **para** não depender de conexão para lembrar o histórico de uma cliente na hora do atendimento.
+**Como** vendedora, **quero** instalar o Ambrosio na tela inicial do celular e consultar clientes e pedidos já vistos mesmo sem sinal na loja, **para** não depender de conexão para lembrar o histórico de uma cliente na hora do atendimento.
 
 ## 2. Contexto e objetivo
 
@@ -110,7 +110,7 @@ flowchart TD
 | Plugin | `vite-plugin-pwa` com `registerType: 'prompt'` e `workbox.runtimeCaching` conforme a tabela acima |
 | Atualização | `useRegisterSW` de `virtual:pwa-register/react`. Toast `sonner` com o botão "Atualizar", que chama `updateServiceWorker(true)`. Checagem de versão nova a cada 60 min |
 | Instalação | Capturar `beforeinstallprompt` para o botão "Instalar app". No iOS, mostrar um passo a passo (Compartilhar > Adicionar à Tela de Início) |
-| Manifest | `name: "Ambrosia"`, `short_name: "Ambrosia"`, `lang: "pt-BR"`, `start_url: "/"`, `scope: "/"` (relativos a `https://ambrosiaai.site`), `display: "standalone"`, `theme_color` e `background_color` vindos dos tokens de design (Tailwind e shadcn/ui) |
+| Manifest | `name: "Ambrosio"`, `short_name: "Ambrosio"`, `lang: "pt-BR"`, `start_url: "/"`, `scope: "/"` (relativos a `https://ambrosiaai.site`), `display: "standalone"`, `theme_color` e `background_color` vindos dos tokens de design (Tailwind e shadcn/ui) |
 | Rotas da API no Workbox | `urlPattern` por função que confere `url.origin === self.location.origin` e `url.pathname.startsWith('/api/')`. Como a API está na mesma origem, as respostas não são opacas e o status pode ser conferido |
 | Fallback de navegação | `navigateFallback: '/index.html'` com `navigateFallbackDenylist: [/^\/api\//, /^\/auth\//, /^\/mcp/, /^\/\.well-known\//]`. Sem isso, o service worker devolveria o SPA no lugar do Swagger, das telas do authorization server e dos documentos de descoberta OAuth |
 | Ícones | Gerados a partir do logotipo (agente `ux-designer`), com área segura para *maskable* |

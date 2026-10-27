@@ -12,7 +12,7 @@ Cada seção fecha uma decisão técnica do plano. Nenhum "NEEDS CLARIFICATION" 
 
 ## §2. Playwright .NET e Chromium na imagem da API
 
-- **Decisão**: pacote `Microsoft.Playwright` (versão fixa no `Ambrosia.Infra.csproj`), Chromium headless. No `backend/Dockerfile`:
+- **Decisão**: pacote `Microsoft.Playwright` (versão fixa no `Ambrosio.Infra.csproj`), Chromium headless. No `backend/Dockerfile`:
   - estágio `build` (SDK): `dotnet tool install --global PowerShell` e `pwsh <bin>/playwright.ps1 install chromium` com `PLAYWRIGHT_BROWSERS_PATH=/ms-playwright` (só os binários do navegador, sem `--with-deps`);
   - estágio `final` (`aspnet:8.0`, Debian): `apt-get install` da lista fixa de dependências do Chromium (libnss3, libatk-bridge2.0-0, libdrm2, libxkbcommon0, libgbm1, libasound2, fonts-liberation etc.), `COPY --from=build /ms-playwright /ms-playwright` e `ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright`; continua rodando como usuário `app`.
   - compose (homolog e prod): `shm_size: 512m` no serviço `api` (Chromium precisa de `/dev/shm`) e `mem_limit` documentado em `deploy/README.md`. O estágio `migrator` não muda.
@@ -26,7 +26,7 @@ Cada seção fecha uma decisão técnica do plano. Nenhum "NEEDS CLARIFICATION" 
   - `FakeMaisVendasCollectorAppService` (`Fake`) — **Homolog**, determinística, sem rede, guiada pelo login e pela senha:
     - login no formato `conta+cenario` (ex.: `s482+ok`). A parte antes do `+` é o **identificador da conta** (vira o hash do vínculo, FR-008b); o sufixo escolhe o cenário: `ok`, `vazio`, `falha-bloco3` (falha de gravação do 15º pedido do 3º bloco), `contador-divergente`, `total-divergente`, `foto-erro`, `foto-gif`, `cpf-invalido`, `sem-ano`, `2fa` (login exige etapa não suportada), `instavel` (erro transitório que o retry supera);
     - senha `recusada` → credenciais recusadas; qualquer outra senha é a **versão do conteúdo** (`v1`, `v2`…): com `v2` o fake altera valor/status de alguns pedidos e o nome de um cliente, para provar "atualizado", "campos alterados" e "nome atualizado" (US3/US5);
-    - fotos vêm de bytes embutidos (JPEG/PNG/WebP pequenos, os mesmos fixtures de `Ambrosia.ApiTests/Fixtures/Images`), com uma URL por SKU para provar a deduplicação; `foto-erro` falha a URL de um item; `foto-gif` devolve `image/gif`;
+    - fotos vêm de bytes embutidos (JPEG/PNG/WebP pequenos, os mesmos fixtures de `Ambrosio.ApiTests/Fixtures/Images`), com uma URL por SKU para provar a deduplicação; `foto-erro` falha a URL de um item; `foto-gif` devolve `image/gif`;
     - o atraso entre pedidos é `MaisVendas:Fake:DelayMs` (padrão 50 ms) para a suíte terminar em minutos.
   - `Program.ValidateSettings` **recusa** `Collector=Fake` com `ASPNETCORE_ENVIRONMENT=Production`.
 - **Rationale**: o backend só pode ser testado por testes de API contra a homologação, e o +Vendas real não pode ser manipulado (assumption da spec). O fake deixa cada critério (falha no 15º pedido, divergência, foto com erro, nome alterado, conta diferente, bloqueio de tentativas) reproduzível e idempotente.
@@ -56,12 +56,12 @@ Cada seção fecha uma decisão técnica do plano. Nenhum "NEEDS CLARIFICATION" 
   - existe com `source = manual` → não toca; registra **conflito** (FR-028);
   - existe com o mesmo hash → só `captured_at` → **inalterado**;
   - existe com `source_hash` nulo (pedido `maisVendas` editado à mão; o `OrderService` zera o hash na edição) → tratado como hash diferente → **atualizado**;
-  - existe com hash diferente → aplica campos da origem (inclusive os itens, substituídos), `source_changed_at = now`, lista de campos alterados (comparação campo a campo + `items`) → **atualizado** (FR-023, clarificação 2). Os campos que só existem no Ambrosia (`created_at`, `customer_id` do mesmo CPF, ligações de imagem de itens que mantiveram `image_url`) são preservados.
+  - existe com hash diferente → aplica campos da origem (inclusive os itens, substituídos), `source_changed_at = now`, lista de campos alterados (comparação campo a campo + `items`) → **atualizado** (FR-023, clarificação 2). Os campos que só existem no Ambrosio (`created_at`, `customer_id` do mesmo CPF, ligações de imagem de itens que mantiveram `image_url`) são preservados.
 - **Alternativas consideradas**: comparar campo a campo sem hash — mais consultas e sem rastro compacto; guardar o payload bruto — contém CPF e foi excluído do escopo.
 
 ## §7. Gravação atômica por pedido
 
-- **Decisão**: cada pedido é gravado em **seu próprio escopo de DI** (`IServiceScopeFactory.CreateAsyncScope()` → `AmbrosiaContext` novo) por `IImportRunRepository.UpsertImportedOrderAsync(...)`, dentro de uma transação explícita (`BeginTransactionAsync`) que cobre: cliente sob demanda (busca por `cpf_hash`; insere ou atualiza o nome), upsert do pedido e substituição dos itens. Falha → rollback só daquele pedido; o pedido conta como "com erro" e o bloco segue (FR-012, FR-036). Corrida na criação do cliente (`23505` em `ux_customers_user_cpf`) → relê e repete uma vez.
+- **Decisão**: cada pedido é gravado em **seu próprio escopo de DI** (`IServiceScopeFactory.CreateAsyncScope()` → `AmbrosioContext` novo) por `IImportRunRepository.UpsertImportedOrderAsync(...)`, dentro de uma transação explícita (`BeginTransactionAsync`) que cobre: cliente sob demanda (busca por `cpf_hash`; insere ou atualiza o nome), upsert do pedido e substituição dos itens. Falha → rollback só daquele pedido; o pedido conta como "com erro" e o bloco segue (FR-012, FR-036). Corrida na criação do cliente (`23505` em `ux_customers_user_cpf`) → relê e repete uma vez.
 - **Rationale**: pedido e itens nunca ficam pela metade; falha no 15º não desfaz os 14 anteriores; não há transação de bloco a manter aberta durante minutos de coleta.
 
 ## §8. Vínculo de conta e bloqueio de tentativas
@@ -113,7 +113,7 @@ Cada seção fecha uma decisão técnica do plano. Nenhum "NEEDS CLARIFICATION" 
 | `MaisVendas:MinDelayMs` / `MaxDelayMs` | `300` / `900` | 100–5000, min ≤ max | §9 |
 | `MaisVendas:Fake:DelayMs` | `50` | 0–5000 | §3 |
 
-Classe `MaisVendasSettings` em `Ambrosia.DTO/Settings`, copiada em `AmbrosiaSettings` e exposta por `IOptions<MaisVendasSettings>` (mesmo padrão de `ObjectStorageSettings`). Homolog: `MaisVendas__Collector=Fake` no `x-api-environment` do compose; Development: `appsettings.Development.json` com `Playwright` (uso real) e instrução no quickstart para alternar.
+Classe `MaisVendasSettings` em `Ambrosio.DTO/Settings`, copiada em `AmbrosioSettings` e exposta por `IOptions<MaisVendasSettings>` (mesmo padrão de `ObjectStorageSettings`). Homolog: `MaisVendas__Collector=Fake` no `x-api-environment` do compose; Development: `appsettings.Development.json` com `Playwright` (uso real) e instrução no quickstart para alternar.
 
 ## §14. Credenciais nunca em log, resposta ou Swagger
 
@@ -125,7 +125,7 @@ Classe `MaisVendasSettings` em `Ambrosia.DTO/Settings`, copiada em `AmbrosiaSett
 - **Decisão**: rota `/importacao` (dentro de `RequireAuth` + `AppShell`), link "Importar" no `AppHeader`. Arquivos: `types/import.ts`, `Services/importService.ts` (classe + singleton sobre `apiRequest`), `Contexts/ImportContext.tsx` (`defaults`, `currentRun`, `lastRun`, `history`, `loading`, `error`, `startRun`, `cancelRun`, `loadDefaults`, `loadHistory`, `loadRun`, polling interno com `setInterval` 3 s enquanto `queued`/`running`), `hooks/useImport.ts`, `pages/ImportPage.tsx`, componentes `components/imports/ImportForm.tsx`, `ImportProgress.tsx`, `ImportReport.tsx`, `ImportHistory.tsx`, `ImportStatusBadge.tsx`, validação em `lib/importForm.ts` (sem react-hook-form/zod — não estão nas dependências; o `LoginPage` usa o mesmo padrão com `lib/authForm.ts`). "Repetir este bloco" navega para `/importacao?inicio=AAAA-MM-DD&fim=AAAA-MM-DD`, que pré-preenche as datas (FR-026). Strings em `pt-BR.ts` sob `import.*`. Testes Vitest + RTL para formulário (bloqueios de envio, limpeza da senha, `autoComplete`), progresso (polling e parada), relatório (destaque `failed`/`partial`, aviso de queda, botão repetir) e `importForm` (regras de data).
 - O `ImportProvider` entra em `main.tsx` depois de `OrderProvider` (não tem dependentes).
 
-## §16. Testes de API (`Ambrosia.ApiTests`, skill `dotnet-test-api`)
+## §16. Testes de API (`Ambrosio.ApiTests`, skill `dotnet-test-api`)
 
 - **Decisão**: `Controllers/ImportsControllerTests.cs` contra Homolog com `Collector=Fake`, mais rotas novas em `UnauthorizedAccessTests` e `IsolationTests` (execução do usuário A → 404 para B). Helper `ImportRunWaiter.WaitUntilFinishedAsync(runId, token)` faz polling até status final (timeout 3 min). Cobertura mínima: defaults (vazio e com histórico), 400 (datas/credenciais/limite), 202 + `queued/running` + relatório `succeeded` com 49 pedidos do cenário `ok` (SC-001 em homolog usa a contagem do fake), reimportação `v1`→`v1` 100% inalterados (SC-002), `v1`→`v2` atualizados com campos, `falha-bloco3` + repetição do bloco = resultado idêntico (SC-003), `contador-divergente` sem gravação (SC-009), `foto-erro`/`foto-gif` (SC-010), simulação sem alteração nas contagens (SC-011), 409 em execução concorrente, cancelamento, `recusada` ×3 → 429, conta diferente → `failed`, `2fa` → `failed`, e **busca das credenciais** em todos os corpos de resposta (SC-004 parcial; a busca em banco/logs é manual no quickstart).
 

@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Ambrosia API
+  title: Ambrosio API
   version: 1.0.0
   description: |
     API de cadastro e consulta de clientes e pedidos (feature 001).
@@ -71,7 +71,7 @@ paths:
             schema: { $ref: '#/components/schemas/LoginInfo' }
       responses:
         '200':
-          description: Token do Ambrosia
+          description: Token do Ambrosio
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LoginResult' }
@@ -101,7 +101,7 @@ paths:
             schema: { $ref: '#/components/schemas/GoogleLoginInfo' }
       responses:
         '200':
-          description: Token do Ambrosia
+          description: Token do Ambrosio
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LoginResult' }
@@ -410,7 +410,7 @@ components:
     OrderSource:
       type: string
       enum: [manual, maisVendas]
-      description: "Feature 006: como o pedido entrou no Ambrosia"
+      description: "Feature 006: como o pedido entrou no Ambrosio"
 
     # ---------------------------------------------------------------- Feature 006: importação do +Vendas
     ImportRunStatus: { type: string, enum: [queued, running, succeeded, failed, partial, cancelled] }

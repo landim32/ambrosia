@@ -1,6 +1,6 @@
 openapi: 3.0.3
 info:
-  title: Ambrosia API — imagens (feature 004)
+  title: Ambrosio API — imagens (feature 004)
   version: 1.0.0
   description: |
     Fragmento de caminho de `/images*`, no mesmo formato do contrato da 001

@@ -1,4 +1,4 @@
-# Ambientes do Ambrosia
+# Ambientes do Ambrosio
 
 | | Dev | Homolog | Produção |
 |---|---|---|---|
@@ -19,7 +19,7 @@ Rotas do gateway (homolog e produção, `deploy/nginx/routes.inc`): `/` → fron
 
 ## Dev (sem Docker)
 
-1. Instale o PostgreSQL 17 no Windows, com usuário `postgres`/`postgres` na porta 5432, e crie o banco `ambrosia_dev`. O container `ambrosia-postgres` do WSL também usa a 5432: pare-o antes (`wsl -e docker stop ambrosia-postgres`).
+1. Instale o PostgreSQL 17 no Windows, com usuário `postgres`/`postgres` na porta 5432, e crie o banco `ambrosio_dev`. O container `ambrosio-postgres` do WSL também usa a 5432: pare-o antes (`wsl -e docker stop ambrosio-postgres`).
 2. Dê às credenciais do Spaces (o storage de Dev é o mesmo bucket da homologação — **não** versione essas chaves):
 
 ```powershell
@@ -31,8 +31,8 @@ $env:ObjectStorage__SecretKey = '<spaces secret key>'
 
 ```powershell
 dotnet tool restore
-dotnet ef database update --project Ambrosia.Infra --startup-project Ambrosia.API
-dotnet run --project Ambrosia.API
+dotnet ef database update --project Ambrosio.Infra --startup-project Ambrosio.API
+dotnet run --project Ambrosio.API
 ```
 
 Sem as duas chaves a API **não sobe**: a validação de startup recusa configuração incompleta do
@@ -107,7 +107,7 @@ Development e homologação. O que muda na prática:
 ## Importação do +Vendas (feature 006)
 
 A coleta roda **dentro da API**, num Chromium headless controlado pelo `Microsoft.Playwright` (versão
-fixa no `Ambrosia.Infra.csproj`). O `backend/Dockerfile` baixa o navegador dessa mesma versão num
+fixa no `Ambrosio.Infra.csproj`). O `backend/Dockerfile` baixa o navegador dessa mesma versão num
 estágio próprio (`playwright`) e a imagem final traz as bibliotecas de sistema do Chromium e o
 diretório `/ms-playwright`. Login e senha do +Vendas **não** são configuração: a vendedora os informa a
 cada execução, e eles vivem só em memória durante a coleta (FR-005/FR-006).
@@ -128,7 +128,7 @@ cada execução, e eles vivem só em memória durante a coleta (FR-005/FR-006).
   `failed` com "Execução interrompida pela reinicialização do servidor." (FR-020); o que foi gravado
   fica, e a vendedora repete o período sem duplicar nada.
 - Em Development, sem Docker, instale o navegador uma vez depois do build:
-  `pwsh backend/Ambrosia.API/bin/Debug/net8.0/playwright.ps1 install chromium`.
+  `pwsh backend/Ambrosio.API/bin/Debug/net8.0/playwright.ps1 install chromium`.
 
 ### Checklist de liberação em produção
 
@@ -157,7 +157,7 @@ Testes HTTP contra a homologação (o gateway publica a API em `/api`):
 
 ```powershell
 $env:ApiBaseUrl = 'http://localhost:8080/api'
-dotnet test backend/Ambrosia.ApiTests
+dotnet test backend/Ambrosio.ApiTests
 ```
 
 Atrás do gateway, a API lê `X-Forwarded-Prefix`/`Proto`/`For` (`ReverseProxy:Enabled` em `appsettings.Homolog.json` e `appsettings.Production.json`) e o Swagger declara `servers: [/api]`. As chaves do Data Protection ficam no volume `dataprotection_keys`.
@@ -170,7 +170,7 @@ Workflow `.github/workflows/deploy-prod.yml`, disparado manualmente (Actions →
 
 1. **Servidor** (ex.: Droplet DigitalOcean): Docker Engine + plugin compose, `git`, `curl`, `openssl`; portas 80 e 443 abertas. Liberar o IP do servidor em *Trusted sources* do banco gerenciado.
 2. **Cloudflare**: registro `A ambrosiaai.site` → IP do servidor com proxy ativo; SSL/TLS em **Full (strict)**; gerar um **Origin Certificate** para `ambrosiaai.site`.
-3. **Banco**: criar o banco `ambrosia` no cluster gerenciado e montar a connection string com `SSL Mode=Require` (porta 25060).
+3. **Banco**: criar o banco `ambrosio` no cluster gerenciado e montar a connection string com `SSL Mode=Require` (porta 25060).
 4. **GitHub Secrets** (Settings → Secrets and variables → Actions):
 
 | Secret | Conteúdo |

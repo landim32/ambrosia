@@ -10,7 +10,7 @@
 
 ## Contexto
 
-Hoje o Ambrosia aceita duas formas de entrada: a conta Google (`/auth/google`) e a **entrada de desenvolvimento** (`/auth/dev-login`), que emite uma credencial sem senha a partir de e-mail e nome e existe apenas em Development e Homolog. A entrada de desenvolvimento é usada pelos testes de API do backend, pelo formulário de desenvolvimento do frontend e pela coleção do Bruno.
+Hoje o Ambrosio aceita duas formas de entrada: a conta Google (`/auth/google`) e a **entrada de desenvolvimento** (`/auth/dev-login`), que emite uma credencial sem senha a partir de e-mail e nome e existe apenas em Development e Homolog. A entrada de desenvolvimento é usada pelos testes de API do backend, pelo formulário de desenvolvimento do frontend e pela coleção do Bruno.
 
 Esta feature **substitui a entrada de desenvolvimento por um cadastro real**: a vendedora cria uma conta com e-mail e senha, entra com essas credenciais e recebe a mesma credencial de sessão (token) que o login Google já emite. A entrada de desenvolvimento deixa de existir em **todos** os ambientes, inclusive Development e Homolog, e tudo que dependia dela (testes de API, frontend, Bruno) passa a usar o cadastro + login com senha. O login com Google é mantido.
 
@@ -154,7 +154,7 @@ Quem roda os testes de API do backend contra Development ou Homolog não precisa
 
 ### Key Entities
 
-- **Usuário (vendedora)**: pessoa que acessa o Ambrosia. Atributos: nome, e-mail (único, normalizado), forma(s) de entrada (senha e/ou Google), segredo de senha (nunca exposto; removido quando a conta entra por Google), datas de criação e atualização. Dona dos clientes e pedidos.
+- **Usuário (vendedora)**: pessoa que acessa o Ambrosio. Atributos: nome, e-mail (único, normalizado), forma(s) de entrada (senha e/ou Google), segredo de senha (nunca exposto; removido quando a conta entra por Google), datas de criação e atualização. Dona dos clientes e pedidos.
 - **Sessão**: credencial emitida ao entrar ou criar conta, com prazo de expiração e dados básicos do usuário; idêntica independentemente da forma de entrada.
 - **Credenciais de cadastro**: nome, e-mail, senha informados ao criar conta.
 - **Credenciais de login**: e-mail e senha informados ao entrar.
@@ -175,7 +175,7 @@ Quem roda os testes de API do backend contra Development ou Homolog não precisa
 
 ## Assumptions
 
-- **Cadastro aberto**: qualquer pessoa com um e-mail pode criar conta (não há convite, aprovação nem lista de permitidos), pois o Ambrosia é de uso individual por vendedora e a entrada de desenvolvimento já permitia criar usuários livremente.
+- **Cadastro aberto**: qualquer pessoa com um e-mail pode criar conta (não há convite, aprovação nem lista de permitidos), pois o Ambrosio é de uso individual por vendedora e a entrada de desenvolvimento já permitia criar usuários livremente.
 - **Sem verificação de e-mail**: o cadastro não envia e-mail de confirmação; o e-mail é aceito como informado. Verificação, recuperação e troca de senha ficam para histórias futuras. Como mitigação do pré-cadastro de e-mail alheio, o primeiro login Google no e-mail remove a senha existente (FR-009).
 - **Sem bloqueio por tentativas**: limitação de tentativas de login (rate limiting/lockout) fica fora do escopo; a mitigação nesta entrega é a mensagem genérica e o tempo de resposta uniforme.
 - **Política de senha**: mínimo de 8 e máximo de 128 caracteres, sem exigência de composição (maiúsculas, símbolos), para não atrapalhar o uso no celular.
@@ -185,4 +185,4 @@ Quem roda os testes de API do backend contra Development ou Homolog não precisa
 - **Constituição**: o princípio VI (que hoje permite `/auth/dev-login` em Development e Homolog e descreve o esquema como Google-only) precisa de emenda para refletir a nova forma de entrada e a proibição do dev-login em todos os ambientes; a emenda faz parte deste ciclo.
 - **Bruno**: as credenciais de teste no ambiente da coleção (e-mail e nome) são variáveis não secretas de homologação local; token e senha ficam como secretas.
 - **Testes do frontend**: permanecem apenas unitários (constituição §VIII); os testes de API do backend são os únicos que exercitam o fluxo real de cadastro + login.
-- **Testes unitários do backend**: o projeto `Ambrosia.Tests` é um desvio pré-existente da constituição §VIII; esta feature **apaga** os testes unitários afetados pela autenticação, sem ajustá-los nem criar novos, e o comportamento de cadastro/login passa a ser provado só pelos testes de API.
+- **Testes unitários do backend**: o projeto `Ambrosio.Tests` é um desvio pré-existente da constituição §VIII; esta feature **apaga** os testes unitários afetados pela autenticação, sem ajustá-los nem criar novos, e o comportamento de cadastro/login passa a ser provado só pelos testes de API.

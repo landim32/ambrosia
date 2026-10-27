@@ -65,7 +65,7 @@ Follow-up TODOs:
 - `{NomeDoProjeto}` is intentionally kept as a convention token (not a template placeholder).
 -->
 
-# Ambrosia Constitution
+# Ambrosio Constitution
 
 > Padrões obrigatórios de stack tecnológica, convenções de código, arquitetura e segurança que
 > DEVEM ser seguidos por todos os contribuidores em todos os projetos.

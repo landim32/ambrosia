@@ -31,7 +31,7 @@ Convenções da constituição §V (snake_case, PK `bigint identity`, `timestamp
 
 `users` não muda (nenhuma coluna nova). A navegação `User.StoredImages` é opcional; o repositório sempre filtra por `user_id`.
 
-## Entidade de domínio: `StoredImage` (`Ambrosia.Domain/Models`)
+## Entidade de domínio: `StoredImage` (`Ambrosio.Domain/Models`)
 
 ```text
 StoredImage
@@ -65,14 +65,14 @@ Regras:
 - Confirmar `Pending` sem objeto no storage → 400 e o status **não** muda.
 - A exclusão pelo dono vale para qualquer status (apaga o objeto se existir).
 
-## Enums (`Ambrosia.DTO/Enums`)
+## Enums (`Ambrosio.DTO/Enums`)
 
 | Enum | Valores (int) | JSON (camelCase string) |
 |---|---|---|
 | `ImageStatus` | `Pending = 1`, `Available = 2`, `Failed = 3` | `"pending"`, `"available"`, `"failed"` |
 | `ImageSource` | `Upload = 1`, `Server = 2`, `ChatGpt = 3`, `Bot = 4` | `"upload"`, `"server"`, `"chatGpt"`, `"bot"` |
 
-## DTOs (`Ambrosia.DTO/Images`)
+## DTOs (`Ambrosio.DTO/Images`)
 
 Todas as propriedades com `[JsonPropertyName("camelCase")]` (constituição §IV). Nenhum DTO de entrada carrega `userId`.
 
@@ -113,7 +113,7 @@ Todas as propriedades com `[JsonPropertyName("camelCase")]` (constituição §IV
 
 `storage_key` não é exposta (detalhe interno).
 
-## Configuração: `ObjectStorageSettings` (`Ambrosia.DTO/Settings`)
+## Configuração: `ObjectStorageSettings` (`Ambrosio.DTO/Settings`)
 
 Campos e faixas em [research.md §12](./research.md#12-configuração-e-validação-no-startup). Consumido via `IOptions<ObjectStorageSettings>` pela Infra, pelo `ImageService` (limites e tipos) e pelo serviço de limpeza.
 
@@ -143,11 +143,11 @@ IStoredImageRepository<TModel>
   Task DeleteAllByUserAsync(long userId)
 ```
 
-`ObjectHead { long ContentLength; string? ContentType }`, `PresignedUrl { string Url; DateTime ExpiresAt }`, `ImageInspection { string MimeType; int? Width; int? Height }`, `ProcessedImage { byte[] Content; string MimeType; int Width; int Height }` ficam em `Ambrosia.DTO/Images` (tipos de transporte entre camadas).
+`ObjectHead { long ContentLength; string? ContentType }`, `PresignedUrl { string Url; DateTime ExpiresAt }`, `ImageInspection { string MimeType; int? Width; int? Height }`, `ProcessedImage { byte[] Content; string MimeType; int Width; int Height }` ficam em `Ambrosio.DTO/Images` (tipos de transporte entre camadas).
 
 `ListStaleAsync` é a única leitura sem `userId`: é usada só pelo job de limpeza (nunca por endpoint) e devolve registros de todos os usuários por definição. Registrada como exceção justificada no plano.
 
-## Serviço de domínio: `IImageService` (`Ambrosia.Domain`)
+## Serviço de domínio: `IImageService` (`Ambrosio.Domain`)
 
 ```text
 Task<(ImageUploadResult Result, bool Created)> RequestUploadAsync(long userId, ImageUploadInsertInfo info)

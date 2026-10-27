@@ -33,7 +33,7 @@
 
 - A HU 001 entregou só a API. Hoje a consulta exige Swagger ou `curl`.
 - Esta HU cria o primeiro frontend, **somente para exibição**. Não há telas de cadastro nem de edição: os dados entram pela API, pelo bot ([004](004-bot-migracao-mais-vendas.md)) ou pelo MCP ([007](007-mcp-servidor-completo.md)).
-- O +Vendas é mobile-first, com listas de cards ([doc 01, seção 1](../01-analise-sistema-mais-vendas.md#1-visão-geral)). O Ambrosia segue a mesma linha, porque a vendedora usa o celular na loja.
+- O +Vendas é mobile-first, com listas de cards ([doc 01, seção 1](../01-analise-sistema-mais-vendas.md#1-visão-geral)). O Ambrosio segue a mesma linha, porque a vendedora usa o celular na loja.
 - O frontend consome a API REST atual. O GraphQL ([006](006-graphql-clientes-pedidos.md)) fica para depois e não é pré-requisito.
 - A stack visual (Tailwind CSS 4.x e shadcn/ui) já está na constituição 3.0.0 (Princípio II, emendada em 25/10/2026). Não há emenda pendente para esta HU.
 - Endereços de produção: o frontend fica em `https://ambrosiaai.site` e a API numa subpasta do mesmo domínio, `https://ambrosiaai.site/api`. Como os dois ficam na **mesma origem**, o navegador não faz chamadas *cross-origin* e não há CORS em produção.
@@ -83,7 +83,7 @@ As rotas da coluna "Fonte na API" são relativas à base da API (`VITE_API_URL`)
 | 10 | Pedidos de devolução e cancelamento aparecem com valor negativo e destaque visual próprio, como no +Vendas | Pedido `cancellation` de teste |
 | 11 | Os filtros de pedidos (período, tipo, canal e texto) viram query string, e recarregar a página mantém o filtro | Recarregar `/pedidos?kind=sale` |
 | 12 | Uma data `order_date` (`AAAA-MM-DD`) aparece no mesmo dia em qualquer fuso, sem deslocamento de UTC | Testar com o navegador em outro fuso |
-| 13 | O recurso de outro usuário mostra "não encontrado", igual a um id inexistente | Usuários Ana e Bia do `Ambrosia.ApiTests` |
+| 13 | O recurso de outro usuário mostra "não encontrado", igual a um id inexistente | Usuários Ana e Bia do `Ambrosio.ApiTests` |
 | 14 | O layout funciona a partir de 360 px de largura e passa nas verificações básicas de acessibilidade (contraste, foco visível, rótulos) | DevTools em modo dispositivo e axe |
 | 15 | Nenhuma tela tem botão de criar, editar ou excluir | Revisão visual |
 
@@ -124,9 +124,9 @@ As rotas da coluna "Fonte na API" são relativas à base da API (`VITE_API_URL`)
 flowchart LR
     N[Navegador] --> X[nginx - ambrosiaai.site]
     X -->|/| F[dist/ do frontend]
-    X -->|/api/*| A[Ambrosia.API - UsePathBase /api]
-    X -->|/auth/*| S[Ambrosia.Auth - HU 008]
-    X -->|/mcp| MS[Ambrosia.McpServer - HU 007]
+    X -->|/api/*| A[Ambrosio.API - UsePathBase /api]
+    X -->|/auth/*| S[Ambrosio.Auth - HU 008]
+    X -->|/mcp| MS[Ambrosio.McpServer - HU 007]
     X -->|/.well-known/oauth-authorization-server/auth| S
     X -->|/.well-known/oauth-protected-resource/mcp| MS
 ```
@@ -163,7 +163,7 @@ flowchart LR
 
 | Risco | Impacto | Mitigação |
 |---|---|---|
-| A chave do localStorage na constituição (mantida na 3.0.0) é `"login-with-metamask:auth"`, herdada de outro projeto | Nome confuso. O risco de colisão é baixo, porque o localStorage é por origem e `https://ambrosiaai.site` é exclusiva do Ambrosia | Usar a chave da constituição ou propor `ambrosia:auth` numa emenda futura (ver perguntas) |
+| A chave do localStorage na constituição (mantida na 3.0.0) é `"login-with-metamask:auth"`, herdada de outro projeto | Nome confuso. O risco de colisão é baixo, porque o localStorage é por origem e `https://ambrosiaai.site` é exclusiva do Ambrosio | Usar a chave da constituição ou propor `ambrosio:auth` numa emenda futura (ver perguntas) |
 | `PathBase` ou *forwarded headers* mal configurados | Rotas 404 atrás do proxy, redirecionamentos para `http://` ou Swagger apontando para a raiz | Teste de fumaça em homologação com `https://ambrosiaai.site/api/swagger` e `GET /api/users/me` |
 | O fallback do SPA (`try_files … /index.html`) captura `/api`, `/auth`, `/mcp` ou `/.well-known` | A API, o MCP ou a descoberta OAuth devolvem HTML em vez de JSON, e o ChatGPT não conecta | `location` desses prefixos declarados antes do fallback, e o mesmo cuidado no service worker da [005](005-frontend-pwa.md) |
 | Token em localStorage fica exposto a XSS | Sequestro de sessão por 480 minutos. Na mesma origem, um XSS no SPA também consegue fazer requisições às páginas do authorization server em `/auth` e ao MCP em `/mcp` | CSP restritiva (`connect-src 'self'` e os serviços do Google), nada de `dangerouslySetInnerHTML` e dependências auditadas |
@@ -178,6 +178,6 @@ flowchart LR
 1. O perfil deve mostrar o CPF completo (com "mostrar") ou só o mascarado? O REST devolve o completo.
 2. O botão de dev-login deve existir também no ambiente `Docker`, ou só em `vite dev`?
 3. A lista de pedidos deve ter um seletor de "mês de cota" (26 a 25, [doc 01, seção 3](../01-analise-sistema-mais-vendas.md#3-tela-cota-cotapiloto)) além do período livre?
-4. A chave do localStorage continua `"login-with-metamask:auth"` (como está na constituição 3.0.0) ou passa a `ambrosia:auth` numa emenda futura?
+4. A chave do localStorage continua `"login-with-metamask:auth"` (como está na constituição 3.0.0) ou passa a `ambrosio:auth` numa emenda futura?
 
 Resolvidas em 25/10/2026: a hospedagem (frontend em `https://ambrosiaai.site` e API na subpasta `https://ambrosiaai.site/api`, na mesma origem e sem CORS em produção) e a troca de Bootstrap por Tailwind CSS e shadcn/ui (constituição 3.0.0).

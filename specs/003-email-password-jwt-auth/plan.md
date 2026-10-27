@@ -6,7 +6,7 @@
 
 ## Summary
 
-Substituir a entrada de desenvolvimento (`POST /auth/dev-login`) por um cadastro real com senha. O backend ganha `POST /auth/register` (cria a conta e já devolve o `LoginResult`) e `POST /auth/login` (e-mail + senha → mesmo JWT HS256 de 8 h do login Google), com a senha guardada como PBKDF2-HMAC-SHA256 na coluna `users.password_hash` que já existe — **sem migração**. O login Google permanece e, ao reutilizar uma conta que tinha senha, remove a senha (FR-009). A rota `/auth/dev-login`, seu DTO, validator, filtro do Swagger, flag `VITE_DEV_LOGIN`, formulário `DevLoginForm`, requisição do Bruno e menções na documentação são removidos de **todos** os ambientes. O frontend ganha o formulário de e-mail/senha na tela de entrada e a tela pública `/cadastro`; a suíte `Ambrosia.ApiTests` passa a criar os usuários A e B por cadastro + login; a coleção do Bruno ganha "Criar conta" e "Login com senha". A constituição §VI recebe uma emenda (proposta em [constitution-amendment.md](./constitution-amendment.md)).
+Substituir a entrada de desenvolvimento (`POST /auth/dev-login`) por um cadastro real com senha. O backend ganha `POST /auth/register` (cria a conta e já devolve o `LoginResult`) e `POST /auth/login` (e-mail + senha → mesmo JWT HS256 de 8 h do login Google), com a senha guardada como PBKDF2-HMAC-SHA256 na coluna `users.password_hash` que já existe — **sem migração**. O login Google permanece e, ao reutilizar uma conta que tinha senha, remove a senha (FR-009). A rota `/auth/dev-login`, seu DTO, validator, filtro do Swagger, flag `VITE_DEV_LOGIN`, formulário `DevLoginForm`, requisição do Bruno e menções na documentação são removidos de **todos** os ambientes. O frontend ganha o formulário de e-mail/senha na tela de entrada e a tela pública `/cadastro`; a suíte `Ambrosio.ApiTests` passa a criar os usuários A e B por cadastro + login; a coleção do Bruno ganha "Criar conta" e "Login com senha". A constituição §VI recebe uma emenda (proposta em [constitution-amendment.md](./constitution-amendment.md)).
 
 Decisões técnicas detalhadas em [research.md](./research.md): hash PBKDF2 nativo do .NET (sem dependência nova), resposta `401 + ErrorResult` no login inválido com ajuste do `apiClient` para não confundir com sessão expirada, `409 + ErrorResult` no e-mail duplicado, `201` no cadastro, e-mails únicos por execução nos testes e `verify:prod` rodando em todos os modos de build.
 
@@ -17,12 +17,12 @@ Decisões técnicas detalhadas em [research.md](./research.md): hash PBKDF2 nati
 **Primary Dependencies**:
 - Backend: ASP.NET Core 8, EF Core 9.x + Npgsql, FluentValidation 11, System.IdentityModel.Tokens.Jwt 8, Google.Apis.Auth (login Google mantido), Swashbuckle 8. Hash de senha com `System.Security.Cryptography.Rfc2898DeriveBytes.Pbkdf2` (BCL — **nenhum pacote novo**)
 - Frontend: React Router 6, Vite 6, Tailwind CSS 4 + shadcn/ui (`input`, `label`, `button`, `card` já gerados), i18next 25, sonner; Fetch API via `apiClient` existente; Google Identity Services mantido
-- Testes de API: xUnit + Flurl.Http + FluentAssertions (`Ambrosia.ApiTests`, skill `dotnet-test-api`)
+- Testes de API: xUnit + Flurl.Http + FluentAssertions (`Ambrosio.ApiTests`, skill `dotnet-test-api`)
 - Frontend: Vitest + Testing Library + jsdom
 
 **Storage**: PostgreSQL (tabela `users`, coluna `password_hash varchar(260)` já existente; sem migração). Frontend: `localStorage` na chave `login-with-metamask:auth` com `{ token, expiresAt, user }` (inalterado)
 
-**Testing**: `Ambrosia.ApiTests` contra Development (`http://localhost:5000`) e Homolog (`http://localhost:8080/api`) — cadastro, login, ausência do dev-login, isolamento A/B; Vitest + RTL para `LoginPage`, `RegisterPage`, `AuthContext`, `authService`, `apiClient` e validação de formulário; `npm run verify:prod` em todos os modos de build
+**Testing**: `Ambrosio.ApiTests` contra Development (`http://localhost:5000`) e Homolog (`http://localhost:8080/api`) — cadastro, login, ausência do dev-login, isolamento A/B; Vitest + RTL para `LoginPage`, `RegisterPage`, `AuthContext`, `authService`, `apiClient` e validação de formulário; `npm run verify:prod` em todos os modos de build
 
 **Target Platform**: API Linux (container, atrás do gateway nginx em `/api`); SPA em navegadores móveis e desktop (≥ 360 px)
 
@@ -46,14 +46,14 @@ Decisões técnicas detalhadas em [research.md](./research.md): hash PBKDF2 nati
 
 | # | Princípio | Como o plano atende | Status |
 |---|---|---|---|
-| I | Skills de arquitetura obrigatórias | Backend pela `dotnet-architecture`: DTOs `RegisterInfo`/`LoginInfo` em `Ambrosia.DTO/Auth`, validators FluentValidation no Domain (`dotnet-fluent-validation`), `IPasswordHashAppService` em `Infra.Interfaces/AppServices` + `PasswordHashAppService` em `Infra/AppServices`, regras em `AuthService`, registro no `Startup.cs`. Frontend pela `react-architecture`: `types/auth.ts` → `Services/authService.ts` → `Contexts/AuthContext.tsx` → `hooks/useAuth.ts` (provider já registrado em `main.tsx`); erros com `handleError`/`clearError`/`loading`. Testes de API pela `dotnet-test-api`. Compose/Dockerfile pela `dotnet-env`; Docker local pela `wsl-docker`. `dotnet-graphql` não se aplica (REST). A exceção formal da regra 7 da skill `react-architecture` (DTOs puros em 200) registrada no plano 002 permanece e vale para os novos serviços. | ✅ (exceção herdada da 002) |
+| I | Skills de arquitetura obrigatórias | Backend pela `dotnet-architecture`: DTOs `RegisterInfo`/`LoginInfo` em `Ambrosio.DTO/Auth`, validators FluentValidation no Domain (`dotnet-fluent-validation`), `IPasswordHashAppService` em `Infra.Interfaces/AppServices` + `PasswordHashAppService` em `Infra/AppServices`, regras em `AuthService`, registro no `Startup.cs`. Frontend pela `react-architecture`: `types/auth.ts` → `Services/authService.ts` → `Contexts/AuthContext.tsx` → `hooks/useAuth.ts` (provider já registrado em `main.tsx`); erros com `handleError`/`clearError`/`loading`. Testes de API pela `dotnet-test-api`. Compose/Dockerfile pela `dotnet-env`; Docker local pela `wsl-docker`. `dotnet-graphql` não se aplica (REST). A exceção formal da regra 7 da skill `react-architecture` (DTOs puros em 200) registrada no plano 002 permanece e vale para os novos serviços. | ✅ (exceção herdada da 002) |
 | II | Stack fixa | Nenhuma dependência nova: PBKDF2 da BCL (`Rfc2898DeriveBytes.Pbkdf2`), EF Core, FluentValidation, Fetch API, Tailwind + shadcn/ui, i18next, Vitest. Sem Identity, sem BCrypt, sem Axios, sem Playwright. Variáveis `VITE_*` (a `VITE_DEV_LOGIN` é removida). | ✅ |
 | III | Case sensitivity | Arquivos novos em `src/Services/`, `src/Contexts/`, `src/hooks/`, `src/types/`, `src/pages/`, `src/components/common/`; imports com casing exato (o build roda em Linux no Docker). | ✅ |
 | IV | Convenções de código | Backend: `RegisterInfo`/`LoginInfo` (nomeação `Info`), `[JsonPropertyName("camelCase")]`, `ErrorResult` com `sucesso`/`mensagem`/`erros`, namespaces file-scoped, constantes `UPPER_CASE` (`PBKDF2_ITERATIONS`). Frontend: componentes PascalCase (`RegisterPage`, `PasswordInput`), arrow functions, `interface` (nunca `type`), acesso direto em camelCase. | ✅ |
 | V | Banco de dados | Nenhuma tabela, coluna, índice ou migração: `password_hash varchar(260)` já existe e comporta o formato PBKDF2 (~100 caracteres); `ux_users_email` já garante unicidade e resolve a corrida do cadastro simultâneo. `provider` continua `integer` (valor 2 passa de `Dev` a `Password`). | ✅ (N/A) |
 | VI | Autenticação e segurança | JWT HS256 emitido pela própria API; mesmo `JwtTokenAppService`, mesmos claims, mesma expiração. Senha só em hash salgado (salt aleatório por senha); `PasswordHash` nunca mapeado para DTO (`UserInfo` inalterado). `[AllowAnonymous]` continua restrito a `/auth/*`. `/auth/dev-login` removido em todos os ambientes — **mais restritivo** que o texto atual da §VI (que o *permite* em Development/Homolog), portanto não é violação; a §VI descreve o esquema como "após login OAuth/OIDC (Google)" e precisa ser **emendada** para incluir cadastro/login com senha e proibir o dev-login. Proposta em [constitution-amendment.md](./constitution-amendment.md), a ser aprovada no PR deste ciclo. | ⚠️ Emenda proposta (sem violação) |
-| VII | Ambientes e testes de API | Endpoints novos/alterados ganham testes em `Ambrosia.ApiTests` no mesmo ciclo; a homologação é reconstruída (`docker compose --profile frontend up -d --build` via WSL) e a suíte roda contra `http://localhost:8080/api` sem usuário pré-existente (SC-005). Falhas são corrigidas no código, nunca desabilitando testes. Alterações de compose/Dockerfile (remoção do arg `VITE_DEV_LOGIN`) seguem a `dotnet-env`. | ✅ |
-| VIII | Estratégia de testes | Backend coberto pelos testes de API; frontend só com Vitest + RTL (nenhum E2E). O projeto `Ambrosia.Tests` (unitários) já existe antes desta feature e é um desvio pré-existente da §VIII. Esta feature **reduz** o desvio em vez de mantê-lo: os testes unitários tocados pela mudança de autenticação (`AuthServiceTest.cs` e `DevLoginInfoValidatorTest.cs` inteiros, e os casos de `UserServiceTest.cs` que referenciam `AuthProvider`) são **apagados**, nunca ajustados (T003); o comportamento do `AuthService` passa a ser coberto só pelos testes de API (T016, T031, T049, T051). **Nenhum teste unitário do backend é criado, ajustado ou executado** nesta feature. A remoção completa do projeto `Ambrosia.Tests` fica registrada como follow-up em `decisions.md` (T056). | ✅ (desvio pré-existente reduzido, não ampliado) |
+| VII | Ambientes e testes de API | Endpoints novos/alterados ganham testes em `Ambrosio.ApiTests` no mesmo ciclo; a homologação é reconstruída (`docker compose --profile frontend up -d --build` via WSL) e a suíte roda contra `http://localhost:8080/api` sem usuário pré-existente (SC-005). Falhas são corrigidas no código, nunca desabilitando testes. Alterações de compose/Dockerfile (remoção do arg `VITE_DEV_LOGIN`) seguem a `dotnet-env`. | ✅ |
+| VIII | Estratégia de testes | Backend coberto pelos testes de API; frontend só com Vitest + RTL (nenhum E2E). O projeto `Ambrosio.Tests` (unitários) já existe antes desta feature e é um desvio pré-existente da §VIII. Esta feature **reduz** o desvio em vez de mantê-lo: os testes unitários tocados pela mudança de autenticação (`AuthServiceTest.cs` e `DevLoginInfoValidatorTest.cs` inteiros, e os casos de `UserServiceTest.cs` que referenciam `AuthProvider`) são **apagados**, nunca ajustados (T003); o comportamento do `AuthService` passa a ser coberto só pelos testes de API (T016, T031, T049, T051). **Nenhum teste unitário do backend é criado, ajustado ou executado** nesta feature. A remoção completa do projeto `Ambrosio.Tests` fica registrada como follow-up em `decisions.md` (T056). | ✅ (desvio pré-existente reduzido, não ampliado) |
 | — | Variáveis de ambiente | Backend: nenhuma variável nova (PBKDF2 usa salt por senha, não o pepper do CPF). Frontend: `VITE_API_URL`, `VITE_SITE_BASENAME`, `VITE_GOOGLE_CLIENT_ID` permanecem; `VITE_DEV_LOGIN` é apagada de `.env.*`, `vite-env.d.ts`, `Dockerfile` e dos dois `docker-compose`. | ✅ |
 | — | Tratamento de erros | Controllers com `try/catch` → `ValidationError` (400), `ConflictError` (409), `Unauthorized` + `ErrorResult` (401 do login), `StatusCode(500, ex.Message)`. Frontend: `apiClient` normaliza (com o ajuste do research §3 para 401 anônimo) e o `AuthContext` expõe `error`/`clearError`/`loading`. | ✅ |
 
@@ -85,13 +85,13 @@ specs/003-email-password-jwt-auth/
 
 ```text
 backend/
-├── Ambrosia.DTO/
+├── Ambrosio.DTO/
 │   ├── Auth/RegisterInfo.cs                 # NOVO: name, email, password
 │   ├── Auth/LoginInfo.cs                    # NOVO: email, password
 │   ├── Auth/DevLoginInfo.cs                 # REMOVIDO
 │   ├── Auth/LoginResult.cs                  # inalterado (resposta de register/login/google)
 │   └── Enums/AuthProvider.cs                # Dev = 2 → Password = 2 (JSON "password")
-├── Ambrosia.Domain/
+├── Ambrosio.Domain/
 │   ├── Models/User.cs                       # + SetPassword/ClearPassword, HasPassword
 │   ├── Interfaces/IAuthService.cs           # RegisterAsync, LoginWithPasswordAsync; DevLoginAsync removido
 │   ├── Services/AuthService.cs              # cadastro, login com senha, Google remove senha
@@ -99,20 +99,20 @@ backend/
 │   ├── Validators/RegisterInfoValidator.cs  # NOVO
 │   ├── Validators/LoginInfoValidator.cs     # NOVO
 │   └── Validators/DevLoginInfoValidator.cs  # REMOVIDO
-├── Ambrosia.Infra.Interfaces/AppServices/IPasswordHashAppService.cs   # NOVO
-├── Ambrosia.Infra/AppServices/PasswordHashAppService.cs               # NOVO (PBKDF2-HMAC-SHA256)
-├── Ambrosia.Application/Startup.cs          # registra IPasswordHashAppService (singleton)
-├── Ambrosia.API/
+├── Ambrosio.Infra.Interfaces/AppServices/IPasswordHashAppService.cs   # NOVO
+├── Ambrosio.Infra/AppServices/PasswordHashAppService.cs               # NOVO (PBKDF2-HMAC-SHA256)
+├── Ambrosio.Application/Startup.cs          # registra IPasswordHashAppService (singleton)
+├── Ambrosio.API/
 │   ├── Controllers/AuthController.cs        # Register (201), Login (200/401), Google; DevLogin removido
 │   ├── Swagger/DevLoginDocumentFilter.cs    # REMOVIDO
 │   ├── Extensions/HostEnvironmentExtensions.cs  # IsDevLoginEnabled removido (arquivo some se a constante Homolog ficar sem uso)
 │   └── Program.cs                           # sem DocumentFilter; descrição do Bearer atualizada
-├── Ambrosia.ApiTests/
+├── Ambrosio.ApiTests/
 │   ├── Fixtures/ApiTestFixture.cs           # RegisterAsync + LoginAsync + CreateUserAsync (cadastro → login)
 │   ├── Controllers/AuthControllerTests.cs   # cadastro/login/404 do dev-login
 │   ├── Controllers/UnauthorizedAccessTests.cs  # rota pública = /auth/login
 │   └── appsettings.Test.json                # Auth:TestPassword (não secreto)
-├── Ambrosia.Tests/                          # testes de auth APAGADOS (AuthServiceTest, DevLoginInfoValidatorTest, casos de AuthProvider em UserServiceTest); nada ajustado nem criado
+├── Ambrosio.Tests/                          # testes de auth APAGADOS (AuthServiceTest, DevLoginInfoValidatorTest, casos de AuthProvider em UserServiceTest); nada ajustado nem criado
 └── README.md, scripts/seed-load-test.sql    # docs sem dev-login
 
 frontend/

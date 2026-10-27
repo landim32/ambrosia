@@ -11,16 +11,16 @@ Verificado em 2026-10-26 (T001), antes de qualquer alteração de código.
 
 | Checagem | Comando | Resultado |
 |---|---|---|
-| Build da solução | `dotnet build backend/Ambrosia.sln` | **Compilação com êxito — 0 Aviso(s), 0 Erro(s)** (5,13 s) |
-| Suíte de API contra homolog | `ApiBaseUrl=http://localhost:8080/api dotnet test backend/Ambrosia.ApiTests` | **Aprovado! — Com falha: 0, Aprovado: 99, Ignorado: 0, Total: 99** |
+| Build da solução | `dotnet build backend/Ambrosio.sln` | **Compilação com êxito — 0 Aviso(s), 0 Erro(s)** (5,13 s) |
+| Suíte de API contra homolog | `ApiBaseUrl=http://localhost:8080/api dotnet test backend/Ambrosio.ApiTests` | **Aprovado! — Com falha: 0, Aprovado: 99, Ignorado: 0, Total: 99** |
 
 **Falhas pré-existentes: nenhuma.** A linha de base está verde, então qualquer falha depois das
 tarefas desta feature é attributable a ela.
 
 Duas condições do ambiente notadas durante a medição e resolvidas com autorização do usuário:
 
-- Havia uma API de Development no ar (`Ambrosia.API.exe --url http://localhost:5000`, PID 22348)
-  travando os DLLs de `bin/` e impedindo o build do `Ambrosia.API`. O processo foi encerrado
+- Havia uma API de Development no ar (`Ambrosio.API.exe --url http://localhost:5000`, PID 22348)
+  travando os DLLs de `bin/` e impedindo o build do `Ambrosio.API`. O processo foi encerrado
   (`backend/scripts/stop-api.ps1` é o caminho normal de parar/relançar).
 - A homologação estava **parcial**: `db`, `api`, `frontend` e `gateway` sujos/rodando, sem
   `migrator`/`storage-init` (não existem ainda). Os checkpoints de reset do zero (T058/T069) ficam
@@ -79,7 +79,7 @@ Riscos novos, a confirmar nos testes:
 
 ## tasks · licença ImageSharp
 
-Verificação de elegibilidade da *Six Labors Split License* v1.0 para o Ambrosia (research §7):
+Verificação de elegibilidade da *Six Labors Split License* v1.0 para o Ambrosio (research §7):
 
 - O repositório é **open source sob a MIT License** (`LICENSE`, "Copyright (c) 2026 Rodrigo Landim
   Carneiro"), com `git remote` público em `github.com/landim32/ambrosia`. A Split License libera o
@@ -143,7 +143,7 @@ conhece implementações de infra, mas a *abstração* é permitida — é o mes
 
 ## validação de startup (T051, T052)
 
-Medido em 2026-10-27 com o host em `Debug` (`dotnet exec bin/Debug/net8.0/Ambrosia.API.dll`), config
+Medido em 2026-10-27 com o host em `Debug` (`dotnet exec bin/Debug/net8.0/Ambrosio.API.dll`), config
 passada por argumento de linha de comando — que tem precedência sobre as variáveis de ambiente e, ao
 diferença delas, aceita valor vazio de verdade (`set VAR=` no Windows apaga a variável em vez de
 esvaziá-la, o que escondia os casos de credencial vazia).
@@ -310,7 +310,7 @@ reenvio duplicado e a contagem de rejeições por incompatibilidade de storage.
 
 ## checkpoints de teste — status da rodada
 
-A suíte de API (`Ambrosia.ApiTests`) foi escrita inteira (US1 a US6 + varredura de 401) e **compila**,
+A suíte de API (`Ambrosio.ApiTests`) foi escrita inteira (US1 a US6 + varredura de 401) e **compila**,
 mas ainda **não rodou contra o código novo**. Dois bloqueios, ambos do lado de fora do código-fonte:
 
 1. **Credenciais do Spaces.** O `.env` local ainda não tem `OBJECT_STORAGE_ACCESS_KEY`/
@@ -326,7 +326,7 @@ mas ainda **não rodou contra o código novo**. Dois bloqueios, ambos do lado de
    licença for registrada — ver "tasks · licença ImageSharp" e a seção de licença em `deploy/README.md`.
 
 A varredura de 401 contra o container que está no ar hoje **não vale medida**: o
-`ambrosia-homolog-api` em execução é a imagem **anterior** à 004 — `GET /api/images/1` responde o 404 de
+`ambrosio-homolog-api` em execução é a imagem **anterior** à 004 — `GET /api/images/1` responde o 404 de
 página do nginx, não o 404 JSON da API, e as rotas novas simplesmente não existem lá. Rodando a suíte
 contra ele, os 101 testes anteriores continuam verdes e os 49 novos falham por rota inexistente, que é o
 resultado esperado e não uma falha desta implementação.
@@ -335,9 +335,9 @@ Contra a Development local, a suíte nova falha inteira **antes de qualquer asse
 fixture (medido em 2026-10-27): 31 de 31 testes de `ImagesControllerTests` em 158 ms com
 
 ```text
-System.InvalidOperationException : A API Ambrosia não está acessível em http://localhost:5000
+System.InvalidOperationException : A API Ambrosio não está acessível em http://localhost:5000
 (FlurlHttpException: ... a máquina de destino as recusou ativamente). Suba-a em Development antes de
-rodar Ambrosia.ApiTests: backend/scripts/run-api.ps1.
+rodar Ambrosio.ApiTests: backend/scripts/run-api.ps1.
 ```
 
 Ou seja: nenhuma das falhas é atribuível ao código da feature — é o passo 1 do quickstart que não foi

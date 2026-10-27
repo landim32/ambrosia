@@ -1,4 +1,4 @@
-# Ambrosia — Frontend (HU 002)
+# Ambrosio — Frontend (HU 002)
 
 SPA **somente leitura** de consulta de clientes e pedidos da vendedora. Consome a
 API REST da HU 001 na mesma origem (`/api`), guarda a sessão em `localStorage` e é
@@ -103,7 +103,7 @@ vale para homolog e production igual.
 wsl --cd /mnt/c/repos/ambrosia -e docker compose --profile frontend up -d --build
 
 # Só a imagem do frontend
-wsl --cd /mnt/c/repos/ambrosia/frontend -e docker build --build-arg BUILD_MODE=homolog -t ambrosia-frontend:homolog .
+wsl --cd /mnt/c/repos/ambrosia/frontend -e docker build --build-arg BUILD_MODE=homolog -t ambrosio-frontend:homolog .
 ```
 
 Depois: `http://localhost:8080/` abre o app com o formulário de e-mail/senha e

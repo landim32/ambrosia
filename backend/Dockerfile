@@ -1,4 +1,4 @@
-# Imagem da API Ambrosia + bundle de migrações EF Core.
+# Imagem da API Ambrosio + bundle de migrações EF Core.
 # Contexto de build: backend/  (docker compose usa context: ./backend)
 #   target "final"    -> API (porta 8080)
 #   target "migrator" -> aplica as migrações pendentes e sai
@@ -7,13 +7,13 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS restore
 WORKDIR /src
 
 # Restore em camada própria: só invalida quando um .csproj muda.
-COPY Ambrosia.API/Ambrosia.API.csproj Ambrosia.API/
-COPY Ambrosia.Application/Ambrosia.Application.csproj Ambrosia.Application/
-COPY Ambrosia.Domain/Ambrosia.Domain.csproj Ambrosia.Domain/
-COPY Ambrosia.DTO/Ambrosia.DTO.csproj Ambrosia.DTO/
-COPY Ambrosia.Infra/Ambrosia.Infra.csproj Ambrosia.Infra/
-COPY Ambrosia.Infra.Interfaces/Ambrosia.Infra.Interfaces.csproj Ambrosia.Infra.Interfaces/
-RUN dotnet restore Ambrosia.API/Ambrosia.API.csproj
+COPY Ambrosio.API/Ambrosio.API.csproj Ambrosio.API/
+COPY Ambrosio.Application/Ambrosio.Application.csproj Ambrosio.Application/
+COPY Ambrosio.Domain/Ambrosio.Domain.csproj Ambrosio.Domain/
+COPY Ambrosio.DTO/Ambrosio.DTO.csproj Ambrosio.DTO/
+COPY Ambrosio.Infra/Ambrosio.Infra.csproj Ambrosio.Infra/
+COPY Ambrosio.Infra.Interfaces/Ambrosio.Infra.Interfaces.csproj Ambrosio.Infra.Interfaces/
+RUN dotnet restore Ambrosio.API/Ambrosio.API.csproj
 
 # Chromium do coletor do +Vendas (feature 006, research §2). Parte da camada de restore — e não do
 # publish — para só invalidar quando a VERSÃO FIXA do Microsoft.Playwright mudar no .csproj (o
@@ -28,15 +28,15 @@ RUN set -eu; \
 
 FROM restore AS build
 COPY . .
-RUN dotnet publish Ambrosia.API/Ambrosia.API.csproj -c Release -o /app/publish /p:UseAppHost=false --no-restore
+RUN dotnet publish Ambrosio.API/Ambrosio.API.csproj -c Release -o /app/publish /p:UseAppHost=false --no-restore
 
 # Bundle de migrações: executável único que aplica as migrações usando a mesma configuração da
-# API (ConnectionStrings__AmbrosiaContext e demais variáveis validadas no startup).
+# API (ConnectionStrings__AmbrosioContext e demais variáveis validadas no startup).
 FROM build AS migrator-build
 RUN dotnet tool restore
 RUN dotnet ef migrations bundle \
-      --project Ambrosia.Infra \
-      --startup-project Ambrosia.API \
+      --project Ambrosio.Infra \
+      --startup-project Ambrosio.API \
       --configuration Release \
       --self-contained -r linux-x64 \
       --output /app/efbundle --force
@@ -71,4 +71,4 @@ COPY --from=build /app/publish .
 RUN chmod 755 /app/.playwright/node/linux-x64/node \
     && mkdir -p /home/app/.aspnet/DataProtection-Keys && chown -R app:app /home/app/.aspnet
 USER app
-ENTRYPOINT ["dotnet", "Ambrosia.API.dll"]
+ENTRYPOINT ["dotnet", "Ambrosio.API.dll"]

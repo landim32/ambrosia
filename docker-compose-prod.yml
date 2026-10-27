@@ -2,11 +2,14 @@
 # Cloudflare na frente (SSL "Full (strict)") -> gateway nginx com Origin Certificate -> serviços.
 # Banco: DigitalOcean Managed PostgreSQL (não sobe container de banco aqui).
 #   docker compose --env-file .env.prod -f docker-compose-prod.yml up -d --build
+# Os nomes de projeto, containers, imagens e redes continuam "ambrosia" de propósito: são os que já
+# rodam no servidor. Trocar aqui faria o próximo deploy subir containers novos sem derrubar os
+# antigos (o `down` só enxerga o projeto com o nome novo), e o gateway brigaria pelas portas 80/443.
 name: ambrosia
 
 x-api-environment: &api-environment
   ASPNETCORE_ENVIRONMENT: Production
-  ConnectionStrings__AmbrosiaContext: ${DB_CONNECTION_STRING}
+  ConnectionStrings__AmbrosioContext: ${DB_CONNECTION_STRING}
   Auth__JwtSecret: ${AUTH_JWT_SECRET}
   Auth__GoogleClientId: ${AUTH_GOOGLE_CLIENT_ID}
   CpfProtection__Pepper: ${CPF_PEPPER}
@@ -84,8 +87,8 @@ services:
       - "443:443"
     volumes:
       - ./deploy/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./deploy/nginx/routes.inc:/etc/nginx/ambrosia/routes.inc:ro
-      - ./deploy/nginx/cloudflare-ips.inc:/etc/nginx/ambrosia/cloudflare-ips.inc:ro
+      - ./deploy/nginx/routes.inc:/etc/nginx/ambrosio/routes.inc:ro
+      - ./deploy/nginx/cloudflare-ips.inc:/etc/nginx/ambrosio/cloudflare-ips.inc:ro
       - ./deploy/nginx/certs:/etc/nginx/certs:ro
     depends_on:
       - api

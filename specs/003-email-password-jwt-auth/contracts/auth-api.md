@@ -59,7 +59,7 @@ paths:
             schema: { $ref: '#/components/schemas/LoginInfo' }
       responses:
         '200':
-          description: Token do Ambrosia
+          description: Token do Ambrosio
           content:
             application/json:
               schema: { $ref: '#/components/schemas/LoginResult' }
@@ -133,7 +133,7 @@ components:
 
 ## Descrição do esquema Bearer (Swagger)
 
-"Cole o token do Ambrosia obtido em `POST /auth/login`, `POST /auth/register` ou
+"Cole o token do Ambrosio obtido em `POST /auth/login`, `POST /auth/register` ou
 `POST /auth/google`. Não inclua o prefixo `Bearer`."
 
 ## Consumo pelo frontend (`apiClient`)

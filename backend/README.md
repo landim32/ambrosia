@@ -1,4 +1,4 @@
-# Ambrosia — Backend
+# Ambrosio — Backend
 
 API REST (.NET 8 + PostgreSQL) para cadastro e consulta de **clientes** e **pedidos** de uma vendedora autenticada. Cada usuário enxerga apenas os próprios dados. O CPF nunca é gravado em claro (hash HMAC + cifra AES-256-GCM + máscara).
 
@@ -8,18 +8,18 @@ Guia de validação ponta a ponta: [quickstart.md](../specs/001-api-cadastro-cli
 
 | Projeto | Papel |
 |---|---|
-| `Ambrosia.API` | Controllers, Program.cs, Swagger, autenticação JWT |
-| `Ambrosia.Application` | Composição de DI (`Startup.cs`) |
-| `Ambrosia.Domain` | Modelos, serviços, validators, value objects |
-| `Ambrosia.DTO` | Contratos de entrada/saída, enums, settings |
-| `Ambrosia.Infra` / `Ambrosia.Infra.Interfaces` | EF Core, repositórios, AppServices (JWT, Google, CPF) |
-| `Ambrosia.Tests` | Testes unitários (xUnit + Moq + EF InMemory) |
-| `Ambrosia.ApiTests` | Testes HTTP (xUnit + Flurl + FluentAssertions) |
+| `Ambrosio.API` | Controllers, Program.cs, Swagger, autenticação JWT |
+| `Ambrosio.Application` | Composição de DI (`Startup.cs`) |
+| `Ambrosio.Domain` | Modelos, serviços, validators, value objects |
+| `Ambrosio.DTO` | Contratos de entrada/saída, enums, settings |
+| `Ambrosio.Infra` / `Ambrosio.Infra.Interfaces` | EF Core, repositórios, AppServices (JWT, Google, CPF) |
+| `Ambrosio.Tests` | Testes unitários (xUnit + Moq + EF InMemory) |
+| `Ambrosio.ApiTests` | Testes HTTP (xUnit + Flurl + FluentAssertions) |
 
 ## Pré-requisitos
 
 - .NET SDK 8.0
-- PostgreSQL 16+ instalado no Windows, com um banco `ambrosia_dev` em `localhost:5432` (dev roda sem Docker; homolog e produção estão em [`deploy/README.md`](../deploy/README.md))
+- PostgreSQL 16+ instalado no Windows, com um banco `ambrosio_dev` em `localhost:5432` (dev roda sem Docker; homolog e produção estão em [`deploy/README.md`](../deploy/README.md))
 - Ferramenta EF: `dotnet tool install --global dotnet-ef --version 9.*`
 
 ## Variáveis de ambiente
@@ -29,7 +29,7 @@ Sobrescrevem `appsettings*.json` (separador `__`). Em Development, `appsettings.
 | Variável | Descrição |
 |---|---|
 | `ASPNETCORE_ENVIRONMENT` | `Development` abre o CORS; `Homolog` e `Production` não abrem. A autenticação é a mesma nos três: cadastro, login com senha ou Google — não há atalho sem credencial em ambiente nenhum (constituição §VI) |
-| `ConnectionStrings__AmbrosiaContext` | Connection string do PostgreSQL |
+| `ConnectionStrings__AmbrosioContext` | Connection string do PostgreSQL |
 | `Auth__JwtSecret` | Segredo HS256 do JWT (mínimo 32 bytes UTF-8) |
 | `Auth__GoogleClientId` | Client ID usado como audiência do ID token Google |
 | `Auth__ExpirationMinutes` | Duração do token (padrão 480) |
@@ -60,9 +60,9 @@ $env:ObjectStorage__AccessKey = '<spaces access key>'
 $env:ObjectStorage__SecretKey = '<spaces secret key>'
 ```
 
-O `AWSSDK.S3` e o `SixLabors.ImageSharp` ficam restritos ao `Ambrosia.Infra`, atrás de
+O `AWSSDK.S3` e o `SixLabors.ImageSharp` ficam restritos ao `Ambrosio.Infra`, atrás de
 `IObjectStorageAppService` e `IImageProcessingAppService`, e o primeiro `BackgroundService` do projeto
-(`PendingImageCleanupService`, na `Ambrosia.Application`) roda a limpeza. O ImageSharp 3.2.0 exige
+(`PendingImageCleanupService`, na `Ambrosio.Application`) roda a limpeza. O ImageSharp 3.2.0 exige
 licença da Six Labors no build **Release** (em `Debug` é só aviso): veja a seção de licença em
 [`deploy/README.md`](../deploy/README.md).
 
@@ -88,7 +88,7 @@ Seção `MaisVendas` do appsettings (variáveis `MaisVendas__*`):
 | `Fake:DelayMs` | `50` | atraso por pedido do coletor fake |
 
 **Coletor Fake (homologação)** — origem de teste determinística, sem rede, usada pela suíte
-`Ambrosia.ApiTests`. O login escolhe o cenário (`conta+cenario`, a conta vira o vínculo) e a senha é a
+`Ambrosio.ApiTests`. O login escolhe o cenário (`conta+cenario`, a conta vira o vínculo) e a senha é a
 versão do conteúdo:
 
 | Login | Senha | Resultado |
@@ -109,7 +109,7 @@ Nenhum desses valores é credencial real; nunca versione login ou senha do +Vend
 versão fixa do pacote:
 
 ```powershell
-pwsh Ambrosia.API/bin/Debug/net8.0/playwright.ps1 install chromium
+pwsh Ambrosio.API/bin/Debug/net8.0/playwright.ps1 install chromium
 ```
 
 Na imagem Docker isso é feito pelo estágio `playwright` do `Dockerfile`. A navegação é restrita por
@@ -122,20 +122,20 @@ allowlist (`NavigationGuard`) e ritmo (`OriginRateLimiter`, ≤ 2 req/s). Detalh
 cd backend
 
 # Banco: aplicar migrações
-dotnet ef database update --project Ambrosia.Infra --startup-project Ambrosia.API
+dotnet ef database update --project Ambrosio.Infra --startup-project Ambrosio.API
 
 # Executar (http://localhost:5000, Swagger em /swagger)
-dotnet run --project Ambrosia.API
+dotnet run --project Ambrosio.API
 # ou em background, aguardando o Swagger responder:
 powershell -File scripts/run-api.ps1
 powershell -File scripts/stop-api.ps1
 
 # Testes unitários
-dotnet test Ambrosia.Tests
+dotnet test Ambrosio.Tests
 
 # Testes HTTP (exigem a API no ar em Development)
 $env:ApiBaseUrl = 'http://localhost:5000'
-dotnet test Ambrosia.ApiTests
+dotnet test Ambrosio.ApiTests
 ```
 
 Pare a API antes de `dotnet build` (`stop-api.ps1`): o host em execução trava as DLLs.
@@ -157,7 +157,7 @@ Pare a API antes de `dotnet build` (`stop-api.ps1`): o host em execução trava 
    responde `401` com a mensagem única "E-mail ou senha inválidos", sem revelar se o e-mail existe.
 3. **Google** — o cliente obtém um ID token e chama `POST /auth/google`; reutilizando uma conta
    que tinha senha, a senha é removida neste login (FR-009).
-4. A API devolve um JWT do Ambrosia (`sub` = `user_id`) usado como `Authorization: Bearer <token>`
+4. A API devolve um JWT do Ambrosio (`sub` = `user_id`) usado como `Authorization: Bearer <token>`
    em todas as demais rotas.
 
 Não existe emissão de token sem credencial: a antiga entrada de desenvolvimento foi removida de

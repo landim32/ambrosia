@@ -12,14 +12,14 @@
 | Spec | — |
 | Depende de | [003](003-armazenamento-imagens-s3.md) (storage), [007](007-mcp-servidor-completo.md) (MCP), [008](008-oauth-mcp-chatgpt.md) (OAuth e escopo `images:write`) e [009](009-mcp-app-chatgpt.md) (app no ChatGPT) |
 | Exibição | [002](002-frontend-web-perfil-cliente-pedidos.md) (perfil do cliente) |
-| Código previsto | `backend/` (entidades, serviço e endpoints REST de leitura) e `backend/Ambrosia.Mcp/` (tools) |
+| Código previsto | `backend/` (entidades, serviço e endpoints REST de leitura) e `backend/Ambrosio.Mcp/` (tools) |
 | Referência | Documentação do Apps SDK da OpenAI (`_meta["openai/fileParams"]`), consultada em 25/10/2026 |
 
 ---
 
 ## 1. História
 
-**Como** vendedora, **quero** mandar no ChatGPT as fotos das minhas clientes (por exemplo, provando uma peça) e dizer de quem são, **para** que fiquem guardadas no perfil certo e eu as veja depois no Ambrosia.
+**Como** vendedora, **quero** mandar no ChatGPT as fotos das minhas clientes (por exemplo, provando uma peça) e dizer de quem são, **para** que fiquem guardadas no perfil certo e eu as veja depois no Ambrosio.
 
 ## 2. Contexto e objetivo
 
@@ -137,7 +137,7 @@ sequenceDiagram
     autonumber
     actor U as Usuária
     participant CG as ChatGPT
-    participant MCP as Ambrosia MCP
+    participant MCP as Ambrosio MCP
     participant OF as Arquivos da OpenAI (download_url)
     participant S3 as Storage S3
     participant DB as PostgreSQL
@@ -231,7 +231,7 @@ Rotas relativas à base da API (`https://ambrosiaai.site/api` em produção). As
 | Natureza do dado | Foto de pessoa é **dado pessoal**. Se usada para identificar a pessoa por características faciais, vira **dado biométrico** (sensível). Por isso o reconhecimento facial fica explicitamente fora do escopo |
 | Base legal | Consentimento da cliente, registrado em `customer_photo_consents` (data e forma). A tool só grava com consentimento registrado |
 | Finalidade | Uso interno da vendedora para atendimento. Sem compartilhamento e sem uso em marketing sem novo consentimento |
-| Operadores | As fotos passam pelo ChatGPT (OpenAI) antes de chegar ao Ambrosia. Isso precisa constar na política de privacidade ([009](009-mcp-app-chatgpt.md#10-perguntas-em-aberto)) |
+| Operadores | As fotos passam pelo ChatGPT (OpenAI) antes de chegar ao Ambrosio. Isso precisa constar na política de privacidade ([009](009-mcp-app-chatgpt.md#10-perguntas-em-aberto)) |
 | Minimização | Remoção de EXIF e GPS. Sem guardar a `download_url` |
 | Exclusão | `excluir_todas_fotos_cliente` e revogação do consentimento apagam objetos e metadados. Backups seguem a política da [003](003-armazenamento-imagens-s3.md#9-perguntas-em-aberto) |
 | Acesso | URLs pré-assinadas curtas, isolamento por usuário e escopo `images:write` para escrita |

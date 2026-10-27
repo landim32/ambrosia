@@ -1,8 +1,8 @@
 <#
 .SYNOPSIS
-    Sobe a API Ambrosia em background e aguarda o Swagger responder.
+    Sobe a API Ambrosio em background e aguarda o Swagger responder.
 .DESCRIPTION
-    Usado pelo quickstart e pelos testes HTTP de Ambrosia.ApiTests, que exigem a API no ar
+    Usado pelo quickstart e pelos testes HTTP de Ambrosio.ApiTests, que exigem a API no ar
     em Development. Escreve o log em backend/logs/api-{EnvironmentName}.log e o PID do
     processo em backend/.api.pid (lido por stop-api.ps1).
 
@@ -41,7 +41,7 @@ $env:ASPNETCORE_ENVIRONMENT = $EnvironmentName
 
 Write-Output "iniciando API ($EnvironmentName) em $BaseUrl ..."
 $proc = Start-Process -FilePath 'dotnet' `
-    -ArgumentList @('run', '--project', 'Ambrosia.API', '--no-build', '--no-launch-profile', '--url', $BaseUrl) `
+    -ArgumentList @('run', '--project', 'Ambrosio.API', '--no-build', '--no-launch-profile', '--url', $BaseUrl) `
     -WorkingDirectory $backend `
     -RedirectStandardOutput $logFile `
     -RedirectStandardError $errFile `

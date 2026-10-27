@@ -22,10 +22,10 @@ Esperado: `http://localhost:8080/api/swagger` lista `/imports/mais-vendas/*` com
 
 ```powershell
 cd backend
-dotnet test Ambrosia.ApiTests --filter "FullyQualifiedName~ImportsController|FullyQualifiedName~UnauthorizedAccess|FullyQualifiedName~Isolation"
+dotnet test Ambrosio.ApiTests --filter "FullyQualifiedName~ImportsController|FullyQualifiedName~UnauthorizedAccess|FullyQualifiedName~Isolation"
 ```
 
-Esperado: todos verdes. A suíte cria seus usuários por cadastro + login e usa os cenários do coletor fake (research §3/§16). Depois, a suíte completa: `dotnet test Ambrosia.ApiTests`.
+Esperado: todos verdes. A suíte cria seus usuários por cadastro + login e usa os cenários do coletor fake (research §3/§16). Depois, a suíte completa: `dotnet test Ambrosio.ApiTests`.
 
 ## 4. Cenários manuais na tela (`http://localhost:8080`)
 
@@ -56,7 +56,7 @@ Use valores identificáveis, por exemplo login `s482+ok` e senha `SENHA-TESTE-XY
 
 ```powershell
 # Banco (todas as tabelas)
-wsl -e docker exec ambrosia-homolog-db pg_dump -U $env:POSTGRES_USER $env:POSTGRES_DB | Select-String -Pattern "SENHA-TESTE-XYZ123|s482\+ok"
+wsl -e docker exec ambrosio-homolog-db pg_dump -U $env:POSTGRES_USER $env:POSTGRES_DB | Select-String -Pattern "SENHA-TESTE-XYZ123|s482\+ok"
 # Logs da API
 wsl --cd /mnt/c/repos/ambrosia -e docker compose logs api | Select-String -Pattern "SENHA-TESTE-XYZ123|s482\+ok"
 ```
@@ -76,9 +76,9 @@ Esperado: ao voltar à tela, a execução aparece `failed` com "Execução inter
 ```powershell
 cd backend
 # appsettings.Development.json: "MaisVendas": { "Collector": "Playwright" }
-dotnet build Ambrosia.API
-pwsh Ambrosia.API/bin/Debug/net8.0/playwright.ps1 install chromium
-dotnet run --project Ambrosia.API
+dotnet build Ambrosio.API
+pwsh Ambrosio.API/bin/Debug/net8.0/playwright.ps1 install chromium
+dotnet run --project Ambrosio.API
 ```
 
 Primeira execução **sempre em Simular** (assumptions da spec): confere contadores/totais, o formato da resposta `client-data` e os seletores. Verifique no log as rotas visitadas (só `/login*`, `/cotaPiloto*`, `/storeOmni*`, `/detailOrder/*`) e o ritmo ≤ 2 req/s (SC-012, FR-043). Termos de uso da Somalabs conferidos antes de liberar.
@@ -94,4 +94,4 @@ Esperado: testes de `ImportForm`, `ImportProgress`, `ImportReport`, `importForm`
 
 ## 9. Encerramento do ciclo
 
-Homologação reconstruída com o código final + `dotnet test Ambrosia.ApiTests` inteiro verde contra `http://localhost:8080/api` (constituição §VII). Para produção: verificar `shm_size`/memória do serviço `api`, `MaisVendas__Collector=Playwright` e o checklist em `deploy/README.md`.
+Homologação reconstruída com o código final + `dotnet test Ambrosio.ApiTests` inteiro verde contra `http://localhost:8080/api` (constituição §VII). Para produção: verificar `shm_size`/memória do serviço `api`, `MaisVendas__Collector=Playwright` e o checklist em `deploy/README.md`.

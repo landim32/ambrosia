@@ -6,7 +6,7 @@ Guia para provar que a API funciona de ponta a ponta. Contrato completo em [cont
 ## Pré-requisitos
 
 - .NET SDK 8.0 (`dotnet --version` → 8.x)
-- PostgreSQL 16+ **instalado localmente** (sem Docker, conforme constituição) com um banco `ambrosia_dev`
+- PostgreSQL 16+ **instalado localmente** (sem Docker, conforme constituição) com um banco `ambrosio_dev`
 - Ferramenta EF: `dotnet tool install --global dotnet-ef --version 9.*`
 - `curl` (ou o Swagger UI)
 
@@ -14,7 +14,7 @@ Guia para provar que a API funciona de ponta a ponta. Contrato completo em [cont
 
 ```powershell
 $env:ASPNETCORE_ENVIRONMENT = 'Development'
-$env:ConnectionStrings__AmbrosiaContext = 'Host=localhost;Port=5432;Database=ambrosia_dev;Username=postgres;Password=postgres'
+$env:ConnectionStrings__AmbrosioContext = 'Host=localhost;Port=5432;Database=ambrosio_dev;Username=postgres;Password=postgres'
 $env:Auth__JwtSecret = 'dev-secret-key-with-at-least-32-characters!!'
 $env:Auth__GoogleClientId = 'SEU_CLIENT_ID.apps.googleusercontent.com'   # só para /auth/google
 $env:CpfProtection__Pepper = 'dev-pepper-change-me'
@@ -28,8 +28,8 @@ $env:CpfProtection__EncryptionKey = [Convert]::ToBase64String((1..32 | ForEach-O
 ```powershell
 cd backend
 dotnet build
-dotnet ef database update --project Ambrosia.Infra --startup-project Ambrosia.API
-dotnet run --project Ambrosia.API
+dotnet ef database update --project Ambrosio.Infra --startup-project Ambrosio.API
+dotnet run --project Ambrosio.API
 ```
 
 Esperado: API em `http://localhost:5000`, Swagger em `http://localhost:5000/swagger` com o botão **Authorize** (Bearer). As 4 tabelas (`users`, `customers`, `orders`, `order_items`) existem no banco.
@@ -147,12 +147,12 @@ Esperado: 100% das tentativas de B sobre dados de A respondem 404 ou lista vazia
 
 ```powershell
 cd backend
-dotnet test Ambrosia.Tests
+dotnet test Ambrosio.Tests
 ```
 
 Esperado: todos os testes verdes (value object `Cpf`, validators, serviços com Moq, `CpfProtectionAppService` round-trip, `JwtTokenAppService`, `OrderRepository` com InMemory cobrindo filtros e isolamento).
 
-Opcional (`Ambrosia.ApiTests`, com a API no ar): `$env:ApiBaseUrl='http://localhost:5000'; dotnet test Ambrosia.ApiTests`.
+Opcional (`Ambrosio.ApiTests`, com a API no ar): `$env:ApiBaseUrl='http://localhost:5000'; dotnet test Ambrosio.ApiTests`.
 
 ## Desempenho (SC-003)
 

@@ -10,21 +10,21 @@ Execução 20261027-112248 · história 1/1 "004 — Importação do +Vendas pel
 _claude-code / claude-sonnet-5-5_
 
 ## clarify · 2026-10-27 14:28
-**Pergunta:** Se a vendedora editar no Ambrosia um pedido que veio do +Vendas, o que deve acontecer com essa edição quando o período for importado de novo e a origem tiver outro conteúdo? Hoje FR-023 atualiza o pedido com os dados da origem, mas não diz nada sobre edições feitas à mão. Isso afeta o modelo de dados e os testes de idempotência.
+**Pergunta:** Se a vendedora editar no Ambrosio um pedido que veio do +Vendas, o que deve acontecer com essa edição quando o período for importado de novo e a origem tiver outro conteúdo? Hoje FR-023 atualiza o pedido com os dados da origem, mas não diz nada sobre edições feitas à mão. Isso afeta o modelo de dados e os testes de idempotência.
 **Opções:** Origem prevalece (Recommended) (recomendada) · Bloquear edição · Edição manual prevalece
 **Escolha:** Origem prevalece (Recommended)
-**Por quê:** A opção 1 está marcada como recomendada e é coerente com a história, que trata a importação como espelho idempotente do +Vendas (upsert por chave natural com substituição de itens e registro dos campos alterados). Os campos que existem só no Ambrosia são preservados, sem exigir rastreamento de edições manuais nem mudar a tela de pedido.
+**Por quê:** A opção 1 está marcada como recomendada e é coerente com a história, que trata a importação como espelho idempotente do +Vendas (upsert por chave natural com substituição de itens e registro dos campos alterados). Os campos que existem só no Ambrosio são preservados, sem exigir rastreamento de edições manuais nem mudar a tela de pedido.
 _claude-code / claude-sonnet-5-5_
 
 ## clarify · 2026-10-27 14:28
-**Pergunta:** O Ambrosia deve limitar as tentativas seguidas de importação com credenciais recusadas pelo +Vendas? Sem limite, a tela pode virar um jeito de testar senhas contra o +Vendas, e a conta da vendedora pode ser bloqueada lá. Isso define uma regra a mais e um teste de API.
+**Pergunta:** O Ambrosio deve limitar as tentativas seguidas de importação com credenciais recusadas pelo +Vendas? Sem limite, a tela pode virar um jeito de testar senhas contra o +Vendas, e a conta da vendedora pode ser bloqueada lá. Isso define uma regra a mais e um teste de API.
 **Opções:** 3 falhas / 15 min (Recommended) (recomendada) · 5 falhas / 1 hora · Sem limite
 **Escolha:** 3 falhas / 15 min (Recommended)
 **Por quê:** A opção 1 está marcada como recomendada, então a política manda escolhê-la. Ela protege a conta da vendedora no +Vendas e evita que a tela sirva para testar senhas, com uma regra simples e um teste de API.
 _claude-code / claude-sonnet-5-5_
 
 ## clarify · 2026-10-27 14:28
-**Pergunta:** O que o Ambrosia deve fazer se a vendedora importar usando uma conta do +Vendas diferente da que usou antes (por exemplo, a conta de uma colega)? Os pedidos dessa conta entrariam na base dela, misturando vendas de outra pessoa. Proteger contra isso exige guardar uma identificação da conta, mas nunca o login em si.
+**Pergunta:** O que o Ambrosio deve fazer se a vendedora importar usando uma conta do +Vendas diferente da que usou antes (por exemplo, a conta de uma colega)? Os pedidos dessa conta entrariam na base dela, misturando vendas de outra pessoa. Proteger contra isso exige guardar uma identificação da conta, mas nunca o login em si.
 **Opções:** Bloquear outra conta (Recommended) (recomendada) · Avisar e seguir · Não verificar
 **Escolha:** Bloquear outra conta (Recommended)
 **Por quê:** A opção 1 está marcada como recomendada, então a política manda escolhê-la. Ela evita misturar vendas de outra conta na base da vendedora, guardando apenas um hash com pepper do identificador, nunca o login em si.

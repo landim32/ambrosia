@@ -99,7 +99,7 @@ Rastro de cada pedido tocado (FR-048). Guarda só a chave natural — **nunca** 
 
 Nenhuma coluna de login ou senha existe em tabela alguma (FR-006).
 
-## 3. Enums (`Ambrosia.DTO/Enums`)
+## 3. Enums (`Ambrosio.DTO/Enums`)
 
 | Enum | Valores (int → JSON camelCase) |
 |---|---|
@@ -109,7 +109,7 @@ Nenhuma coluna de login ou senha existe em tabela alguma (FR-006).
 | `ImportBlockStatus` | `Pending = 1`, `Running = 2`, `Succeeded = 3`, `Failed = 4`, `NotExecuted = 5` |
 | `ImportChangeAction` | `Inserted = 1`, `Updated = 2`, `Unchanged = 3`, `Missing = 4`, `Conflict = 5`, `Error = 6` |
 
-## 4. Entidades de domínio (`Ambrosia.Domain/Models`)
+## 4. Entidades de domínio (`Ambrosio.Domain/Models`)
 
 ```text
 ImportRun
@@ -160,7 +160,7 @@ stateDiagram-v2
 
 Blocos: `pending → running → succeeded | failed`; `pending → notExecuted` quando a execução para antes deles.
 
-## 5. Regras de validação (FluentValidation, `Ambrosia.Domain/Validators`)
+## 5. Regras de validação (FluentValidation, `Ambrosio.Domain/Validators`)
 
 `ImportRunStartInfoValidator` (depende de `IClock` e `IOptions<MaisVendasSettings>`):
 
@@ -174,7 +174,7 @@ Blocos: `pending → running → succeeded | failed`; `pending → notExecuted` 
 
 `ImportRunListQueryValidator`: `page ≥ 1`, `pageSize` 1–50.
 
-## 6. DTOs (`Ambrosia.DTO/Imports`, `[JsonPropertyName]` camelCase)
+## 6. DTOs (`Ambrosio.DTO/Imports`, `[JsonPropertyName]` camelCase)
 
 | DTO | Papel |
 |---|---|
@@ -189,13 +189,13 @@ Blocos: `pending → running → succeeded | failed`; `pending → notExecuted` 
 | `ImportRunListQuery` | `page`, `pageSize` |
 | `MaisVendasSettings` (`Settings/`) | research §13 |
 
-Transporte interno do coletor (`Ambrosia.DTO/Imports/Collector`): `MaisVendasCredentials` (login, password — só em memória), `MaisVendasLoginResult` (`Outcome`: Accepted/Refused/UnsupportedStep; `AccountIdentifier?`), `CollectedBlock` (`Orders[]`, `TabCounters`, `TabTotals`), `CollectedOrder` (chave natural, canal, origem, status, total, datas, externalId, `CustomerName`, `CpfDigits`, `Items[]`), `CollectedOrderItem` (productName, skuRef, size, price, imageUrl), `CollectedImage` (`Content` stream, `MimeType`, `SizeBytes`).
+Transporte interno do coletor (`Ambrosio.DTO/Imports/Collector`): `MaisVendasCredentials` (login, password — só em memória), `MaisVendasLoginResult` (`Outcome`: Accepted/Refused/UnsupportedStep; `AccountIdentifier?`), `CollectedBlock` (`Orders[]`, `TabCounters`, `TabTotals`), `CollectedOrder` (chave natural, canal, origem, status, total, datas, externalId, `CustomerName`, `CpfDigits`, `Items[]`), `CollectedOrderItem` (productName, skuRef, size, price, imageUrl), `CollectedImage` (`Content` stream, `MimeType`, `SizeBytes`).
 
 `OrderInfo`/`OrderDetailInfo` ganham `source` (`OrderSource`) para a tela marcar pedidos importados; `OrderItemInfo` ganha `imageId?`.
 
 ## 7. Interfaces
 
-**Domain (`Ambrosia.Domain/Interfaces`)**
+**Domain (`Ambrosio.Domain/Interfaces`)**
 
 - `IImportRunService`: `GetDefaultsAsync(userId)`, `StartAsync(userId, ImportRunStartInfo)` (valida, checa bloqueio → `ImportLockedException`, cria a execução → `DuplicateException` se já houver ativa, enfileira), `GetCurrentAsync(userId)`, `GetByIdAsync(userId, runId)`, `ListAsync(userId, query)`, `CancelAsync(userId, runId)`.
 - `IImportExecutionService`: `ExecuteAsync(ImportJob job, CancellationToken)` — orquestra login, vínculo, blocos, validação, gravação pedido a pedido, imagens, não encontrados e fechamento. Chamado só pelo worker.

@@ -22,7 +22,7 @@ Phase 0 do plano. Cada item resolve um "NEEDS CLARIFICATION" do Technical Contex
 ## 3. Filtro de canal por trecho **[decisão do solicitante]**
 
 - **Decision**: ajustar o backend nesta feature. `OrderRepository.cs` (linha ~90) passa de `o.Channel.ToLower() == channel` para `o.Channel.ToLower().Contains(channel)`; o parâmetro `channel` em `specs/001-api-cadastro-clientes-pedidos/contracts/openapi.yaml` passa a "Trecho do canal (case-insensitive)"; `OrderRepositoryTest` ganha caso de trecho parcial.
-- **Rationale**: FR-014 exige busca por trecho sem distinguir maiúsculas; a mudança é de uma linha, isolada, e mantém compatibilidade com quem enviava o canal completo (continua casando). `ToLower().Contains` em vez de `EF.Functions.ILike` para continuar funcionando no provider InMemory usado em `Ambrosia.Tests`.
+- **Rationale**: FR-014 exige busca por trecho sem distinguir maiúsculas; a mudança é de uma linha, isolada, e mantém compatibilidade com quem enviava o canal completo (continua casando). `ToLower().Contains` em vez de `EF.Functions.ILike` para continuar funcionando no provider InMemory usado em `Ambrosio.Tests`.
 - **Alternatives considered**: manter igualdade e documentar a limitação (violaria a letra do FR-014); lista fixa de canais (descartada no clarify).
 
 ## 4. Layout do projeto e casing de diretórios
@@ -35,7 +35,7 @@ Phase 0 do plano. Cada item resolve um "NEEDS CLARIFICATION" do Technical Contex
 
 - **Decision**: `localStorage` na chave `"login-with-metamask:auth"` (constituição §VI) com `{ token, expiresAt, user }` (o `LoginResult` da API). Um `AuthContext` expõe `session`, `isAuthenticated`, `loginWithGoogle(idToken)`, `loginDev(email, name)`, `logout(reason?)`. A expiração é verificada (a) ao montar o guard de rota, (b) antes de cada requisição no `apiClient` e (c) por um timer agendado para `expiresAt`. Ao expirar localmente ou receber 401, `logout('expirada')` limpa o storage e navega para `/login?motivo=expirada`, guardando a rota original em `state.returnTo`; após o login, `navigate(returnTo ?? '/clientes', { replace: true })`.
 - **Rationale**: atende FR-003/004/005/007 e os cenários 3–6 da US1 sem cookies (constituição). O aviso "Sua sessão expirou" é exibido pela `LoginPage` a partir do parâmetro `motivo`, não por toast, para sobreviver ao redirecionamento.
-- **Alternatives considered**: `sessionStorage` (não mantém sessão entre aberturas, viola FR-003); renomear a chave para `ambrosia:auth` (emenda futura, fora do escopo — spec Assumptions).
+- **Alternatives considered**: `sessionStorage` (não mantém sessão entre aberturas, viola FR-003); renomear a chave para `ambrosio:auth` (emenda futura, fora do escopo — spec Assumptions).
 
 ## 6. Cliente HTTP e tratamento de erros
 

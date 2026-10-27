@@ -10,7 +10,7 @@
 
 ## Contexto
 
-A HU 001 entregou somente a API do Ambrosia: hoje a vendedora só consegue consultar seus clientes e pedidos pelo Swagger ou por linha de comando. Esta feature cria o **primeiro frontend web**, **somente para consulta** (nenhuma tela de cadastro, edição ou exclusão). Os dados continuam entrando pela API, pelo bot de migração (HU 009) ou pelo MCP (HU 006).
+A HU 001 entregou somente a API do Ambrosio: hoje a vendedora só consegue consultar seus clientes e pedidos pelo Swagger ou por linha de comando. Esta feature cria o **primeiro frontend web**, **somente para consulta** (nenhuma tela de cadastro, edição ou exclusão). Os dados continuam entrando pela API, pelo bot de migração (HU 009) ou pelo MCP (HU 006).
 
 Assim como o +Vendas (doc 01), o uso principal é no **celular, dentro da loja**: a interface é pensada primeiro para telas pequenas, com listas em cards, e também funciona no desktop.
 
@@ -29,7 +29,7 @@ Assim como o +Vendas (doc 01), o uso principal é no **celular, dentro da loja**
 
 ### User Story 1 - Entrar e manter a sessão (Priority: P1)
 
-A vendedora abre o endereço do Ambrosia no navegador, entra com sua conta Google (a mesma usada na API) e passa a ver apenas os seus dados. Enquanto a sessão for válida, ela não precisa entrar de novo; quando a sessão expira, é levada de volta à tela de entrada com um aviso.
+A vendedora abre o endereço do Ambrosio no navegador, entra com sua conta Google (a mesma usada na API) e passa a ver apenas os seus dados. Enquanto a sessão for válida, ela não precisa entrar de novo; quando a sessão expira, é levada de volta à tela de entrada com um aviso.
 
 **Why this priority**: sem sessão autenticada nenhuma outra tela pode mostrar dados; é a base de todas as demais histórias e o que garante o isolamento entre vendedoras.
 
@@ -109,7 +109,7 @@ A vendedora abre um pedido e vê o cliente, os dados do pedido e cada item compr
 
 ### User Story 5 - Usar no celular com conforto (Priority: P2)
 
-A vendedora usa o Ambrosia no celular na loja, com rede instável, e precisa que as telas caibam, respondam ao toque e avisem quando algo falhar.
+A vendedora usa o Ambrosio no celular na loja, com rede instável, e precisa que as telas caibam, respondam ao toque e avisem quando algo falhar.
 
 **Why this priority**: é a condição de uso real do produto (doc 01: o +Vendas é mobile-first); sem isso as histórias anteriores não entregam valor na loja.
 
@@ -175,7 +175,7 @@ A vendedora usa o Ambrosia no celular na loja, com rede instável, e precisa que
 - **FR-020**: Datas sem hora DEVEM ser exibidas como `dd/mm/aaaa` e representar o mesmo dia em qualquer fuso horário do navegador.
 - **FR-021**: Tipos de pedido DEVEM aparecer em português: venda, devolução e cancelamento. Origem (`cota`, `omni`) aparece como etiqueta; canal é exibido como veio.
 - **FR-022**: O CPF completo NÃO DEVE aparecer em listagens nem no detalhe do pedido; apenas o mascarado. O único lugar em que pode ser revelado é o perfil do cliente (FR-012).
-- **FR-023**: Imagens de itens DEVEM carregar sob demanda, com espaço reservado em caso de ausência ou falha, e sem enviar a origem do Ambrosia ao servidor da imagem.
+- **FR-023**: Imagens de itens DEVEM carregar sob demanda, com espaço reservado em caso de ausência ou falha, e sem enviar a origem do Ambrosio ao servidor da imagem.
 - **FR-024**: Toda a interface DEVE estar em português do Brasil.
 
 **Estados, erros e acessibilidade**

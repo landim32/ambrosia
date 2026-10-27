@@ -41,9 +41,9 @@ Datas `format: date` (`orderDate`, `originalSaleOn`, `cancelledOn`, `lastPurchas
 
 | Arquivo | Mudança |
 |---|---|
-| `backend/Ambrosia.Infra/Repository/OrderRepository.cs` (~linha 90) | `o.Channel.ToLower() == channel` → `o.Channel.ToLower().Contains(channel)` |
+| `backend/Ambrosio.Infra/Repository/OrderRepository.cs` (~linha 90) | `o.Channel.ToLower() == channel` → `o.Channel.ToLower().Contains(channel)` |
 | `specs/001-api-cadastro-clientes-pedidos/contracts/openapi.yaml` (`/orders` → parâmetro `channel`) | descrição: `Igualdade case-insensitive` → `Trecho do canal (case-insensitive)` |
-| `backend/Ambrosia.Tests/.../OrderRepositoryTest.cs` | novo caso: `channel=lin` casa `Linx`; `channel=LINX` continua casando; `channel=xyz` não casa |
+| `backend/Ambrosio.Tests/.../OrderRepositoryTest.cs` | novo caso: `channel=lin` casa `Linx`; `channel=LINX` continua casando; `channel=xyz` não casa |
 | Documentação Swagger (`<param>` do `OrdersController`, se houver) | mesma redação |
 
 Compatibilidade: quem enviava o canal completo continua obtendo os mesmos resultados (igualdade é um caso particular de trecho). Nenhuma migração de banco.

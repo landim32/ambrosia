@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Infra: DbContext, repositórios e AppServices (Npgsql, JWT, Google OAuth, proteção de CPF). -->
+  <!-- Microsoft.Extensions.* e EF Core alinhados em 9.0.22: Npgsql 9.0.4 traz Relational 9.0.1
+       como mínimo, e a referência explícita abaixo unifica o grafo (evita MSB3277/NU1605). -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.22" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="9.0.22" />
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="9.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.22">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Google.Apis.Auth" Version="1.77.0" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.23.0" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.22" />
+    <!-- Storage de imagens (feature 004): cliente S3 de referência (troca de provedor só por
+         configuração — research §1). Fica restrito à Infra. -->
+    <PackageReference Include="AWSSDK.S3" Version="4.0.104.7" />
+    <!-- Coleta do +Vendas (feature 006, research §2): Playwright é dependência de RUNTIME da Infra,
+         não ferramenta de teste (constituição §VIII). Versão fixa: o binário do Chromium precisa
+         casar com o instalado na imagem Docker. Fica restrita à Infra — Domain e Application não
+         veem navegador nenhum, só IMaisVendasCollectorAppService. -->
+    <PackageReference Include="Microsoft.Playwright" Version="1.49.0" />
+    <!-- Unificação do grafo (nota do topo): o Playwright 1.49 pede System.Text.Json 9.x e o
+         framework net8.0 traz o 8.0 como primária — sem esta referência explícita o build emite
+         MSB3277 e a aplicação carregaria a versão do framework. Alinhada em 9.0.22 com as demais
+         Microsoft.Extensions.*/EF Core. -->
+    <PackageReference Include="System.Text.Json" Version="9.0.22" />
+  </ItemGroup>
+
+  <!-- Fotos de teste do coletor Fake (feature 006, T088): embutidas para a homologação servir bytes
+       reais sem tocar na rede. small.jpg/small.png/small.webp são os mesmos fixtures dos testes de
+       imagem da feature 004, e tiny.gif é o tipo fora de AllowedMimeTypes (fotografia do FR-039). -->
+  <ItemGroup>
+    <EmbeddedResource Include="AppServices\MaisVendas\FakeImages\small.jpg" />
+    <EmbeddedResource Include="AppServices\MaisVendas\FakeImages\small.png" />
+    <EmbeddedResource Include="AppServices\MaisVendas\FakeImages\small.webp" />
+    <EmbeddedResource Include="AppServices\MaisVendas\FakeImages\other.jpg" />
+    <EmbeddedResource Include="AppServices\MaisVendas\FakeImages\tiny.gif" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ambrosio.Domain\Ambrosio.Domain.csproj" />
+    <ProjectReference Include="..\Ambrosio.Infra.Interfaces\Ambrosio.Infra.Interfaces.csproj" />
+    <ProjectReference Include="..\Ambrosio.DTO\Ambrosio.DTO.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,4 +1,4 @@
-# Proposta de emenda — Constituição do Ambrosia 3.2.0 → 3.3.0
+# Proposta de emenda — Constituição do Ambrosio 3.2.0 → 3.3.0
 
 **Feature**: 003-email-password-jwt-auth · **Tipo**: MINOR (expansão material do esquema de
 autenticação + regra mais restritiva; nenhuma remoção de princípio) · **Entra em vigor**: na

@@ -15,7 +15,7 @@ Phase 1. Entidades, DTOs, regras de validação e transições desta feature. O 
 | `provider_subject` | varchar(260) NULL | `sub` do Google; `NULL` em contas por senha |
 | `created_at` / `updated_at` | timestamp without time zone | `updated_at` atualizado em cada login (senha ou Google) e ao limpar a senha |
 
-**Modelo de domínio (`Ambrosia.Domain/Models/User.cs`)** — membros novos:
+**Modelo de domínio (`Ambrosio.Domain/Models/User.cs`)** — membros novos:
 
 | Membro | Descrição |
 |---|---|
@@ -59,7 +59,7 @@ Phase 1. Entidades, DTOs, regras de validação e transições desta feature. O 
 Não existe transição `[Google] → [Password]` nesta feature (troca/recuperação de senha são
 histórias futuras — Assumptions da spec).
 
-## 2. Enum `AuthProvider` (`Ambrosia.DTO/Enums`)
+## 2. Enum `AuthProvider` (`Ambrosio.DTO/Enums`)
 
 | Nome | Valor | JSON | Significado |
 |---|---|---|---|
@@ -68,7 +68,7 @@ histórias futuras — Assumptions da spec).
 
 Frontend: `UserInfo.provider: 'google' | 'password'`.
 
-## 3. DTOs de entrada (`Ambrosia.DTO/Auth`)
+## 3. DTOs de entrada (`Ambrosio.DTO/Auth`)
 
 ### `RegisterInfo` — corpo de `POST /auth/register`
 
@@ -108,7 +108,7 @@ Chave `login-with-metamask:auth` com `AuthSession { token, expiresAt, user }`. G
 |---|---|---|---|
 | `ValidationException` (FluentValidation) | validators | 400 | "Dados inválidos." + `erros[]` por campo |
 | `DuplicateException` | cadastro com e-mail existente (serviço) ou índice único (repositório) | 409 | "Este e-mail já está cadastrado." · "Este e-mail já está cadastrado. Entre com sua conta Google." |
-| `InvalidCredentialsException` (**nova**, `Ambrosia.Domain/Exceptions`) | login com senha | 401 | "E-mail ou senha inválidos" |
+| `InvalidCredentialsException` (**nova**, `Ambrosio.Domain/Exceptions`) | login com senha | 401 | "E-mail ou senha inválidos" |
 | `Exception` | qualquer | 500 | texto da exceção (constituição) |
 
 ## 7. Serviço de hash (`IPasswordHashAppService`, Infra.Interfaces → Infra)

@@ -1,4 +1,4 @@
-# ambrosia Development Guidelines
+# ambrosio Development Guidelines
 
 Auto-generated from all feature plans. Last updated: 2026-10-27
 
@@ -39,7 +39,7 @@ npm run verify:prod  # prova do pacote: falha se dev-login/DevLoginForm/VITE_DEV
 
 ```powershell
 cd backend
-dotnet test Ambrosia.Tests --filter OrderRepositoryTest
+dotnet test Ambrosio.Tests --filter OrderRepositoryTest
 ```
 
 # Docker (sem Docker Desktop: Engine no WSL2 — skill `wsl-docker`)
