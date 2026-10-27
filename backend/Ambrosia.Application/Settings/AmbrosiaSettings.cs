@@ -4,7 +4,8 @@ namespace Ambrosia.Application.Settings;
 
 /// <summary>
 /// Agregador de configuração da solução (research §16), montado pelo <c>Program.cs</c> a partir
-/// de <c>ConnectionStrings:AmbrosiaContext</c>, seção <c>Auth</c> e seção <c>CpfProtection</c>.
+/// de <c>ConnectionStrings:AmbrosiaContext</c>, seção <c>Auth</c>, seção <c>CpfProtection</c> e
+/// seção <c>ObjectStorage</c>.
 /// As subclasses vivem no DTO porque são consumidas como <c>IOptions&lt;T&gt;</c> pela Infra.
 /// </summary>
 public class AmbrosiaSettings
@@ -17,4 +18,7 @@ public class AmbrosiaSettings
 
     /// <summary>Segredos de hash/cifra do CPF.</summary>
     public CpfProtectionSettings CpfProtection { get; set; } = new();
+
+    /// <summary>Storage de imagens compatível com S3 (feature 004, research §12).</summary>
+    public ObjectStorageSettings ObjectStorage { get; set; } = new();
 }

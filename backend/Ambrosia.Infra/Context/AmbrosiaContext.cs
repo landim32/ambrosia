@@ -1,11 +1,12 @@
 using Ambrosia.Domain.Models;
+using Ambrosia.DTO.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ambrosia.Infra.Context;
 
 /// <summary>
-/// Contexto único da solução Ambrosia (4 tabelas: <c>users</c>, <c>customers</c>,
-/// <c>orders</c>, <c>order_items</c>). Toda a semântica de banco está aqui, em Fluent API,
+/// Contexto único da solução Ambrosia (5 tabelas: <c>users</c>, <c>customers</c>,
+/// <c>orders</c>, <c>order_items</c>, <c>stored_images</c>). Toda a semântica de banco está aqui, em Fluent API,
 /// seguindo a constituição §V: snake_case, PK <c>{entidade}_id</c> bigint identity,
 /// constraint PK <c>{tabela}_pkey</c>, <c>varchar(n)</c> com MaxLength,
 /// <c>timestamp without time zone</c>, enums como <c>integer</c> e
@@ -25,6 +26,8 @@ public class AmbrosiaContext : DbContext
 
     public DbSet<OrderItem> OrderItems { get; set; }
 
+    public DbSet<StoredImage> StoredImages { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -33,6 +36,7 @@ public class AmbrosiaContext : DbContext
         ConfigureCustomer(modelBuilder);
         ConfigureOrder(modelBuilder);
         ConfigureOrderItem(modelBuilder);
+        ConfigureStoredImage(modelBuilder);
     }
 
     private static void ConfigureUser(ModelBuilder modelBuilder)
@@ -318,6 +322,106 @@ public class AmbrosiaContext : DbContext
 
             entity.HasIndex(e => e.SkuRef)
                 .HasDatabaseName("ix_order_items_sku");
+        });
+    }
+
+    private static void ConfigureStoredImage(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<StoredImage>(entity =>
+        {
+            entity.ToTable("stored_images");
+
+            entity.HasKey(e => e.Id).HasName("stored_images_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("stored_image_id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.UserId)
+                .HasColumnName("user_id")
+                .IsRequired();
+
+            entity.Property(e => e.StorageKey)
+                .HasColumnName("storage_key")
+                .HasMaxLength(260)
+                .IsRequired();
+
+            entity.Property(e => e.Sha256)
+                .HasColumnName("sha256")
+                .HasMaxLength(64)
+                .IsRequired();
+
+            entity.Property(e => e.MimeType)
+                .HasColumnName("mime_type")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            entity.Property(e => e.SizeBytes)
+                .HasColumnName("size_bytes")
+                .IsRequired();
+
+            entity.Property(e => e.Width)
+                .HasColumnName("width");
+
+            entity.Property(e => e.Height)
+                .HasColumnName("height");
+
+            // Sentinela explícita: quando o valor da propriedade é a sentinela, o EF considera a
+            // propriedade "não definida" e deixa o banco decidir. Escolhida Pending — o mesmo valor do
+            // default — para que o INSERT do CreatePending e uma inserção sem a coluna deem o mesmo 1,
+            // e para o CLR default 0 (que não é um ImageStatus válido) nunca significar "omita". Sem
+            // isto o modelo emite o aviso 20601 no startup.
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasConversion<int>()
+                .HasDefaultValue(ImageStatus.Pending)
+                .HasSentinel(ImageStatus.Pending)
+                .IsRequired();
+
+            entity.Property(e => e.Source)
+                .HasColumnName("source")
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .HasColumnType("timestamp without time zone")
+                .IsRequired();
+
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .HasColumnType("timestamp without time zone")
+                .IsRequired();
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.StoredImages)
+                .HasForeignKey(e => e.UserId)
+                .HasConstraintName("fk_user_stored_image")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            // Índice da FK em snake_case (a convenção do EF geraria "IX_stored_images_user_id").
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("ix_stored_images_user");
+
+            // FR-011 + clarificação 5: deduplicação por usuário apenas entre imagens ATIVAS. Como o
+            // filtro exclui status = 3 (failed), um reenvio do mesmo conteúdo depois de uma recusa
+            // cria registro novo — com a MESMA chave de objeto, pois o da tentativa falha já foi
+            // apagado (research §8). Um índice único total quebraria isso.
+            entity.HasIndex(e => new { e.UserId, e.Sha256 })
+                .IsUnique()
+                .HasDatabaseName("ux_stored_images_user_sha256_active")
+                .HasFilter("status IN (1, 2)");
+
+            // Uma chave de objeto ativa por vez: dois envios simultâneos do mesmo conteúdo (edge
+            // case da spec) disputam este índice, e o perdido é relido pelo serviço (research §8).
+            entity.HasIndex(e => e.StorageKey)
+                .IsUnique()
+                .HasDatabaseName("ux_stored_images_storage_key_active")
+                .HasFilter("status IN (1, 2)");
+
+            // Varredura do job de limpeza (FR-018): pendentes/falhas mais antigas que o TTL.
+            entity.HasIndex(e => new { e.Status, e.CreatedAt })
+                .HasDatabaseName("ix_stored_images_status_created_at");
         });
     }
 }

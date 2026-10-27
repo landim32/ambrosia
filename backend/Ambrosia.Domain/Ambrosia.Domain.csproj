@@ -9,6 +9,11 @@
 
   <ItemGroup>
     <PackageReference Include="FluentValidation" Version="11.12.0" />
+    <!-- Feature 004: o ImageService e o ImageUploadInsertInfoValidator leem limites e tipos aceitos
+         de IOptions<ObjectStorageSettings>, e o serviço registra contagem de limpeza. Só as
+         abstrações (nenhuma implementação de logging nem o SDK de storage) entram no Domain. -->
+    <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.22" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.22" />
   </ItemGroup>
 
   <ItemGroup>

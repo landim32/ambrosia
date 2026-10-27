@@ -1,0 +1,24 @@
+meta {
+  name: Images
+  seq: 5
+}
+
+docs {
+  Storage de imagens (feature 004). Fluxo do cliente:
+
+  1. `Declarar Envio` devolve `uploadUrl` pré-assinada (PUT) com prazo curto.
+  2. O binário sobe DIRETO ao storage, com o `Content-Type` exatamente assinado.
+     Fora do Bruno, com curl (o `&` da query vai entre aspas):
+
+     curl -X PUT -H "Content-Type: image/jpeg" --data-binary @small.jpg "<uploadUrl>"
+
+  3. `Confirmar Envio` confere tamanho, tipo pelo conteúdo e SHA-256 e libera a
+     imagem; é só depois dele que existe `url` de leitura.
+
+  Os hashes abaixo são dos fixtures de teste:
+  small.jpg = c56ba75c...05ba9 (3082 bytes), other.jpg = f5c2ccdf...c5c8ad (3255 bytes).
+  Para enviar outro arquivo, recalcule: `certutil -hashfile <arquivo> SHA256`.
+
+  `imageId` e `uploadUrl` são salvos como variáveis de ambiente pela pasta, então a
+  ordem dos pedidos abaixo já é o fluxo completo.
+}

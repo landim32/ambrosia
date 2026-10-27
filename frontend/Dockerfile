@@ -37,7 +37,17 @@ RUN node scripts/verify-prod.mjs
 FROM nginx:1.27-alpine
 
 # SPA de origem unica: sem locale e sem SSL aqui (o gateway termina HTTPS).
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+#
+# Feature 004 (T053/T054): o config virou template do nginx oficial e o envsubst
+# gera /etc/nginx/conf.d/default.conf no startup, preenchendo apenas
+# ${STORAGE_ORIGIN} (NGINX_ENVSUBST_FILTER protege as variaveis do proprio nginx,
+# como $uri). O valor vem de STORAGE_ORIGIN no compose, entao a CSP aponta para o
+# storage de cada ambiente sem rebuild da imagem -- e o default abaixo mantem o
+# endpoint do Spaces enquanto o compose nao informa nada (research §15, FR-023).
+ENV STORAGE_ORIGIN=https://nyc3.digitaloceanspaces.com \
+    NGINX_ENVSUBST_FILTER=STORAGE_ORIGIN
+
+COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80

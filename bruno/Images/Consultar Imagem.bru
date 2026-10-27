@@ -1,0 +1,40 @@
+meta {
+  name: Consultar Imagem
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/images/{{imageId}}
+  body: none
+  auth: inherit
+}
+
+docs {
+  Metadado + URL pré-assinada de leitura, gerada a cada resposta: dois `GET` seguidos do
+  mesmo id devolvem duas URLs diferentes, e nenhuma é persistida.
+
+  Com `status` `pending` ou `failed`, `url` e `urlExpiresAt` vêm `null`. Imagem de outro
+  usuário responde 404 com a mesma mensagem de "não existe".
+}
+
+tests {
+  test("status 200 ou 404", function () {
+    expect([200, 404]).to.include(res.status);
+  });
+
+  test("url só existe quando a imagem está disponível", function () {
+    if (res.status === 200) {
+      if (res.body.status === "available") {
+        expect(res.body.url).to.be.a('string');
+      } else {
+        expect(res.body.url).to.be.null;
+      }
+    }
+  });
+
+  test("resposta não expõe dono nem chave do objeto", function () {
+    expect(res.body).to.not.have.property("userId");
+    expect(res.body).to.not.have.property("storageKey");
+  });
+}

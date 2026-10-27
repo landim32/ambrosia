@@ -57,6 +57,34 @@ public class ApiTestFixture : IAsyncLifetime
     /// <summary>Senha padrão das contas criadas pela suíte (não é segredo — ver cabeçalho).</summary>
     public string TestPassword { get; private set; } = "Senha-de-teste-123";
 
+    // ---------------------------------------------------------------------
+    // Storage de imagens (feature 004, T027): os prazos que a suíte ESPERA encontrar no ambiente,
+    // porque os testes de expiração e de limpeza precisam dormir exatamente esse tempo. Vêm do
+    // appsettings da API sob teste (homolog usa valores curtos de propósito — research §13); quando
+    // a espera ultrapassaria Storage:SlowTestMaxWaitMinutes, o teste se auto-pula (research §16).
+    // ---------------------------------------------------------------------
+
+    /// <summary>Validade esperada das URLs pré-assinadas de leitura ( minutos).</summary>
+    public int StoragePresignedReadMinutes { get; private set; } = 1;
+
+    /// <summary>Validade esperada das URLs pré-assinadas de envio (minutos).</summary>
+    public int StoragePresignedUploadMinutes { get; private set; } = 1;
+
+    /// <summary>Idade a partir da qual pendentes e falhas são limpas (minutos).</summary>
+    public int StoragePendingTtlMinutes { get; private set; } = 2;
+
+    /// <summary>Intervalo entre varreduras do job de limpeza (minutos).</summary>
+    public int StorageCleanupIntervalMinutes { get; private set; } = 1;
+
+    /// <summary>Limite de upload esperado, em bytes.</summary>
+    public long StorageMaxUploadBytes { get; private set; } = 10_485_760;
+
+    /// <summary>Teto de espera de um teste lento: acima disso ele é pulado (research §16).</summary>
+    public int SlowTestMaxWaitMinutes { get; private set; } = 5;
+
+    /// <summary>Origem do frontend, esperada no <c>Access-Control-Allow-Origin</c> (FR-022).</summary>
+    public string StorageFrontendOrigin { get; private set; } = "http://localhost:8080";
+
     private IConfiguration _configuration = null!;
 
     public async Task InitializeAsync()
@@ -72,6 +100,18 @@ public class ApiTestFixture : IAsyncLifetime
         LoginEndpoint = _configuration["Auth:LoginEndpoint"] ?? "/auth/login";
         TestPassword = _configuration["Auth:TestPassword"] ?? "Senha-de-teste-123";
         TimeoutSeconds = int.TryParse(_configuration["Timeout"], out var timeout) ? timeout : 30;
+
+        StoragePresignedReadMinutes = ReadInt("Storage:PresignedReadMinutes", StoragePresignedReadMinutes);
+        StoragePresignedUploadMinutes = ReadInt("Storage:PresignedUploadMinutes", StoragePresignedUploadMinutes);
+        StoragePendingTtlMinutes = ReadInt("Storage:PendingTtlMinutes", StoragePendingTtlMinutes);
+        StorageCleanupIntervalMinutes = ReadInt("Storage:CleanupIntervalMinutes", StorageCleanupIntervalMinutes);
+        SlowTestMaxWaitMinutes = ReadInt("Storage:SlowTestMaxWaitMinutes", SlowTestMaxWaitMinutes);
+        StorageFrontendOrigin = _configuration["Storage:FrontendOrigin"] ?? StorageFrontendOrigin;
+
+        if (long.TryParse(_configuration["Storage:MaxUploadBytes"], out var maxUploadBytes))
+        {
+            StorageMaxUploadBytes = maxUploadBytes;
+        }
 
         await EnsureApiIsUp();
 
@@ -191,6 +231,53 @@ public class ApiTestFixture : IAsyncLifetime
         return await HttpCallResult.From(await request.AllowAnyHttpStatus().PutJsonAsync(payload));
     }
 
+    /// <summary>
+    /// DELETE com resposta capturada (feature 004: <c>DELETE /images/{imageId}</c> devolve 204 sem
+    /// corpo, então o <see cref="HttpCallResult"/> precisa ser lido mesmo assim).
+    /// </summary>
+    public async Task<HttpCallResult> DeleteAsync(string path, string token)
+    {
+        var request = string.IsNullOrEmpty(token)
+            ? CreateAnonymousRequest(path)
+            : CreateRequest(path, token);
+
+        return await HttpCallResult.From(await request.AllowAnyHttpStatus().DeleteAsync());
+    }
+
+    /// <summary>
+    /// POST <c>multipart/form-data</c> com um arquivo (feature 004, <c>POST /images</c>). O nome do
+    /// campo é o que a API lê (<c>file</c>); enviar bytes direto é o que permite testar o PDF disfarçado
+    /// de <c>.jpg</c> e o corpo vazio.
+    /// </summary>
+    /// <param name="path">Caminho relativo da rota.</param>
+    /// <param name="token">JWT; string vazia envia sem cabeçalho Authorization.</param>
+    /// <param name="content">Bytes do arquivo.</param>
+    /// <param name="contentType">Tipo declarado no multipart.</param>
+    /// <param name="fileName">Nome do arquivo no parts (name=... filename=...).</param>
+    /// <param name="fieldOverride">Nome do campo; <c>null</c> = <c>file</c>. Passar <c>null</c> com
+    /// <paramref name="content"/> vazio simula "campo ausente".</param>
+    public async Task<HttpCallResult> PostFileAsync(
+        string path,
+        string token,
+        byte[]? content,
+        string contentType,
+        string fileName,
+        string? fieldOverride = "file")
+    {
+        var request = string.IsNullOrEmpty(token)
+            ? CreateAnonymousRequest(path)
+            : CreateRequest(path, token);
+
+        return await HttpCallResult.From(await request.AllowAnyHttpStatus().PostMultipartAsync(capture =>
+        {
+            // Flurl 4 usa Stream no multipart; o nome do campo e o fileName vão no Content-Disposition.
+            if (fieldOverride is not null && content is not null)
+            {
+                capture.AddFile(fieldOverride, new MemoryStream(content), contentType, fileName);
+            }
+        }));
+    }
+
     /// <summary>Requisição com cabeçalho Authorization arbitrário (token adulterado/estranho).</summary>
     public IFlurlRequest CreateRequestWithRawAuthorization(string path, string authorizationHeader) =>
         BuildRequest(path).WithHeader("Authorization", authorizationHeader);
@@ -239,6 +326,10 @@ public class ApiTestFixture : IAsyncLifetime
                 ex);
         }
     }
+
+    /// <summary>Inteiro de configuração com padrão, para os prazos esperados do storage.</summary>
+    private int ReadInt(string key, int fallback) =>
+        int.TryParse(_configuration[key], out var value) ? value : fallback;
 
     private string RequireConfig(string key)
     {

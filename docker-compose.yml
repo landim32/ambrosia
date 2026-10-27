@@ -11,6 +11,16 @@ x-api-environment: &api-environment
   Auth__GoogleClientId: ${AUTH_GOOGLE_CLIENT_ID:-}
   CpfProtection__Pepper: ${CPF_PEPPER}
   CpfProtection__EncryptionKey: ${CPF_ENCRYPTION_KEY}
+  # Storage de imagens (feature 004): endpoint/bucket ficam no appsettings.Homolog.json; só o
+  # segredo entra aqui, e os prazos curtos de homolog (1/1/2/1 min) vêm do .env com padrão
+  # sobrescrevível — são eles que fazem os testes de expiração e de limpeza rodarem em minutos.
+  ObjectStorage__AccessKey: ${OBJECT_STORAGE_ACCESS_KEY}
+  ObjectStorage__SecretKey: ${OBJECT_STORAGE_SECRET_KEY}
+  ObjectStorage__Bucket: ${OBJECT_STORAGE_BUCKET:-ambrosio}
+  ObjectStorage__PresignedReadMinutes: ${STORAGE_PRESIGNED_READ_MINUTES:-1}
+  ObjectStorage__PresignedUploadMinutes: ${STORAGE_PRESIGNED_UPLOAD_MINUTES:-1}
+  ObjectStorage__PendingTtlMinutes: ${STORAGE_PENDING_TTL_MINUTES:-2}
+  ObjectStorage__CleanupIntervalMinutes: ${STORAGE_CLEANUP_INTERVAL_MINUTES:-1}
 
 services:
   db:
@@ -77,6 +87,12 @@ services:
     image: ambrosia-frontend:homolog
     container_name: ambrosia-homolog-frontend
     restart: unless-stopped
+    # CSP do container (feature 004, T054): a origem publica do bucket entra por
+    # variavel de RUNTIME -- o nginx faz envsubst do template no startup -- entao
+    # nenhuma origem de storage fica fixa na imagem (FR-023). Sem a variavel, o
+    # default do Dockerfile e o endpoint do Spaces.
+    environment:
+      STORAGE_ORIGIN: ${OBJECT_STORAGE_PUBLIC_ORIGIN:-https://ambrosio.nyc3.digitaloceanspaces.com}
     networks:
       - ambrosia-homolog
 

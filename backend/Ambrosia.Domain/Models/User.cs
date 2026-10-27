@@ -33,6 +33,14 @@ public class User
     public ICollection<Customer> Customers { get; set; } = [];
 
     /// <summary>
+    /// Imagens da conta no storage (feature 004). A navegação existe para o EF mapear a FK
+    /// <c>fk_user_stored_image</c> com <c>ClientSetNull</c>: excluir o usuário não apaga linha nem
+    /// objeto por cascata — a remoção das imagens é explícita (<c>IImageService.DeleteAllForUserAsync</c>,
+    /// FR-017).
+    /// </summary>
+    public ICollection<StoredImage> StoredImages { get; set; } = [];
+
+    /// <summary>
     /// A conta tem senha? <c>false</c> significa que ela só entra pelo Google (e que o login por
     /// senha cai no 401 genérico — FR-008).
     /// </summary>
