@@ -16,6 +16,7 @@ concurrency:
 jobs:
   checkout:
     runs-on: ubuntu-latest
+    environment: PROD
     steps:
     - name: Clone or update repository
       uses: appleboy/ssh-action@v1
@@ -45,6 +46,7 @@ jobs:
 
   inject-secrets:
     runs-on: ubuntu-latest
+    environment: PROD
     needs: checkout
     steps:
     - name: Inject secrets into .env.prod
@@ -94,6 +96,7 @@ jobs:
 
   network-setup:
     runs-on: ubuntu-latest
+    environment: PROD
     needs: inject-secrets
     steps:
     - name: Ensure Docker network exists
@@ -112,6 +115,7 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    environment: PROD
     needs: network-setup
     steps:
     - name: Build images
@@ -132,6 +136,7 @@ jobs:
 
   stop-services:
     runs-on: ubuntu-latest
+    environment: PROD
     needs: build
     steps:
     - name: Stop running containers
@@ -154,6 +159,7 @@ jobs:
 
   migrate:
     runs-on: ubuntu-latest
+    environment: PROD
     needs: stop-services
     steps:
     - name: Apply database migrations
@@ -174,6 +180,7 @@ jobs:
 
   deploy:
     runs-on: ubuntu-latest
+    environment: PROD
     needs: migrate
     steps:
     - name: Start services
@@ -194,6 +201,7 @@ jobs:
 
   health-check:
     runs-on: ubuntu-latest
+    environment: PROD
     needs: deploy
     steps:
     - name: Verify deployment health
@@ -209,15 +217,18 @@ jobs:
           cd "$DEPLOY_DIR"
           COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml"
 
-          # O teste passa pelo nginx do emagine-deploy (127.0.0.1:443 com Host ambrosiaai.site): ele
-          # precisa estar no ar com o server block do Ambrosio, senão o health check falha.
+          # O teste fala direto com os containers pela emagine-network, com os mesmos cabeçalhos que o
+          # nginx do emagine-deploy manda (Host ambrosiaai.site, exigido pelo AllowedHosts de
+          # produção, e X-Forwarded-*): assim ele valida este deploy sem depender do nginx
+          # compartilhado, que é publicado pelo outro repositório.
+          CURL="docker run --rm --network emagine-network curlimages/curl:8.10.1 -s -o /dev/null -w %{http_code} -H Host:ambrosiaai.site -H X-Forwarded-Proto:https"
           echo "Waiting for services to start..."
           for i in $(seq 1 12); do
-            HTTP_STATUS=$(curl -sk -o /dev/null -w "%{http_code}"               --resolve ambrosiaai.site:443:127.0.0.1               https://ambrosiaai.site/api/swagger/v1/swagger.json || echo "000")
+            HTTP_STATUS=$($CURL -H X-Forwarded-Prefix:/api http://ambrosia-api:8080/swagger/v1/swagger.json || echo "000")
             # Host do plugin (feature 007): a descoberta OAuth é anônima e é a primeira coisa que o
             # ChatGPT consulta — se ela não responder JSON 200, o plugin não conecta e o resto do
             # deploy está inútil mesmo com a API verde.
-            MCP_STATUS=$(curl -sk -o /dev/null -w "%{http_code}"               --resolve ambrosiaai.site:443:127.0.0.1               https://ambrosiaai.site/.well-known/oauth-protected-resource/mcp || echo "000")
+            MCP_STATUS=$($CURL http://ambrosia-mcp:8080/.well-known/oauth-protected-resource/mcp || echo "000")
             if [ "$HTTP_STATUS" = "200" ] && [ "$MCP_STATUS" = "200" ]; then
               echo "Health check passed (API HTTP $HTTP_STATUS, MCP HTTP $MCP_STATUS)"
               $COMPOSE ps
@@ -233,6 +244,7 @@ jobs:
 
   cleanup:
     runs-on: ubuntu-latest
+    environment: PROD
     needs: health-check
     steps:
     - name: Remove dangling images
