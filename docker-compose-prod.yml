@@ -1,14 +1,15 @@
 # Produção (https://ambrosioai.site), executado pelo pipeline .github/workflows/deploy-prod.yml.
 # Mesmo layout dos outros apps da Emagine (Roll6, AvaBot): Cloudflare na frente e o nginx compartilhado
 # do servidor (repositório emagine-deploy, container emagine-app1) termina o HTTPS, serve o SPA já
-# compilado (builds/ambrosia) e faz proxy de /api para ambrosia-api:8080 e de /auth, /mcp e
-# /.well-known/oauth-* para ambrosia-mcp:8080 pela rede externa compartilhada "emagine-network".
+# compilado (builds/ambrosio) e faz proxy de /api para ambrosio-api:8080 e de /auth, /mcp e
+# /.well-known/oauth-* para ambrosio-mcp:8080 pela rede externa compartilhada "emagine-network".
 # Nenhuma porta é publicada aqui, e não sobe frontend nem gateway.
 # Banco: DigitalOcean Managed PostgreSQL (não sobe container de banco aqui).
 #   docker compose --env-file .env.prod -f docker-compose-prod.yml up -d --build
-# Os nomes de projeto, containers, imagens e redes continuam "ambrosia" de propósito: são os que já
-# rodam no servidor, e o nginx do emagine-deploy chega aos serviços pelo container_name.
-name: ambrosia
+# O nginx do emagine-deploy chega aos serviços pelo container_name: renomear um container aqui exige
+# o mesmo ajuste no nginx.conf daquele repositório. O bucket (ambrosia-prod) e o banco mantêm o nome
+# antigo porque guardam dados.
+name: ambrosio
 
 x-api-environment: &api-environment
   ASPNETCORE_ENVIRONMENT: Production
@@ -32,19 +33,19 @@ services:
     build:
       context: ./backend
       target: migrator
-    image: ambrosia-migrator:prod
-    container_name: ambrosia-migrator
+    image: ambrosio-migrator:prod
+    container_name: ambrosio-migrator
     restart: "no"
     environment: *api-environment
     networks:
-      - ambrosia-network
+      - ambrosio-network
 
   api:
     build:
       context: ./backend
       target: final
-    image: ambrosia-api:prod
-    container_name: ambrosia-api
+    image: ambrosio-api:prod
+    container_name: ambrosio-api
     restart: unless-stopped
     environment: *api-environment
     # Chromium do coletor do +Vendas (feature 006, research §2): /dev/shm de 64 MB (padrão) faz o
@@ -58,21 +59,21 @@ services:
       migrator:
         condition: service_completed_successfully
     networks:
-      - ambrosia-network
-      # Rede compartilhada: o nginx do emagine-deploy chega em ambrosia-api:8080 (/api).
+      - ambrosio-network
+      # Rede compartilhada: o nginx do emagine-deploy chega em ambrosio-api:8080 (/api).
       - emagine-network
 
   # Plugin do ChatGPT (feature 007, R8): authorization server OAuth 2.1 em /auth + servidor MCP em
   # /mcp, no mesmo host. Mesmos segredos compartilhados da API (banco, CPF, storage) porque o host
   # reaproveita o domínio; os endereços canônicos e a chave RSA de assinatura são só dele.
-  # Nomes no padrão `ambrosia-*` do resto do arquivo — ver o cabeçalho: o nginx do emagine-deploy
+  # Nomes no padrão `ambrosio-*` do resto do arquivo — ver o cabeçalho: o nginx do emagine-deploy
   # depende do container_name.
   mcp:
     build:
       context: ./backend
       target: mcp
-    image: ambrosia-mcp:prod
-    container_name: ambrosia-mcp
+    image: ambrosio-mcp:prod
+    container_name: ambrosio-mcp
     restart: unless-stopped
     environment:
       <<: *api-environment
@@ -93,8 +94,8 @@ services:
       migrator:
         condition: service_completed_successfully
     networks:
-      - ambrosia-network
-      # Rede compartilhada: o nginx do emagine-deploy chega em ambrosia-mcp:8080 (/auth, /mcp,
+      - ambrosio-network
+      # Rede compartilhada: o nginx do emagine-deploy chega em ambrosio-mcp:8080 (/auth, /mcp,
       # /.well-known/oauth-*).
       - emagine-network
 
@@ -105,7 +106,7 @@ volumes:
   mcp_dataprotection_keys:
 
 networks:
-  ambrosia-network:
+  ambrosio-network:
     driver: bridge
   # Criada pelo deploy do emagine-deploy (e pelo deste pipeline, se ainda não existir).
   emagine-network:
