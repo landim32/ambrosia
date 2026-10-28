@@ -23,11 +23,12 @@ body:json {
 }
 
 tests {
-  test("status 200", function () {
-    expect(res.status).to.equal(200);
+  test("sem token: 401 com o desafio que inicia o OAuth", function () {
+    expect(res.status).to.equal(401);
+    expect(res.headers["www-authenticate"]).to.contain("resource_metadata=");
   });
 }
 
 docs {
-  Lista das tools sem token (autenticação mista, R7). A resposta vem em SSE (event: message / data: {...}).
+  Sem token o /mcp responde 401 com WWW-Authenticate (resource_metadata e scope): é o desafio que faz o ChatGPT abrir o login (R23). Com token, a resposta vem em SSE (event: message / data: {...}).
 }

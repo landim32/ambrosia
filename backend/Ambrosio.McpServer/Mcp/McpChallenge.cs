@@ -23,6 +23,13 @@ public static class McpChallenge
         return $"{uri.GetLeftPart(UriPartial.Authority)}/.well-known/oauth-protected-resource{path}";
     }
 
+    /// <summary>
+    /// Desafio de requisição sem credencial (RFC 6750 §3: sem <c>error</c>), com os escopos que o
+    /// cliente deve pedir no authorize.
+    /// </summary>
+    public static string BuildUnauthenticated(string resourceUrl, IEnumerable<string> scopes) =>
+        $"Bearer resource_metadata=\"{ResourceMetadataUrl(resourceUrl)}\", scope=\"{string.Join(' ', scopes)}\"";
+
     public static string Build(string resourceUrl, string error, string description, IEnumerable<string>? scopes = null)
     {
         var header =

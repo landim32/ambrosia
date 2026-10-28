@@ -82,9 +82,9 @@ public sealed class ProfileTools
         Idempotent = true,
         OpenWorld = false)]
     [Description(
-        "Explica o que o Ambrosio faz e como conectar a conta. Use quando a pessoa perguntar o que é o " +
-        "Ambrosio ou como começar. Não acessa dado nenhum e funciona sem conta conectada.")]
-    [AmbrosioNoAuth]
+        "Explica o que o Ambrosio faz e como usar o plugin. Use quando a pessoa perguntar o que é o " +
+        "Ambrosio ou como começar. Não acessa dado nenhum.")]
+    [AmbrosioScopes("openid")]
     public static CallToolResult SobreAmbrosio() =>
         ToolResultFactory.Success(
             new

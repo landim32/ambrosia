@@ -6,7 +6,7 @@
       "url": "https://ambrosioai.site/mcp",
       "extensions": {
         "com.openai": {
-          "auth": { "type": "mixed", "client": { "mode": "cimd" } }
+          "auth": { "type": "oauth", "client": { "mode": "cimd" } }
         }
       }
     }

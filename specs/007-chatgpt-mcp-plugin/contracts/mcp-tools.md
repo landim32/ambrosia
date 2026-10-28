@@ -4,7 +4,7 @@
 
 ## Regras comuns
 
-- **Autenticação** (R7): `initialize`, `tools/list` e `sobre_ambrosio` funcionam sem token. Token presente e inválido → HTTP 401 com `WWW-Authenticate: Bearer resource_metadata="https://ambrosioai.site/.well-known/oauth-protected-resource/mcp", error="invalid_token"`. Tool protegida sem token ou sem escopo → resultado de desafio (abaixo).
+- **Autenticação** (R23, revendo o R7): toda requisição ao `/mcp` exige token. Sem token → HTTP 401 com `WWW-Authenticate: Bearer resource_metadata="https://ambrosioai.site/.well-known/oauth-protected-resource/mcp", scope="…todos os escopos…"`, o desafio que faz o cliente abrir o login. Token inválido → HTTP 401 com `error="invalid_token"`. Token válido sem o escopo da tool → resultado de desafio `insufficient_scope` (abaixo).
 - **Identidade**: o usuário é sempre o `sub` do token. Nenhuma tool aceita `userId` como argumento.
 - **Descritor**: toda tool tem `name`, `title` e `description` em pt-BR (dizendo quando usar e quando não usar), `inputSchema` tipado, `annotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`), `securitySchemes` e `_meta["ambrosio/endpoint"]` com a operação equivalente da API (`"GET /customers"`), usada pelo teste de paridade.
 - **Saída**: `structuredContent` + um item `text` curto em pt-BR (valores em `R$ 1.234,56`, datas `dd/mm/aaaa`). Todo resultado traz `consultado_em` (UTC, ISO 8601). Listas trazem `itens` (máx. 200), `total` e `tem_mais`.
@@ -89,7 +89,7 @@ A descrição de `iniciar_importacao` avisa: "Nunca peça nem repasse a senha do
 | Tool | `securitySchemes` | Descrição |
 |---|---|---|
 | `perfil_ambrosio` | `oauth2` (`openid`) | Tool de perfil: `_meta["openai/profile"]: true`; `inputSchema` `{ "type": "object", "properties": {}, "additionalProperties": false }`; anotações RO `true`, D `false`, OW `false`; `outputSchema` com `id` obrigatório (`minLength: 1`, `pattern: "\\S"`), `name`, `email`, `additionalProperties: false`. Saída `{ "id": "<user_id>", "name": "...", "email": "..." }` em `structuredContent` e como JSON no item de texto |
-| `sobre_ambrosio` | `noauth` | Explica o que o Ambrosio faz e como conectar. Não acessa dados |
+| `sobre_ambrosio` | `oauth2` (`openid`) | Explica o que o Ambrosio faz. Não acessa dados. Era `noauth` até o R23 |
 
 ## Paridade (FR-011)
 

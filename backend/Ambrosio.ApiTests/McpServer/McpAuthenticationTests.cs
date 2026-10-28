@@ -3,6 +3,7 @@ using System.Text.Json;
 using Ambrosio.ApiTests.Fixtures;
 using Ambrosio.ApiTests.Helpers;
 using FluentAssertions;
+using Flurl.Http;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -10,9 +11,8 @@ using System.Security.Claims;
 namespace Ambrosio.ApiTests.McpServer;
 
 /// <summary>
-/// T033 [US1]: autenticação mista do <c>/mcp</c> (R7, contracts/mcp-tools.md "Regras comuns"). Token
-/// presente e inválido → HTTP 401 com <c>resource_metadata</c>; sem token, listagem e
-/// <c>sobre_ambrosio</c> funcionam e a tool protegida devolve o desafio no resultado.
+/// T033 [US1]: autenticação do <c>/mcp</c> (R23). Sem token ou com token inválido → HTTP 401 com
+/// <c>resource_metadata</c>; com token, listagem e tools funcionam.
 /// </summary>
 /// <remarks>
 /// Token expirado e token com <c>aud</c> errado assinados pela chave do servidor não são produzíveis
@@ -44,10 +44,30 @@ public class McpAuthenticationTests(ApiTestFixture fixture)
             .And.Contain("error=\"invalid_token\"");
     }
 
-    [Fact]
-    public async Task ToolsList_WithoutToken_ShouldListToolsWithSecuritySchemes()
+    [Theory]
+    [InlineData("POST")]
+    [InlineData("GET")]
+    public async Task WithoutToken_ShouldReturn401WithTheChallengeThatStartsOAuth(string method)
     {
-        var result = await new McpTestClient(fixture).ListToolsAsync();
+        var response = await new Flurl.Url($"{fixture.McpBaseUrl.TrimEnd('/')}/mcp")
+            .WithHeader("Accept", "application/json, text/event-stream")
+            .AllowAnyHttpStatus()
+            .SendJsonAsync(new HttpMethod(method), method == "POST" ? new { jsonrpc = "2.0", id = 1, method = "tools/list" } : null);
+
+        response.StatusCode.Should().Be(401, "sem o 401 com o desafio o ChatGPT não inicia o login (R23)");
+        response.Headers.TryGetFirst("WWW-Authenticate", out var challenge).Should().BeTrue();
+        challenge.Should().Contain("resource_metadata=\"")
+            .And.Contain("/.well-known/oauth-protected-resource")
+            .And.Contain("scope=\"")
+            .And.Contain("customers:read")
+            .And.NotContain("error=", "requisição sem credencial não leva código de erro (RFC 6750 §3)");
+    }
+
+    [Fact]
+    public async Task ToolsList_WithToken_ShouldListToolsWithSecuritySchemes()
+    {
+        var seller = await McpSeller.CreateAsync(fixture);
+        var result = await seller.Mcp.ListToolsAsync(seller.McpToken);
 
         result.StatusCode.Should().Be(200);
         var tools = result.Result!.Value.GetProperty("tools").EnumerateArray().ToList();
@@ -58,32 +78,20 @@ public class McpAuthenticationTests(ApiTestFixture fixture)
         profile.GetProperty("outputSchema").GetProperty("required").EnumerateArray()
             .Select(r => r.GetString()).Should().Contain("id");
 
-        var about = tools.Single(t => t.GetProperty("name").GetString() == "sobre_ambrosio");
-        about.GetProperty("securitySchemes")[0].GetProperty("type").GetString().Should().Be("noauth");
+        tools.Select(t => t.GetProperty("securitySchemes")[0].GetProperty("type").GetString())
+            .Should().OnlyContain(type => type == "oauth2", "o /mcp exige token, então nenhuma tool é anônima");
     }
 
     [Fact]
-    public async Task SobreAmbrosio_WithoutToken_ShouldWork()
+    public async Task SobreAmbrosio_ShouldWork()
     {
-        var result = await new McpTestClient(fixture).CallToolAsync("sobre_ambrosio");
+        var seller = await McpSeller.CreateAsync(fixture);
+        var result = await seller.CallAsync("sobre_ambrosio");
 
         result.StatusCode.Should().Be(200);
         result.IsToolError.Should().BeFalse();
         result.Text.Should().Contain("Ambrosio");
         result.StructuredContent!.Value.TryGetProperty("consultado_em", out _).Should().BeTrue();
-    }
-
-    [Fact]
-    public async Task PerfilAmbrosio_WithoutToken_ShouldReturnTheChallengeInTheResult()
-    {
-        var result = await new McpTestClient(fixture).CallToolAsync("perfil_ambrosio");
-
-        result.StatusCode.Should().Be(200);
-        result.IsToolError.Should().BeTrue();
-        result.ToolChallenge.Should().Contain("error=\"invalid_token\"")
-            .And.Contain("error_description=")
-            .And.Contain("resource_metadata=")
-            .And.Contain("scope=\"openid\"");
     }
 
     [Fact]

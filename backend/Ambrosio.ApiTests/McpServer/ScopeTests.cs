@@ -7,8 +7,8 @@ namespace Ambrosio.ApiTests.McpServer;
 
 /// <summary>
 /// T060 [US4]: autorização por área (R6). Falta de escopo vira desafio <c>insufficient_scope</c> sem
-/// gravar nada; a ampliação pede consentimento só pelo escopo novo e libera a gravação; sem token o
-/// desafio é <c>invalid_token</c>; o <c>tools/list</c> declara os escopos de cada tool.
+/// gravar nada; a ampliação pede consentimento só pelo escopo novo e libera a gravação; o
+/// <c>tools/list</c> declara os escopos de cada tool.
 /// </summary>
 [Collection(ApiTestCollection.API_TESTS)]
 public class ScopeTests(ApiTestFixture fixture)
@@ -56,25 +56,17 @@ public class ScopeTests(ApiTestFixture fixture)
     }
 
     [Fact]
-    public async Task ProtectedToolWithoutToken_ReturnsInvalidTokenWithTheToolScopes()
-    {
-        var result = await new McpTestClient(fixture).CallToolAsync("historico_cliente", new { cliente_id = 1 });
-
-        result.IsToolError.Should().BeTrue();
-        result.ToolChallenge.Should().Contain("error=\"invalid_token\"").And.Contain("scope=\"customers:read orders:read\"");
-    }
-
-    [Fact]
     public async Task ToolsList_DeclaresTheScopesOfEachTool()
     {
-        var tools = (await new McpTestClient(fixture).ListToolsAsync()).Result!.Value.GetProperty("tools").EnumerateArray()
+        var seller = await McpSeller.CreateAsync(fixture);
+        var tools = (await seller.Mcp.ListToolsAsync(seller.McpToken)).Result!.Value.GetProperty("tools").EnumerateArray()
             .ToDictionary(t => t.GetProperty("name").GetString()!, t => t.GetProperty("securitySchemes")[0]);
 
         Scopes(tools["cadastrar_cliente"]).Should().Equal("customers:write");
         Scopes(tools["historico_cliente"]).Should().Equal("customers:read", "orders:read");
         Scopes(tools["atualizar_pedido"]).Should().Equal("orders:write");
-        tools["sobre_ambrosio"].GetProperty("type").GetString().Should().Be("noauth");
-        tools.Values.Where(s => s.GetProperty("type").GetString() == "oauth2").Should().OnlyContain(s => s.GetProperty("scopes").GetArrayLength() > 0);
+        Scopes(tools["sobre_ambrosio"]).Should().Equal("openid");
+        tools.Values.Should().OnlyContain(s => s.GetProperty("scopes").GetArrayLength() > 0);
     }
 
     private static IEnumerable<string?> Scopes(System.Text.Json.JsonElement scheme) =>
