@@ -2,6 +2,7 @@ using Ambrosio.Domain.Models;
 using Ambrosio.DTO.Enums;
 using Ambrosio.Infra.Context.OAuth;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace Ambrosio.Infra.Context;
 
@@ -1018,7 +1019,8 @@ public class AmbrosioContext : DbContext
 
             entity.Property(e => e.CreationDate)
                 .HasColumnName("creation_date")
-                .HasColumnType("timestamp without time zone");
+                .HasColumnType("timestamp without time zone")
+                .HasConversion(OAuthUtcConverter);
 
             // FK shadow + ClientSetNull: excluir um cliente OAuth NÃO apaga os consentimentos da
             // vendedora. O padrão do OpenIddict é cascade; o Princípio §V proíbe, então sobrescrevemos
@@ -1102,9 +1104,11 @@ public class AmbrosioContext : DbContext
                 .HasColumnName("subject")
                 .HasMaxLength(400);
 
+            // 150 como no modelo do OpenIddict 7: o tipo é gravado como identificador URN
+            // (urn:openiddict:params:oauth:token-type:...), que não cabe em 50.
             entity.Property(e => e.Type)
                 .HasColumnName("type")
-                .HasMaxLength(50)
+                .HasMaxLength(150)
                 .IsRequired();
 
             entity.Property(e => e.Status)
@@ -1127,15 +1131,18 @@ public class AmbrosioContext : DbContext
 
             entity.Property(e => e.CreationDate)
                 .HasColumnName("creation_date")
-                .HasColumnType("timestamp without time zone");
+                .HasColumnType("timestamp without time zone")
+                .HasConversion(OAuthUtcConverter);
 
             entity.Property(e => e.ExpirationDate)
                 .HasColumnName("expiration_date")
-                .HasColumnType("timestamp without time zone");
+                .HasColumnType("timestamp without time zone")
+                .HasConversion(OAuthUtcConverter);
 
             entity.Property(e => e.RedemptionDate)
                 .HasColumnName("redemption_date")
-                .HasColumnType("timestamp without time zone");
+                .HasColumnType("timestamp without time zone")
+                .HasConversion(OAuthUtcConverter);
 
             entity.HasOne(e => e.Application)
                 .WithMany(a => a.Tokens)
@@ -1171,6 +1178,20 @@ public class AmbrosioContext : DbContext
                 .HasDatabaseName("ix_oauth_tokens_authorization");
         });
     }
+
+    /// <summary>
+    /// Datas das tabelas <c>oauth_*</c>: o OpenIddict trabalha com <c>DateTime</c> de
+    /// <see cref="DateTimeKind.Utc"/>, e o Npgsql recusa esse <c>Kind</c> em
+    /// <c>timestamp without time zone</c>. A convenção do projeto é UTC com <c>Kind</c> não
+    /// especificado (<c>SystemClock</c>): o valor é gravado assim e volta marcado como UTC.
+    /// </summary>
+    private static readonly ValueConverter<DateTime?, DateTime?> OAuthUtcConverter = new(
+        value => value.HasValue
+            ? DateTime.SpecifyKind(
+                value.Value.Kind == DateTimeKind.Local ? value.Value.ToUniversalTime() : value.Value,
+                DateTimeKind.Unspecified)
+            : value,
+        value => value.HasValue ? DateTime.SpecifyKind(value.Value, DateTimeKind.Utc) : value);
 
     private static void ConfigureMcpAuditEntry(ModelBuilder modelBuilder)
     {

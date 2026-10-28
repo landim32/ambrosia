@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>@(ViewData["Title"] ?? "Ambrosio")</title>
+    <link rel="icon" href="@Context.Request.PathBase/favicon-32.png" />
+    <link rel="stylesheet" href="@Context.Request.PathBase/auth.css" />
+</head>
+<body>
+    <main class="card">
+        <header class="brand">
+            <img src="@Context.Request.PathBase/ambrosio-logo.webp" alt="Ambrosio" width="160" height="48" />
+        </header>
+        @RenderBody()
+        <footer class="foot">
+            <img src="@Context.Request.PathBase/ambrosio-mascote-sm.webp" alt="" width="56" height="56" />
+            <span>Conexão com o ChatGPT. Sua senha do +Vendas nunca é pedida aqui.</span>
+        </footer>
+    </main>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

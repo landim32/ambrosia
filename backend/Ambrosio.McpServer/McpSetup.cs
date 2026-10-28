@@ -1,6 +1,9 @@
 using Ambrosio.DTO.Settings;
 using Ambrosio.McpServer.Auth;
+using Ambrosio.McpServer.Mcp;
+using Ambrosio.McpServer.Mcp.Filters;
 using Ambrosio.McpServer.Middlewares;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using ModelContextProtocol.AspNetCore;
@@ -22,12 +25,11 @@ public static class McpSetup
     /// <summary>Nome do esquema de autenticação que protege o MCP.</summary>
     public const string Scheme = "McpBearer";
 
-    /// <summary>
-    /// Nome da política do endpoint. <c>RequireAuthorization("McpBearer")</c> NÃO funciona: a string
-    /// é lida como nome de política, e o host morria com "The AuthorizationPolicy named: 'McpBearer'
-    /// was not found" — descoberto no probe do checkpoint, não em tempo de compilação.
-    /// </summary>
-    public const string PolicyName = "mcp";
+    /// <summary>Esquema de cookie da sessão das telas do authorization server (T040).</summary>
+    public const string AuthSessionScheme = "AmbrosioAuthSession";
+
+    /// <summary>Nome do campo antiforgery dos formulários do AS.</summary>
+    public const string AntiforgeryFieldName = "__RequestVerificationToken";
 
     /// <summary>
     /// Esquema registrado pelo <c>AddMcp()</c> do SDK, que é quem sabe montar o
@@ -73,7 +75,7 @@ public static class McpSetup
         // assinador do OpenIddict.
         var validationKey = signingKey.ValidationKey;
 
-        services
+        var authBuilder = services
             // Autentica no JwtBearer, desafia no handler do SDK. Essa separação é o que faz o 401
             // carregar `resource_metadata=`: com o desafio saindo do JwtBearer o header é só
             // "Bearer", e o ChatGPT não tem como descobrir o authorization server a partir do
@@ -130,30 +132,83 @@ public static class McpSetup
                 }
             });
 
-        services.AddAuthorization(options =>
+        // Sessão das telas do AS (T040): só lembra quem entrou entre o authorize, o login e o
+        // consentimento. Path=/auth e curta duração; não guarda token de API (constituição §VI,
+        // emenda 3.4.0). `Secure` segue a requisição: em produção ela chega https pelo
+        // X-Forwarded-Proto e o cookie sai Secure; a homologação é http e o cookie não poderia ser.
+        authBuilder.AddCookie(AuthSessionScheme, options =>
         {
-            // Os dois esquemas: McpBearer autentica de verdade; McpAuth é o que responde o desafio com
-            // `resource_metadata` (RFC 9728). O esquema do SDK retorna "no result" na autenticação,
-            // então não concorre com o JwtBearer — entra só pelo desafio.
-            // A política também precisa listar o McpAuth: sem ele, o desafio do endpoint sai do
-            // próprio JwtBearer e o header volta a ser só "Bearer" (visto no probe).
-            options.AddPolicy(PolicyName, policy => policy
-                .AddAuthenticationSchemes(Scheme, ChallengeScheme)
-                .RequireAuthenticatedUser());
+            options.Cookie.Name = "ambrosio.auth.session";
+            options.Cookie.Path = OpenIddictSetup.AuthPathBase;
+            options.Cookie.HttpOnly = true;
+            options.Cookie.SameSite = SameSiteMode.Lax;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.ExpireTimeSpan = TimeSpan.FromMinutes(20);
+            options.SlidingExpiration = false;
         });
+
+        services.AddAntiforgery(options =>
+        {
+            options.Cookie.Name = "ambrosio.auth.af";
+            options.Cookie.Path = OpenIddictSetup.AuthPathBase;
+            options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.FormFieldName = AntiforgeryFieldName;
+        });
+
+        services.AddAuthorization();
 
         services.AddAmbrosioMcpRateLimiter();
 
+        // Quem chama a tool (preenchido pelo ScopeChallengeFilter) e o padrão `confirmar` (T022/T026).
+        services.AddScoped<McpUserContext>();
+        services.AddScoped<WriteToolHelper>();
+
         services.AddMcpServer()
             .WithHttpTransport(transport => transport.SessionMode = HttpServerSessionMode.Stateless)
-            .WithToolsFromAssembly(typeof(McpSetup).Assembly, new JsonSerializerOptions
+            // Copia das opções do SDK: elas trazem o TypeInfoResolver; um JsonSerializerOptions vazio
+            // derruba o host no arranque assim que existe uma tool ("must specify a TypeInfoResolver").
+            .WithToolsFromAssembly(typeof(McpSetup).Assembly, new JsonSerializerOptions(ModelContextProtocol.McpJsonUtilities.DefaultOptions)
             {
                 // Mesmo contrato JSON da API REST: camelCase e enums como string minúscula, para que
                 // a vendedora veja os mesmos valores no Swagger e no ChatGPT (FR-010).
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
                 PropertyNameCaseInsensitive = true
-            });
+            })
+            .WithRequestFilters(filters =>
+            {
+                filters.AddCallToolFilter(ScopeChallengeFilter.Create());
+                filters.AddListToolsFilter(ToolDescriptorFilter.Create());
+            })
+            .WithMessageFilters(filters => filters.AddOutgoingFilter(ToolDescriptorFilter.CreatePromotion()));
 
         return services;
     }
+
+    /// <summary>
+    /// Autenticação mista do <c>/mcp</c> (R7): sem token passa (listagem e tool <c>noauth</c>; as
+    /// protegidas devolvem o desafio no resultado); token presente e inválido — assinatura, <c>iss</c>,
+    /// <c>aud</c>, validade, ou o HS256 das telas — responde HTTP 401 aqui, com o
+    /// <c>resource_metadata</c> que leva o cliente ao authorization server.
+    /// </summary>
+    public static IApplicationBuilder UseAmbrosioMcpTokenGuard(this IApplicationBuilder app) =>
+        app.Use(async (context, next) =>
+        {
+            if (context.Request.Path.StartsWithSegments(McpPath)
+                && context.Request.Headers.Authorization.Count > 0
+                && context.User.Identity?.IsAuthenticated != true)
+            {
+                var resourceUrl = context.RequestServices
+                    .GetRequiredService<Microsoft.Extensions.Options.IOptions<McpSettings>>().Value.ResourceUrl;
+
+                context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                // Cabeçalho HTTP só aceita ASCII (o Kestrel derruba a resposta com 500 se houver
+                // acento): a descrição do 401 fica em inglês, sem diacríticos.
+                context.Response.Headers.WWWAuthenticate = McpChallenge.Build(
+                    resourceUrl, McpChallenge.InvalidToken, "The access token is invalid or expired");
+
+                return;
+            }
+
+            await next(context);
+        });
 }

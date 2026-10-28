@@ -55,6 +55,12 @@ public static class MetadataEndpoints
             .AllowAnonymous()
             .DisableAntiforgery();
 
+        // Descoberta OIDC sob o issuer: /auth/.well-known/openid-configuration (o PathBase tira o
+        // /auth). Mesmo documento dos endereços RFC 8414 (contracts §1).
+        endpoints.MapMethods("/.well-known/openid-configuration", ["GET", "OPTIONS"], () => Results.Json(document))
+            .AllowAnonymous()
+            .DisableAntiforgery();
+
         return endpoints;
     }
 
@@ -85,8 +91,17 @@ public static class MetadataEndpoints
             // PKCE S256 é o único método aceito (T030 confirma que `plain` vira invalid_request).
             code_challenge_methods_supported = new[] { "S256" },
 
-            // Sem segredo de cliente: público + chave assimétrica (R4).
-            token_endpoint_auth_methods_supported = new[] { "none", "private_key_jwt" },
+            // Só cliente público (R4, ajuste da implementação): o ChatGPT escolhe o método pela
+            // interseção com a lista dele, e anunciar private_key_jwt sem validar a chave do documento
+            // CIMD deixaria a troca do código falhar. Com `none`, o PKCE S256 é a prova do cliente.
+            token_endpoint_auth_methods_supported = new[] { "none" },
+            revocation_endpoint_auth_methods_supported = new[] { "none" },
+
+            // CIMD (R4): o ChatGPT usa a URL do documento como client_id e pula o registro.
+            client_id_metadata_document_supported = true,
+
+            subject_types_supported = new[] { "public" },
+            id_token_signing_alg_values_supported = new[] { "RS256" },
 
             scopes_supported = ScopeSeeder.ScopeNames,
 

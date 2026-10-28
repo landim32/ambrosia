@@ -35,7 +35,7 @@ Anônimos, mesmo conteúdo. Campos obrigatórios:
   "response_types_supported": ["code"],
   "grant_types_supported": ["authorization_code", "refresh_token"],
   "code_challenge_methods_supported": ["S256"],
-  "token_endpoint_auth_methods_supported": ["none", "private_key_jwt"],
+  "token_endpoint_auth_methods_supported": ["none"],
   "client_id_metadata_document_supported": true,
   "authorization_response_iss_parameter_supported": true,
   "scopes_supported": ["openid", "email", "profile", "offline_access", "customers:read", "customers:write", "orders:read", "orders:write", "images:write", "imports:read", "imports:write"],
@@ -57,7 +57,7 @@ Chave pública RSA (`kty`, `kid`, `n`, `e`, `alg: RS256`, `use: sig`). Na rotaç
 1. confere host em `Auth:Cimd:AllowedHosts` (padrão `chatgpt.com`), esquema `https` e IP público;
 2. baixa o documento (*timeout* 5 s, máx. 64 KB, cache pelos headers);
 3. exige `client_id` do documento igual à URL e `redirect_uri` da requisição em `redirect_uris`;
-4. aceita `token_endpoint_auth_method` `none` ou `private_key_jwt` (validado com `jwks`/`jwks_uri` do documento).
+4. exige que o documento aceite `none` (cliente público com PKCE). O AS anuncia só `none`, então o ChatGPT escolhe `none` na interseção (research R20).
 
 Falha → `400 invalid_client` (no token) ou página de erro do AS com `error=invalid_client` (no authorize).
 
@@ -75,8 +75,8 @@ Parâmetros obrigatórios: `response_type=code`, `client_id`, `redirect_uri`, `s
 
 | Situação | Resposta |
 |---|---|
-| Sem `code_challenge` ou com `plain` | Erro `invalid_request` |
-| `resource` ausente ou diferente (inclusive com barra no final) | Erro `invalid_target` |
+| Sem `code_challenge` ou com `plain` | `400 invalid_request` na própria página (validado antes do cliente; sem redirect) |
+| `resource` ausente ou diferente (inclusive com barra no final) | `400 invalid_target` na própria página (idem) |
 | Escopo desconhecido | Erro `invalid_scope` |
 | Sem sessão no AS | Redireciona para `/auth/login?returnUrl=…` |
 | Com sessão e consentimento permanente cobrindo os escopos | Emite o código direto |
@@ -84,7 +84,7 @@ Parâmetros obrigatórios: `response_type=code`, `client_id`, `redirect_uri`, `s
 | Sucesso | `302 {redirect_uri}?code=…&state=…&iss=https%3A%2F%2Fambrosioai.site%2Fauth` |
 | Erro com `redirect_uri` válida | `302 {redirect_uri}?error=…&error_description=…&state=…&iss=…` |
 
-Toda resposta para a `redirect_uri` traz `iss` idêntico ao issuer (RFC 9207).
+Toda resposta para a `redirect_uri` traz `iss` idêntico ao issuer (RFC 9207). Erros de parâmetro detectados antes de o cliente ser validado não vão para a `redirect_uri` (research R20).
 
 ### Telas (Razor Pages, pt-BR, tema do Ambrosio)
 

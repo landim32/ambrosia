@@ -101,6 +101,7 @@ public static class Startup
         services.AddScoped<ICustomerRepository<Customer>, CustomerRepository>();
         services.AddScoped<IOrderRepository<Order>, OrderRepository>();
         services.AddScoped<IStoredImageRepository<StoredImage>, StoredImageRepository>();
+        services.AddScoped<IMcpAuditRepository<McpAuditEntry>, McpAuditRepository>();
 
         // AppServices
         services.AddScoped<IOAuthTokenAppService, GoogleOAuthTokenAppService>();
@@ -118,6 +119,7 @@ public static class Startup
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IImageService, ImageService>();
+        services.AddScoped<IMcpAuditService, McpAuditService>();
 
         // Job de limpeza de envios abandonados (FR-018, research §9): abre um escopo por ciclo, então
         // só precisa do IServiceScopeFactory singleton daqui.

@@ -30,6 +30,14 @@ public sealed class OriginValidationMiddleware(
 
     public async Task InvokeAsync(HttpContext context)
     {
+        // Só o /mcp: as telas do AS recebem POST de formulário do próprio site, com Origin, e se
+        // protegem pelo antiforgery.
+        if (!context.Request.Path.StartsWithSegments(McpSetup.McpPath))
+        {
+            await next(context);
+            return;
+        }
+
         // Header ausente = chamada servidor-a-servidor (o caso do ChatGPT): passa.
         if (!context.Request.Headers.TryGetValue("Origin", out var origin)
             || StringValues.IsNullOrEmpty(origin))
@@ -71,6 +79,15 @@ public static class McpRateLimiter
     /// <summary>Nome da política registrada.</summary>
     public const string PolicyName = "mcp";
 
+    /// <summary>
+    /// Política do registro dinâmico (DCR): rota anônima que grava linha no banco, então tem teto
+    /// global próprio — o ChatGPT registra uma vez por conexão, bem abaixo dele.
+    /// </summary>
+    public const string RegistrationPolicyName = "dcr";
+
+    /// <summary>Registros por janela, somados entre todos os chamadores.</summary>
+    public const int RegistrationPermitPerWindow = 30;
+
     /// <summary>Requisições por janela — folgado para uso humano de conversa, apertado para script.</summary>
     public const int PermitPerWindow = 120;
 
@@ -97,6 +114,14 @@ public static class McpRateLimiter
                     QueueLimit = 0
                 });
             });
+
+            options.AddPolicy<string>(RegistrationPolicyName, _ =>
+                RateLimitPartition.GetFixedWindowLimiter(RegistrationPolicyName, _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = RegistrationPermitPerWindow,
+                    Window = Window,
+                    QueueLimit = 0
+                }));
         });
 
         return services;
