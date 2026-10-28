@@ -120,9 +120,9 @@ erDiagram
 | Upload pelo navegador | Fluxo em duas etapas: `POST /images/uploads` (o cliente declara mime, tamanho e sha256 e recebe `uploadUrl` e `imageId`). Depois, `POST /images/uploads/{imageId}/confirm`, em que o servidor faz `HeadObject`, baixa o início do arquivo para conferir os *magic bytes* e marca `available` |
 | Upload pelo servidor | `PutObject` com stream, depois de validar tipo, tamanho e hash em memória ou em arquivo temporário |
 | Leitura | O DTO de quem usa a imagem (por exemplo, a foto do cliente na 010) devolve `url` pré-assinada e `expiresAt`. Não há endpoint público de proxy |
-| CORS do bucket | Liberar `GET` e `PUT` só para a origem exata do frontend: `https://ambrosiaai.site` em produção e a origem local do Vite em dev. Necessário para o cache da [006](006-frontend-pwa.md) (resposta não opaca) |
-| Endpoint público | Sem domínio próprio nem CDN nesta fase. Com bucket privado e URL pré-assinada, o endpoint do provedor basta (por exemplo, `https://ambrosia-prod.nyc3.digitaloceanspaces.com`). Um domínio como `img.ambrosiaai.site` só faria sentido com CDN, e CDN com bucket privado exige URL assinada pelo próprio CDN, o que muda o fluxo desta HU. Fica para quando o custo de egress pedir |
-| CSP do frontend | O `img-src` (e o `connect-src`, para o `PUT`) da CSP de `https://ambrosiaai.site` precisa incluir o endpoint do bucket |
+| CORS do bucket | Liberar `GET` e `PUT` só para a origem exata do frontend: `https://ambrosioai.site` em produção e a origem local do Vite em dev. Necessário para o cache da [006](006-frontend-pwa.md) (resposta não opaca) |
+| Endpoint público | Sem domínio próprio nem CDN nesta fase. Com bucket privado e URL pré-assinada, o endpoint do provedor basta (por exemplo, `https://ambrosia-prod.nyc3.digitaloceanspaces.com`). Um domínio como `img.ambrosioai.site` só faria sentido com CDN, e CDN com bucket privado exige URL assinada pelo próprio CDN, o que muda o fluxo desta HU. Fica para quando o custo de egress pedir |
+| CSP do frontend | O `img-src` (e o `connect-src`, para o `PUT`) da CSP de `https://ambrosioai.site` precisa incluir o endpoint do bucket |
 | Limpeza | Job periódico que apaga objetos `pending` com mais de 1 hora (upload nunca confirmado) |
 
 ### Configuração

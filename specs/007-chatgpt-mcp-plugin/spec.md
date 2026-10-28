@@ -259,7 +259,7 @@ O Ambrosio fica disponível como plugin no modo desenvolvedor do ChatGPT da vend
   - cada ação declara as permissões exigidas e o tipo (leitura ou gravação), e a falta de permissão é informada ao ChatGPT para disparar a ampliação;
   - uma ação de perfil identifica a conta conectada por um identificador estável;
   - não há chave de API própria, credencial de máquina nem token colado à mão.
-- **Endereços definitivos** (decididos em 25/10/2026): plugin em `https://ambrosiaai.site/mcp` e login em `https://ambrosiaai.site/auth`. Depois de publicados, não mudam.
+- **Endereços definitivos** (decididos em 25/10/2026): plugin em `https://ambrosioai.site/mcp` e login em `https://ambrosioai.site/auth`. Depois de publicados, não mudam.
 - **Plano do ChatGPT**: a vendedora usa uma conta do ChatGPT cujo plano permite plugins com gravação (pela central de ajuda da OpenAI, Business, Enterprise e Edu; o Pro só lê e o Plus é incerto). Se o plano dela não permitir, as gravações pelo ChatGPT ficam indisponíveis, e o restante da feature continua valendo para outros clientes compatíveis.
 - **Confirmação de gravação**: vale a prévia com confirmação em todas as gravações (FR-018), além da aprovação que o próprio ChatGPT pede nas ações que gravam.
 - **Atualizar pedido**: segue a paridade com a API e permite alterar status e total, sempre com prévia e confirmação.

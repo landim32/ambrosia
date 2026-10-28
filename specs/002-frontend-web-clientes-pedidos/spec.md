@@ -219,7 +219,7 @@ Esta feature não cria dados; apenas apresenta os da HU 001.
 - **Fonte de dados**: exclusivamente a API REST da HU 001, já implementada. O GraphQL (HU 005) não é pré-requisito.
 - **Autenticação**: reaproveita o login da HU 001 (conta Google, com a entrada de desenvolvimento permitida apenas fora de produção, conforme a constituição 3.0.0). O prazo de sessão é o informado pela API (padrão 8 h).
 - **Entrada de desenvolvimento**: visível em Development e Homolog (onde a API a aceita) e ausente do pacote de produção. Resolve a pergunta 2 do backlog com a regra já fixada na constituição.
-- **Hospedagem**: frontend e API na mesma origem (`ambrosiaai.site` e `ambrosiaai.site/api`), conforme decidido em 25/10/2026; detalhes de infraestrutura ficam para o plano.
+- **Hospedagem**: frontend e API na mesma origem (`ambrosioai.site` e `ambrosioai.site/api`), conforme decidido em 25/10/2026; detalhes de infraestrutura ficam para o plano.
 - **Chave de armazenamento da sessão**: segue a constituição vigente (pergunta 4 do backlog); eventual renomeação é emenda futura, fora desta feature.
 - **Fotos de clientes**: a API da HU 001 ainda não devolve foto; o perfil mostra iniciais até a HU 010 existir, e deve estar pronto para exibir a foto quando o campo surgir.
 - **Idioma**: somente português do Brasil nesta entrega, embora a base de internacionalização seja preparada.

@@ -1,4 +1,4 @@
-# Rotas do gateway de homologação. Em produção as mesmas rotas ficam no server block ambrosiaai.site
+# Rotas do gateway de homologação. Em produção as mesmas rotas ficam no server block ambrosioai.site
 # do nginx.conf do repositório emagine-deploy (deploy/README.md).
 # Os upstreams são resolvidos em tempo de requisição (resolver do Docker): se um serviço ainda não
 # existir — frontend (HU 002), auth (HU 007), mcp (HU 006) —, o nginx sobe mesmo assim e a rota

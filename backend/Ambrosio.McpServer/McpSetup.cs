@@ -119,7 +119,7 @@ public static class McpSetup
                 {
                     Resource = mcp.ResourceUrl,
                     ResourceName = "Ambrosio",
-                    ResourceDocumentation = "https://ambrosiaai.site"
+                    ResourceDocumentation = "https://ambrosioai.site"
                 };
 
                 // Coleções somente-leitura na metadata: entram por Add, não por atribuição.

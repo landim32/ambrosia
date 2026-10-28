@@ -40,8 +40,8 @@ public sealed class OriginValidationMiddleware(
 
         var allowed = settings.Value.AllowedOrigins;
 
-        // Comparação exata de origem (scheme + host + porta), sem wildcard: "https://ambrosiaai.site"
-        // não casa com "https://ambrosiaai.site.evil.com".
+        // Comparação exata de origem (scheme + host + porta), sem wildcard: "https://ambrosioai.site"
+        // não casa com "https://ambrosioai.site.evil.com".
         if (allowed.Any(a => string.Equals(a, origin.ToString(), StringComparison.Ordinal)))
         {
             await next(context);

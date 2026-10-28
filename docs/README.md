@@ -39,11 +39,11 @@ Definidos em 25/10/2026. Tudo fica no mesmo domínio, em subpastas, com cada ser
 
 | Endereço | Serviço | HUs |
 |---|---|---|
-| `https://ambrosiaai.site` | Frontend web e PWA | [002](historias/002-frontend-web-perfil-cliente-pedidos.md), [006](historias/006-frontend-pwa.md) |
-| `https://ambrosiaai.site/api` | API REST (inclui o login da 001 em `/api/auth/*`) e GraphQL em `/api/graphql` | [001](historias/001-api-cadastro-clientes-pedidos.md), [007](historias/007-graphql-clientes-pedidos.md) |
-| `https://ambrosiaai.site/auth` | Authorization server OAuth 2.1 (OpenIddict). O issuer é exatamente esse valor | [005](historias/005-plugin-chatgpt-mcp.md) |
-| `https://ambrosiaai.site/mcp` | Servidor MCP do plugin. O `resource` canônico é exatamente esse valor | [005](historias/005-plugin-chatgpt-mcp.md), [010](historias/010-banco-imagens-clientes-chatgpt.md) |
-| `https://ambrosiaai.site/.well-known/*` | Descoberta OAuth e desafio de domínio da submissão do plugin, roteados pelo nginx para o AS ou para o MCP | [005](historias/005-plugin-chatgpt-mcp.md) |
+| `https://ambrosioai.site` | Frontend web e PWA | [002](historias/002-frontend-web-perfil-cliente-pedidos.md), [006](historias/006-frontend-pwa.md) |
+| `https://ambrosioai.site/api` | API REST (inclui o login da 001 em `/api/auth/*`) e GraphQL em `/api/graphql` | [001](historias/001-api-cadastro-clientes-pedidos.md), [007](historias/007-graphql-clientes-pedidos.md) |
+| `https://ambrosioai.site/auth` | Authorization server OAuth 2.1 (OpenIddict). O issuer é exatamente esse valor | [005](historias/005-plugin-chatgpt-mcp.md) |
+| `https://ambrosioai.site/mcp` | Servidor MCP do plugin. O `resource` canônico é exatamente esse valor | [005](historias/005-plugin-chatgpt-mcp.md), [010](historias/010-banco-imagens-clientes-chatgpt.md) |
+| `https://ambrosioai.site/.well-known/*` | Descoberta OAuth e desafio de domínio da submissão do plugin, roteados pelo nginx para o AS ou para o MCP | [005](historias/005-plugin-chatgpt-mcp.md) |
 
 Frontend e API ficam na mesma origem, então não há CORS em produção. O storage de imagens ([003](historias/003-armazenamento-imagens-s3.md)) usa o endpoint do próprio provedor, sem domínio próprio. Se a descoberta OAuth com caminho falhar nos testes do ChatGPT, a 005 prevê o uso de subdomínios `auth.` e `mcp.`.
 

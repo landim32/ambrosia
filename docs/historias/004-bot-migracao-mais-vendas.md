@@ -204,7 +204,7 @@ Com a tela no frontend e a senha só em memória, o coletor precisa rodar **no s
 
 ### Contrato proposto
 
-As rotas são relativas à base da API (produção: `https://ambrosiaai.site/api`). Todas exigem o JWT da sessão; o `user_id` vem do token.
+As rotas são relativas à base da API (produção: `https://ambrosioai.site/api`). Todas exigem o JWT da sessão; o `user_id` vem do token.
 
 | Método | Rota | Função |
 |---|---|---|

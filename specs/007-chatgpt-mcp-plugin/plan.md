@@ -21,7 +21,7 @@ As tools chamam os mesmos serviços de domínio dos controllers, com o `userId` 
 **Target Platform**: Linux (containers Docker): Homolog no WSL2 local, Production no servidor via GitHub Actions. ChatGPT web em modo desenvolvedor
 **Project Type**: web-service (backend .NET com novo host) + pequena mudança no frontend
 **Performance Goals**: consultas comuns em até 3 s para 10.000 pedidos (SC-008); conexão do plugin em menos de 2 min (SC-001)
-**Constraints**: exigências do ChatGPT para plugins com dados de usuário (PKCE S256, PRM, CIMD/DCR, RFC 9207, `resource` no `aud`, `securitySchemes`, tool de perfil); endereços canônicos imutáveis (`https://ambrosiaai.site/mcp` e `/auth`, sem barra no final); nenhuma senha do +Vendas nem CPF completo em argumento, resposta ou log; listas com no máximo 200 linhas
+**Constraints**: exigências do ChatGPT para plugins com dados de usuário (PKCE S256, PRM, CIMD/DCR, RFC 9207, `resource` no `aud`, `securitySchemes`, tool de perfil); endereços canônicos imutáveis (`https://ambrosioai.site/mcp` e `/auth`, sem barra no final); nenhuma senha do +Vendas nem CPF completo em argumento, resposta ou log; listas com no máximo 200 linhas
 **Scale/Scope**: uso próprio (uma vendedora, poucas conexões); 28 tools (10 de clientes e pedidos, 5 de imagens, 6 de importação, 5 curadas, perfil e `sobre_ambrosio`)
 
 ## Constitution Check

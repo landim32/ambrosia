@@ -33,5 +33,5 @@
 
 - Resolvido em 27/10/2026: escopo de publicação = uso próprio no modo desenvolvedor (Q1: A). Publicação no diretório, submissão e páginas obrigatórias foram para "Fora do escopo".
 - OAuth 2.1, PKCE e os metadados de descoberta aparecem só em "Assumptions", como **restrições externas do ChatGPT**. Não são escolhas de implementação desta feature. Biblioteca, linguagem, authorization server próprio ou externo e estrutura de projetos ficam para o `/speckit.plan`, a partir da seção 8 da HU 005.
-- Os endereços `https://ambrosiaai.site/mcp` e `/auth` são decisões de produto já tomadas (25/10/2026) e entram como premissa.
+- Os endereços `https://ambrosioai.site/mcp` e `/auth` são decisões de produto já tomadas (25/10/2026) e entram como premissa.
 - Decisões tomadas por padrão razoável, sem perguntar: senha do +Vendas só na tela do Ambrosio (link), prévia com confirmação em todas as gravações, atualizar pedido com status e total, ranking de produtos fora do escopo, validade do acesso 30 min / renovação 14 dias.

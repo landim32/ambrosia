@@ -2,7 +2,7 @@
 
 **Feature**: `002-frontend-web-clientes-pedidos` — interface que o frontend expõe à vendedora (endereços compartilháveis) e ao gateway.
 
-Base: `VITE_SITE_BASENAME` (vazio em produção; o app fica na raiz de `https://ambrosiaai.site`). Todas as rotas, exceto `/login`, exigem sessão válida (FR-001); sem sessão, redirecionam para `/login` guardando a rota original (FR-007).
+Base: `VITE_SITE_BASENAME` (vazio em produção; o app fica na raiz de `https://ambrosioai.site`). Todas as rotas, exceto `/login`, exigem sessão válida (FR-001); sem sessão, redirecionam para `/login` guardando a rota original (FR-007).
 
 | Rota | Tela | Query string aceita | Chamadas à API | Estados |
 |---|---|---|---|---|

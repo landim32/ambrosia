@@ -111,9 +111,9 @@ public static class MetadataEndpoints
             resource_metadata = mcp.ResourceUrl,
             authorization_response_iss_parameter_supported = true,
 
-            service_documentation = "https://ambrosiaai.site",
-            op_policy_uri = "https://ambrosiaai.site/privacidade",
-            op_tos_uri = "https://ambrosiaai.site/termos"
+            service_documentation = "https://ambrosioai.site",
+            op_policy_uri = "https://ambrosioai.site/privacidade",
+            op_tos_uri = "https://ambrosioai.site/termos"
         };
     }
 }

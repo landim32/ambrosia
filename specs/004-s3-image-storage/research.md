@@ -168,7 +168,7 @@ A mensagem de erro nomeia a variável (`ObjectStorage__Bucket está vazio.`) e n
 
 **Decision**:
 - **Homolog/Dev (MinIO)**: CORS por variável de servidor `MINIO_API_CORS_ALLOW_ORIGIN=http://localhost:8080,http://localhost:5173` (MinIO não aplica CORS por bucket). Os dois buckets locais aceitam as duas origens.
-- **Production (Spaces)**: regra CORS no bucket `ambrosia-prod` com `AllowedOrigins = https://ambrosiaai.site`, `AllowedMethods = GET, PUT, HEAD`, `AllowedHeaders = Content-Type`, `MaxAgeSeconds = 3600`, aplicada uma vez (painel ou `PutBucketCors`) e documentada em `deploy/README.md`.
+- **Production (Spaces)**: regra CORS no bucket `ambrosia-prod` com `AllowedOrigins = https://ambrosioai.site`, `AllowedMethods = GET, PUT, HEAD`, `AllowedHeaders = Content-Type`, `MaxAgeSeconds = 3600`, aplicada uma vez (painel ou `PutBucketCors`) e documentada em `deploy/README.md`.
 
 **Desvio registrado**: FR-022 pede CORS "por ambiente" em cada bucket local. No MinIO a regra é do servidor, então `ambrosio-dev` e `ambrosio-homolog` aceitam as duas origens locais. Só afeta ambientes locais com dados descartáveis; em produção a regra é exatamente a origem única. Registrar em `decisions.md`.
 

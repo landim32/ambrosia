@@ -24,7 +24,7 @@
 - A [002](002-frontend-web-perfil-cliente-pedidos.md) entrega um SPA só de leitura. Esta HU acrescenta manifest, service worker, instalação, cache offline de leitura e um fluxo de atualização.
 - O uso offline é **somente leitura**: o app não grava nada (não existem telas de escrita) e não faz fila de sincronização.
 - As imagens vêm por URLs pré-assinadas que expiram ([003](003-armazenamento-imagens-s3.md)). A estratégia de cache precisa levar isso em conta.
-- O PWA é servido em `https://ambrosiaai.site`, e a API e o authorization server ficam em subpastas da mesma origem: `https://ambrosiaai.site/api` e `https://ambrosiaai.site/auth`. O MCP também fica na mesma origem, em `https://ambrosiaai.site/mcp`, e os documentos de descoberta OAuth em `https://ambrosiaai.site/.well-known/*`. Não há CORS para a API, mas o service worker controla toda a origem, então precisa **excluir** `/api/*`, `/auth/*`, `/mcp*` e `/.well-known/*` do fallback de navegação e do cache (ver critério 12).
+- O PWA é servido em `https://ambrosioai.site`, e a API e o authorization server ficam em subpastas da mesma origem: `https://ambrosioai.site/api` e `https://ambrosioai.site/auth`. O MCP também fica na mesma origem, em `https://ambrosioai.site/mcp`, e os documentos de descoberta OAuth em `https://ambrosioai.site/.well-known/*`. Não há CORS para a API, mas o service worker controla toda a origem, então precisa **excluir** `/api/*`, `/auth/*`, `/mcp*` e `/.well-known/*` do fallback de navegação e do cache (ver critério 12).
 - A stack visual (Tailwind CSS 4.x e shadcn/ui) já está coberta pela constituição 3.0.0. Esta HU não pede emenda.
 
 ---
@@ -67,7 +67,7 @@
 | 9 | Rotas `/api/auth/*` (login da 001), `/auth/*` (authorization server da 005) e qualquer método diferente de `GET` nunca são cacheados | Inspecionar o Cache Storage |
 | 10 | O logout apaga os caches de dados e de imagens. Outro usuário no mesmo aparelho não vê nada do anterior | Logar com Ana, sair, logar com Bia, ficar offline |
 | 11 | Com uma versão nova publicada, o app mostra "Nova versão disponível" e só recarrega quando a usuária clica em "Atualizar" | Dois deploys seguidos |
-| 12 | O service worker não trata `/api/*`, `/auth/*`, `/mcp*` nem `/.well-known/*` como navegação: `navigateFallbackDenylist` inclui `/^\/api\//`, `/^\/auth\//`, `/^\/mcp/` e `/^\/\.well-known\//`, então o Swagger (`/api/swagger`), as telas do authorization server e os documentos de descoberta vêm do servidor, nunca como `index.html` | Com o app instalado, abrir `https://ambrosiaai.site/api/swagger`, `https://ambrosiaai.site/auth/connect/authorize` e `https://ambrosiaai.site/.well-known/oauth-protected-resource/mcp` |
+| 12 | O service worker não trata `/api/*`, `/auth/*`, `/mcp*` nem `/.well-known/*` como navegação: `navigateFallbackDenylist` inclui `/^\/api\//`, `/^\/auth\//`, `/^\/mcp/` e `/^\/\.well-known\//`, então o Swagger (`/api/swagger`), as telas do authorization server e os documentos de descoberta vêm do servidor, nunca como `index.html` | Com o app instalado, abrir `https://ambrosioai.site/api/swagger`, `https://ambrosioai.site/auth/connect/authorize` e `https://ambrosioai.site/.well-known/oauth-protected-resource/mcp` |
 
 ---
 
@@ -110,7 +110,7 @@ flowchart TD
 | Plugin | `vite-plugin-pwa` com `registerType: 'prompt'` e `workbox.runtimeCaching` conforme a tabela acima |
 | Atualização | `useRegisterSW` de `virtual:pwa-register/react`. Toast `sonner` com o botão "Atualizar", que chama `updateServiceWorker(true)`. Checagem de versão nova a cada 60 min |
 | Instalação | Capturar `beforeinstallprompt` para o botão "Instalar app". No iOS, mostrar um passo a passo (Compartilhar > Adicionar à Tela de Início) |
-| Manifest | `name: "Ambrosio"`, `short_name: "Ambrosio"`, `lang: "pt-BR"`, `start_url: "/"`, `scope: "/"` (relativos a `https://ambrosiaai.site`), `display: "standalone"`, `theme_color` e `background_color` vindos dos tokens de design (Tailwind e shadcn/ui) |
+| Manifest | `name: "Ambrosio"`, `short_name: "Ambrosio"`, `lang: "pt-BR"`, `start_url: "/"`, `scope: "/"` (relativos a `https://ambrosioai.site`), `display: "standalone"`, `theme_color` e `background_color` vindos dos tokens de design (Tailwind e shadcn/ui) |
 | Rotas da API no Workbox | `urlPattern` por função que confere `url.origin === self.location.origin` e `url.pathname.startsWith('/api/')`. Como a API está na mesma origem, as respostas não são opacas e o status pode ser conferido |
 | Fallback de navegação | `navigateFallback: '/index.html'` com `navigateFallbackDenylist: [/^\/api\//, /^\/auth\//, /^\/mcp/, /^\/\.well-known\//]`. Sem isso, o service worker devolveria o SPA no lugar do Swagger, das telas do authorization server e dos documentos de descoberta OAuth |
 | Ícones | Gerados a partir do logotipo (agente `ux-designer`), com área segura para *maskable* |
@@ -128,7 +128,7 @@ flowchart TD
 |---|---|---|
 | [002](002-frontend-web-perfil-cliente-pedidos.md) | Obrigatória | O app a ser transformado em PWA |
 | [003](003-armazenamento-imagens-s3.md) | Necessária para o critério 7 | Formato das URLs pré-assinadas e CORS do bucket |
-| HTTPS em produção | Obrigatória | Service worker só registra em HTTPS (ou `localhost`). Certificado válido em `https://ambrosiaai.site` |
+| HTTPS em produção | Obrigatória | Service worker só registra em HTTPS (ou `localhost`). Certificado válido em `https://ambrosioai.site` |
 | API em `/api` atrás do proxy | Obrigatória | Mesmo ajuste de backend e de nginx da [002](002-frontend-web-perfil-cliente-pedidos.md#7-dependências) (`UsePathBase("/api")` e *forwarded headers*). Sem CORS, porque a origem é a mesma |
 
 ---

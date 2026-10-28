@@ -36,7 +36,7 @@
 - O +Vendas é mobile-first, com listas de cards ([doc 01, seção 1](../01-analise-sistema-mais-vendas.md#1-visão-geral)). O Ambrosio segue a mesma linha, porque a vendedora usa o celular na loja.
 - O frontend consome a API REST atual. O GraphQL ([007](007-graphql-clientes-pedidos.md)) fica para depois e não é pré-requisito.
 - A stack visual (Tailwind CSS 4.x e shadcn/ui) já está na constituição 3.0.0 (Princípio II, emendada em 25/10/2026). Não há emenda pendente para esta HU.
-- Endereços de produção: o frontend fica em `https://ambrosiaai.site` e a API numa subpasta do mesmo domínio, `https://ambrosiaai.site/api`. Como os dois ficam na **mesma origem**, o navegador não faz chamadas *cross-origin* e não há CORS em produção.
+- Endereços de produção: o frontend fica em `https://ambrosioai.site` e a API numa subpasta do mesmo domínio, `https://ambrosioai.site/api`. Como os dois ficam na **mesma origem**, o navegador não faz chamadas *cross-origin* e não há CORS em produção.
 
 ---
 
@@ -54,7 +54,7 @@
 | Detalhe do pedido | `/pedidos/:id` | `GET /orders/{id}` | Cliente (CPF mascarado), status, datas (venda original e cancelamento, quando houver) e itens (`lineNo`, nome, `skuRef`, tamanho, preço e imagem) |
 | Erros e vazios | (todas) | — | Estados de carregando, lista vazia, 404 ("não encontrado") e falha de rede |
 
-As rotas da coluna "Fonte na API" são relativas à base da API (`VITE_API_URL`). Em produção, `POST /auth/google` fica em `https://ambrosiaai.site/api/auth/google`. Essas rotas `/api/auth/*` são do login da 001 e não colidem com o authorization server OAuth da [005](005-plugin-chatgpt-mcp.md), que fica em `https://ambrosiaai.site/auth` (sem o prefixo `/api`).
+As rotas da coluna "Fonte na API" são relativas à base da API (`VITE_API_URL`). Em produção, `POST /auth/google` fica em `https://ambrosioai.site/api/auth/google`. Essas rotas `/api/auth/*` são do login da 001 e não colidem com o authorization server OAuth da [005](005-plugin-chatgpt-mcp.md), que fica em `https://ambrosioai.site/auth` (sem o prefixo `/api`).
 
 ### Fora do escopo
 
@@ -112,17 +112,17 @@ As rotas da coluna "Fonte na API" são relativas à base da API (`VITE_API_URL`)
 | Estado | Context API (constituição: sem Redux nem Zustand) |
 | HTTP | Fetch API com um `apiClient` que injeta `Authorization: Bearer` e trata 401 de forma centralizada |
 | Sessão | localStorage, como manda a constituição (Princípio VI): nada de cookies |
-| Login Google | Google Identity Services no navegador. `VITE_GOOGLE_CLIENT_ID` precisa ser o mesmo valor de `Auth:GoogleClientId` da API, que valida a audiência. No cliente OAuth do Google Cloud, `https://ambrosiaai.site` precisa estar entre as origens JavaScript autorizadas |
-| Variáveis | `VITE_API_URL` (produção: `https://ambrosiaai.site/api`, ou só `/api`, relativo à origem), `VITE_GOOGLE_CLIENT_ID`, `VITE_SITE_BASENAME` (opcional; em produção o app fica na raiz). Prefixo `VITE_` obrigatório |
+| Login Google | Google Identity Services no navegador. `VITE_GOOGLE_CLIENT_ID` precisa ser o mesmo valor de `Auth:GoogleClientId` da API, que valida a audiência. No cliente OAuth do Google Cloud, `https://ambrosioai.site` precisa estar entre as origens JavaScript autorizadas |
+| Variáveis | `VITE_API_URL` (produção: `https://ambrosioai.site/api`, ou só `/api`, relativo à origem), `VITE_GOOGLE_CLIENT_ID`, `VITE_SITE_BASENAME` (opcional; em produção o app fica na raiz). Prefixo `VITE_` obrigatório |
 | Design | Direção visual pela skill `frontend-design` ou pelo agente `ux-designer`. Tema claro e escuro via tokens do shadcn |
-| Hospedagem | Build estático (`dist/`) servido por nginx em `https://ambrosiaai.site`. O mesmo nginx faz o *reverse proxy* de `/api/` para a API, de `/auth/` para o authorization server e de `/mcp` para o servidor MCP, ambos da [005](005-plugin-chatgpt-mcp.md), e de cada documento em `/.well-known/` para o serviço dono dele. Mesma origem, então sem CORS em produção (ver dependências) |
+| Hospedagem | Build estático (`dist/`) servido por nginx em `https://ambrosioai.site`. O mesmo nginx faz o *reverse proxy* de `/api/` para a API, de `/auth/` para o authorization server e de `/mcp` para o servidor MCP, ambos da [005](005-plugin-chatgpt-mcp.md), e de cada documento em `/.well-known/` para o serviço dono dele. Mesma origem, então sem CORS em produção (ver dependências) |
 | Dev | Em `vite dev`, o `server.proxy` do Vite repassa `/api` para a API local, reproduzindo a mesma origem de produção. Assim o CORS `AllowAnyOrigin` de Development deixa de ser necessário para o frontend |
 
 ### Roteamento em produção
 
 ```mermaid
 flowchart LR
-    N[Navegador] --> X[nginx - ambrosiaai.site]
+    N[Navegador] --> X[nginx - ambrosioai.site]
     X -->|/| F[dist/ do frontend]
     X -->|/api/*| A[Ambrosio.API - UsePathBase /api]
     X -->|/auth/*| S[Ambrosio.Auth - HU 005]
@@ -153,8 +153,8 @@ flowchart LR
 | HU | Tipo | Motivo |
 |---|---|---|
 | [001](001-api-cadastro-clientes-pedidos.md) | Obrigatória | Endpoints REST e autenticação |
-| Ajuste no backend (subpasta `/api`) | Obrigatória para produção | Frontend e API ficam na mesma origem (`https://ambrosiaai.site`), então **não é preciso CORS em produção** (a política `AllowAnyOrigin` continua só em Development, como manda a constituição). O ajuste passa a ser: `UsePathBase("/api")` e `UseForwardedHeaders` (`X-Forwarded-Proto` e `X-Forwarded-Host`, com o proxy na lista de confiáveis) no ASP.NET Core, para que rotas, redirecionamentos e Swagger usem `https://ambrosiaai.site/api`. A mudança é de código e fica com o `dotnet-senior-developer` |
-| Infraestrutura (nginx) | Obrigatória para produção | `location` para `/api/`, `/auth/`, `/mcp` e `/.well-known/` com `proxy_pass` mantendo o prefixo, `try_files` com fallback para `index.html` só nas demais rotas, e DNS e TLS de `ambrosiaai.site` |
+| Ajuste no backend (subpasta `/api`) | Obrigatória para produção | Frontend e API ficam na mesma origem (`https://ambrosioai.site`), então **não é preciso CORS em produção** (a política `AllowAnyOrigin` continua só em Development, como manda a constituição). O ajuste passa a ser: `UsePathBase("/api")` e `UseForwardedHeaders` (`X-Forwarded-Proto` e `X-Forwarded-Host`, com o proxy na lista de confiáveis) no ASP.NET Core, para que rotas, redirecionamentos e Swagger usem `https://ambrosioai.site/api`. A mudança é de código e fica com o `dotnet-senior-developer` |
+| Infraestrutura (nginx) | Obrigatória para produção | `location` para `/api/`, `/auth/`, `/mcp` e `/.well-known/` com `proxy_pass` mantendo o prefixo, `try_files` com fallback para `index.html` só nas demais rotas, e DNS e TLS de `ambrosioai.site` |
 | [010](010-banco-imagens-clientes-chatgpt.md) | Opcional | Fornece a foto principal do cliente. Até lá, o perfil usa iniciais |
 
 ---
@@ -163,8 +163,8 @@ flowchart LR
 
 | Risco | Impacto | Mitigação |
 |---|---|---|
-| A chave do localStorage na constituição (mantida na 3.0.0) é `"login-with-metamask:auth"`, herdada de outro projeto | Nome confuso. O risco de colisão é baixo, porque o localStorage é por origem e `https://ambrosiaai.site` é exclusiva do Ambrosio | Usar a chave da constituição ou propor `ambrosio:auth` numa emenda futura (ver perguntas) |
-| `PathBase` ou *forwarded headers* mal configurados | Rotas 404 atrás do proxy, redirecionamentos para `http://` ou Swagger apontando para a raiz | Teste de fumaça em homologação com `https://ambrosiaai.site/api/swagger` e `GET /api/users/me` |
+| A chave do localStorage na constituição (mantida na 3.0.0) é `"login-with-metamask:auth"`, herdada de outro projeto | Nome confuso. O risco de colisão é baixo, porque o localStorage é por origem e `https://ambrosioai.site` é exclusiva do Ambrosio | Usar a chave da constituição ou propor `ambrosio:auth` numa emenda futura (ver perguntas) |
+| `PathBase` ou *forwarded headers* mal configurados | Rotas 404 atrás do proxy, redirecionamentos para `http://` ou Swagger apontando para a raiz | Teste de fumaça em homologação com `https://ambrosioai.site/api/swagger` e `GET /api/users/me` |
 | O fallback do SPA (`try_files … /index.html`) captura `/api`, `/auth`, `/mcp` ou `/.well-known` | A API, o MCP ou a descoberta OAuth devolvem HTML em vez de JSON, e o ChatGPT não conecta | `location` desses prefixos declarados antes do fallback, e o mesmo cuidado no service worker da [006](006-frontend-pwa.md) |
 | Token em localStorage fica exposto a XSS | Sequestro de sessão por 480 minutos. Na mesma origem, um XSS no SPA também consegue fazer requisições às páginas do authorization server em `/auth` e ao MCP em `/mcp` | CSP restritiva (`connect-src 'self'` e os serviços do Google), nada de `dangerouslySetInnerHTML` e dependências auditadas |
 | As imagens dos itens vêm do domínio do +Vendas | Podem exigir sessão, expirar ou ser bloqueadas por hotlink. Também têm direito autoral da marca ([doc 02](../02-modelo-de-dados.md#armazenamento-de-fotos)) | Placeholder em caso de falha. Copiar para o S3 numa HU futura ([003](003-armazenamento-imagens-s3.md)) |
@@ -180,4 +180,4 @@ flowchart LR
 3. A lista de pedidos deve ter um seletor de "mês de cota" (26 a 25, [doc 01, seção 3](../01-analise-sistema-mais-vendas.md#3-tela-cota-cotapiloto)) além do período livre?
 4. A chave do localStorage continua `"login-with-metamask:auth"` (como está na constituição 3.0.0) ou passa a `ambrosio:auth` numa emenda futura?
 
-Resolvidas em 25/10/2026: a hospedagem (frontend em `https://ambrosiaai.site` e API na subpasta `https://ambrosiaai.site/api`, na mesma origem e sem CORS em produção) e a troca de Bootstrap por Tailwind CSS e shadcn/ui (constituição 3.0.0).
+Resolvidas em 25/10/2026: a hospedagem (frontend em `https://ambrosioai.site` e API na subpasta `https://ambrosioai.site/api`, na mesma origem e sem CORS em produção) e a troca de Bootstrap por Tailwind CSS e shadcn/ui (constituição 3.0.0).

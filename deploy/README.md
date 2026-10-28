@@ -6,7 +6,7 @@
 | `ASPNETCORE_ENVIRONMENT` | `Development` | `Homolog` | `Production` |
 | appsettings | `appsettings.Development.json` (valores preenchidos) | `appsettings.Homolog.json` + `.env` | `appsettings.Production.json` + `.env.prod` |
 | Banco | PostgreSQL instalado no Windows (`localhost:5432`) | PostgreSQL externo (`AMBROSIO_CONNECTION_STRING` do `.env`) | DigitalOcean Managed PostgreSQL |
-| Endereço | `http://localhost:5000/swagger` | `http://localhost:8080/api/swagger` | `https://ambrosiaai.site/api/swagger` |
+| Endereço | `http://localhost:5000/swagger` | `http://localhost:8080/api/swagger` | `https://ambrosioai.site/api/swagger` |
 | HTTPS | Não | Não | Cloudflare (Full strict) + Origin Certificate no nginx compartilhado do `emagine-deploy` |
 | Migrações | `dotnet ef database update` | Serviço `migrator` (bundle EF) no `up` | Job `migrate` do pipeline |
 | Storage de imagens | Spaces real (`emagine`, pasta `ambrosio/`), chaves no ambiente | Spaces real (`emagine`, pasta `ambrosio/`), chaves do `.env` | Spaces (`ambrosia-prod`), chaves dos GitHub Secrets |
@@ -15,7 +15,7 @@
 
 Autenticação: `POST /auth/register` (cadastro com nome, e-mail e senha) e `POST /auth/login` (e-mail + senha) são rotas anônimas da API, disponíveis nos três ambientes, como o `POST /auth/google` — atrás do gateway elas ficam em `/api/auth/*`, e o `/auth/` sem prefixo continua reservado ao authorization server da HU 005. Não existe emissão de token sem credencial em ambiente nenhum: a antiga entrada de desenvolvimento foi removida pela spec [`003-email-password-jwt-auth`](../specs/003-email-password-jwt-auth/) e responde 404 em Development, Homolog e Production (nem aparece no Swagger).
 
-Rotas do gateway: `/` → frontend (HU 002), `/api/` → API (o prefixo é removido), `/auth/`, `/mcp` e `/.well-known/oauth-*` → HU 005 (plugin no ChatGPT). Em homolog elas estão em `deploy/nginx/routes.inc` (gateway próprio do compose); em produção, no server block `ambrosiaai.site` do `nginx.conf` do repositório `emagine-deploy`, que também serve o SPA compilado. Rotas de serviços que ainda não existem respondem 503 (homolog) ou 502 (produção).
+Rotas do gateway: `/` → frontend (HU 002), `/api/` → API (o prefixo é removido), `/auth/`, `/mcp` e `/.well-known/oauth-*` → HU 005 (plugin no ChatGPT). Em homolog elas estão em `deploy/nginx/routes.inc` (gateway próprio do compose); em produção, no server block `ambrosioai.site` do `nginx.conf` do repositório `emagine-deploy`, que também serve o SPA compilado. Rotas de serviços que ainda não existem respondem 503 (homolog) ou 502 (produção).
 
 ## Dev (sem Docker)
 
@@ -57,7 +57,7 @@ Development e homologação. O que muda na prática:
 | | Bucket | CORS (origens) | Chaves |
 |---|---|---|---|
 | Dev e Homolog | `ambrosio` (nyc3) | `http://localhost:8080`, `http://localhost:5173` | `.env` / ambiente do shell |
-| Produção | `ambrosia-prod` (nyc3) | `https://ambrosiaai.site` | GitHub Secrets |
+| Produção | `ambrosia-prod` (nyc3) | `https://ambrosioai.site` | GitHub Secrets |
 
 - Endpoint, região, bucket e `ForcePathStyle` ficam no `appsettings.<Ambiente>.json`; **só**
   `ObjectStorage__AccessKey`/`ObjectStorage__SecretKey` vêm de variável de ambiente. O nome do bucket no
@@ -82,7 +82,7 @@ Development e homologação. O que muda na prática:
   </CORSConfiguration>
   ```
 
-  Em produção, troque a origem por `https://ambrosiaai.site`. Com AWS CLI configurado para o Spaces
+  Em produção, troque a origem por `https://ambrosioai.site`. Com AWS CLI configurado para o Spaces
   (`aws configure` + `AWS_ENDPOINT_URL_S3=https://nyc3.digitaloceanspaces.com`) dá para aplicar o mesmo
   arquivo com `aws s3api put-bucket-cors --bucket <bucket> --cors-cors-file file://cors.xml`.
 
@@ -165,14 +165,14 @@ Atrás do gateway, a API lê `X-Forwarded-Prefix`/`Proto`/`For` (`ReverseProxy:E
 
 ## Produção (GitHub Actions)
 
-Workflow `.github/workflows/deploy-prod.yml`, disparado manualmente (Actions → Deploy Production → Run workflow). Conecta por SSH em `/opt/ambrosia`, grava `.env.prod`, faz o build, aplica as migrações, sobe `api` e `mcp` e testa `https://ambrosiaai.site/api/swagger/v1/swagger.json` e a descoberta OAuth do MCP.
+Workflow `.github/workflows/deploy-prod.yml`, disparado manualmente (Actions → Deploy Production → Run workflow). Conecta por SSH em `/opt/ambrosia`, grava `.env.prod`, faz o build, aplica as migrações, sobe `api` e `mcp` e testa `https://ambrosioai.site/api/swagger/v1/swagger.json` e a descoberta OAuth do MCP.
 
-Produção **não** tem frontend nem gateway próprios: segue o layout dos outros apps da Emagine (Roll6, AvaBot). O nginx compartilhado do repositório `emagine-deploy` (container `emagine-app1`, no mesmo servidor) termina o HTTPS com o certificado de `emagine-secrets/SSL/ambrosiaai.site.{pem,key}`, serve o SPA de `builds/ambrosia` (gerado por `scripts/build-ambrosia.ps1` daquele repositório, com a CSP do bucket `ambrosia-prod`) e faz proxy para `ambrosia-api:8080` e `ambrosia-mcp:8080` pela rede externa `emagine-network`. Ordem do primeiro deploy: `emagine-deploy` primeiro (o nginx dele sobe mesmo sem os containers do Ambrosio), depois este pipeline — o health check passa por aquele nginx.
+Produção **não** tem frontend nem gateway próprios: segue o layout dos outros apps da Emagine (Roll6, AvaBot). O nginx compartilhado do repositório `emagine-deploy` (container `emagine-app1`, no mesmo servidor) termina o HTTPS com o certificado de `emagine-secrets/SSL/ambrosioai.site.{pem,key}`, serve o SPA de `builds/ambrosia` (gerado por `scripts/build-ambrosia.ps1` daquele repositório, com a CSP do bucket `ambrosia-prod`) e faz proxy para `ambrosia-api:8080` e `ambrosia-mcp:8080` pela rede externa `emagine-network`. Ordem do primeiro deploy: `emagine-deploy` primeiro (o nginx dele sobe mesmo sem os containers do Ambrosio), depois este pipeline — o health check passa por aquele nginx.
 
 ### Preparação única
 
 1. **Servidor**: o mesmo do `emagine-deploy` (Docker Engine + plugin compose, `git`, `curl`); as portas 80 e 443 são do `emagine-app1`. Liberar o IP do servidor em *Trusted sources* do banco gerenciado.
-2. **Cloudflare**: registro `A ambrosiaai.site` → IP do servidor com proxy ativo; SSL/TLS em **Full (strict)**; gerar um **Origin Certificate** para `ambrosiaai.site` e gravá-lo no repositório `emagine-secrets` como `SSL/ambrosiaai.site.pem` e `SSL/ambrosiaai.site.key`.
+2. **Cloudflare**: registro `A ambrosioai.site` → IP do servidor com proxy ativo; SSL/TLS em **Full (strict)**; gerar um **Origin Certificate** para `ambrosioai.site` e gravá-lo no repositório `emagine-secrets` como `SSL/ambrosioai.site.pem` e `SSL/ambrosioai.site.key`.
 3. **Banco**: criar o banco `ambrosio` no cluster gerenciado e montar a connection string com `SSL Mode=Require` (porta 25060).
 4. **GitHub Secrets** (Settings → Secrets and variables → Actions):
 
@@ -189,7 +189,7 @@ Produção **não** tem frontend nem gateway próprios: segue o layout dos outro
 Guarde `AMBROSIO_CPF_ENCRYPTION_KEY` e `AMBROSIO_CPF_PEPPER` também fora do GitHub (cofre de senhas): o GitHub não permite ler um secret depois de gravado.
 
 5. **Spaces**: crie o bucket de produção (nome global entre contas), ative o bloqueio de acesso público
-   e grave a regra CORS com `AllowedOrigin = https://ambrosiaai.site`, `AllowedMethod = GET, PUT, HEAD` e
+   e grave a regra CORS com `AllowedOrigin = https://ambrosioai.site`, `AllowedMethod = GET, PUT, HEAD` e
    `AllowedHeader = Content-Type`. O endpoint e o bucket ficam fixos em `appsettings.Production.json`
    (`https://nyc3.digitaloceanspaces.com`, `ambrosia-prod`, `ForcePathStyle: false`); a região da
    assinatura é a mesma do endpoint, senão o SigV4 da pré-assinatura não bate com o que o Spaces espera.

@@ -8,8 +8,8 @@ Acrescentar ao `.env` (modelo em `.env.example`):
 
 ```dotenv
 # Authorization server e MCP (feature 007)
-AUTH_ISSUER=http://localhost:8080/auth           # em produção: https://ambrosiaai.site/auth
-MCP_RESOURCE_URL=http://localhost:8080/mcp       # em produção: https://ambrosiaai.site/mcp
+AUTH_ISSUER=http://localhost:8080/auth           # em produção: https://ambrosioai.site/auth
+MCP_RESOURCE_URL=http://localhost:8080/mcp       # em produção: https://ambrosioai.site/mcp
 AUTH_SIGNING_KEY_PEM="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 ```
 
@@ -83,7 +83,7 @@ O ChatGPT só conecta em HTTPS público:
 5. Rodar o roteiro de verificação da [spec](spec.md#roteiro-de-verificação-no-chatgpt) e anotar a tool escolhida em cada prompt (meta: 90% certas, SC-006).
 6. Conferir no log do gateway quais endereços de `/.well-known/` o ChatGPT consultou (risco da descoberta com caminho).
 
-Em produção, os passos 1 a 3 não são necessários: `AUTH_ISSUER` e `MCP_RESOURCE_URL` apontam para `https://ambrosiaai.site`.
+Em produção, os passos 1 a 3 não são necessários: `AUTH_ISSUER` e `MCP_RESOURCE_URL` apontam para `https://ambrosioai.site`.
 
 ## 6. Checklist de aceite manual
 

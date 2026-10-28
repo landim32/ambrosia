@@ -8,7 +8,7 @@ namespace Ambrosio.DTO.Settings;
 /// <remarks>
 /// Não tem <c>[JsonPropertyName]</c>: é tipo de configuração (ligado por <c>GetSection</c> e
 /// variáveis de ambiente com <c>__</c>), não tipo de linha. O <c>Issuer</c> aqui é a URL pública do
-/// AS (<c>https://ambrosiaai.site/auth</c>) e <b>não</b> é o mesmo conceito do
+/// AS (<c>https://ambrosioai.site/auth</c>) e <b>não</b> é o mesmo conceito do
 /// <see cref="AuthSettings.Issuer"/> do JWT HS256 das telas, que é um nome curto — os dois leem a
 /// seção <c>Auth</c> em processos diferentes (research R8).
 /// </remarks>

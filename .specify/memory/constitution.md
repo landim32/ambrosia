@@ -243,7 +243,7 @@ cascata.
 | Aspecto | Padrão |
 |---|---|
 | Esquema | JWT Bearer HS256 emitido pela própria API (`sub` = `user_id`, `email`, `name`; `iss`/`aud` configuráveis; expiração padrão de 8 h), obtido por **uma** das rotas públicas: `POST /auth/register` (cadastro com nome, e-mail e senha — já devolve a sessão), `POST /auth/login` (e-mail e senha) ou `POST /auth/google` (troca do ID token do Google). As três devolvem o mesmo `LoginResult`. |
-| Esquema do MCP (plugin do ChatGPT) | OAuth 2.1 com authorization server próprio em `/auth` (issuer `https://ambrosiaai.site/auth`): código de autorização com PKCE S256, consentimento por escopos, refresh token com rotação. Access token JWT RS256 com `aud` = URL do MCP (`https://ambrosiaai.site/mcp`), `sub` = `user_id`, validado pelo JWKS em toda chamada. Aceito **só** no MCP; a API REST não aceita esse token e o MCP não aceita o HS256 da API. |
+| Esquema do MCP (plugin do ChatGPT) | OAuth 2.1 com authorization server próprio em `/auth` (issuer `https://ambrosioai.site/auth`): código de autorização com PKCE S256, consentimento por escopos, refresh token com rotação. Access token JWT RS256 com `aud` = URL do MCP (`https://ambrosioai.site/mcp`), `sub` = `user_id`, validado pelo JWKS em toda chamada. Aceito **só** no MCP; a API REST não aceita esse token e o MCP não aceita o HS256 da API. |
 | Storage (frontend) | localStorage, chave `"login-with-metamask:auth"` |
 | Proteção de rotas | Atributo `[Authorize]` nos controllers |
 
