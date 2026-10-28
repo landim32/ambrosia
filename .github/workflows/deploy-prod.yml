@@ -3,7 +3,7 @@
 # -> health check -> limpeza -> resumo.
 # Só sobem migrator, api e mcp. O frontend (SPA compilado), o HTTPS e o proxy de /api, /auth, /mcp e
 # /.well-known/oauth-* ficam no nginx compartilhado do repositório emagine-deploy (container
-# emagine-app1), que alcança ambrosia-api e ambrosia-mcp pela rede externa emagine-network.
+# emagine-app1), que alcança ambrosio-api e ambrosio-mcp pela rede externa emagine-network.
 name: Deploy Production
 
 on:
@@ -155,9 +155,24 @@ jobs:
           cd "$DEPLOY_DIR"
           COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml"
 
-          # --remove-orphans também derruba ambrosia-frontend e ambrosia-gateway de deploys antigos,
-          # que saíram do compose e liberam as portas 80/443 para o nginx do emagine-deploy.
           $COMPOSE down --remove-orphans || true
+
+          # Legado do projeto "ambrosia" (antes da troca para "ambrosio"): o down acima só enxerga o
+          # projeto atual, então os containers e a rede antigos saem aqui. Inclui ambrosia-frontend e
+          # ambrosia-gateway, que liberam as portas 80/443 para o nginx do emagine-deploy.
+          docker rm -f ambrosia-api ambrosia-mcp ambrosia-migrator ambrosia-frontend ambrosia-gateway 2>/dev/null || true
+          docker network rm ambrosia_ambrosia-network 2>/dev/null || true
+
+          # Chaves do Data Protection: o volume leva o nome do projeto, e perdê-las invalida os cookies
+          # da API e derruba as conexões do ChatGPT com o MCP. Copia o volume antigo para o novo uma
+          # única vez (só quando o novo ainda não existe); o antigo fica como backup.
+          for v in dataprotection_keys mcp_dataprotection_keys; do
+            if docker volume inspect "ambrosia_$v" >/dev/null 2>&1 && ! docker volume inspect "ambrosio_$v" >/dev/null 2>&1; then
+              docker volume create --label com.docker.compose.project=ambrosio --label com.docker.compose.volume="$v" "ambrosio_$v"
+              docker run --rm -v "ambrosia_$v":/from:ro -v "ambrosio_$v":/to alpine:3.20 cp -a /from/. /to/
+              echo "Volume ambrosia_$v copiado para ambrosio_$v"
+            fi
+          done
           echo "Services stopped"
 
   migrate:
@@ -227,11 +242,11 @@ jobs:
           CURL="docker run --rm --network emagine-network curlimages/curl:8.10.1 -s -o /dev/null -w %{http_code} -H Host:ambrosioai.site -H X-Forwarded-Proto:https"
           echo "Waiting for services to start..."
           for i in $(seq 1 12); do
-            HTTP_STATUS=$($CURL -H X-Forwarded-Prefix:/api http://ambrosia-api:8080/swagger/v1/swagger.json || echo "000")
+            HTTP_STATUS=$($CURL -H X-Forwarded-Prefix:/api http://ambrosio-api:8080/swagger/v1/swagger.json || echo "000")
             # Host do plugin (feature 007): a descoberta OAuth é anônima e é a primeira coisa que o
             # ChatGPT consulta — se ela não responder JSON 200, o plugin não conecta e o resto do
             # deploy está inútil mesmo com a API verde.
-            MCP_STATUS=$($CURL http://ambrosia-mcp:8080/.well-known/oauth-protected-resource/mcp || echo "000")
+            MCP_STATUS=$($CURL http://ambrosio-mcp:8080/.well-known/oauth-protected-resource/mcp || echo "000")
             if [ "$HTTP_STATUS" = "200" ] && [ "$MCP_STATUS" = "200" ]; then
               echo "Health check passed (API HTTP $HTTP_STATUS, MCP HTTP $MCP_STATUS)"
               $COMPOSE ps

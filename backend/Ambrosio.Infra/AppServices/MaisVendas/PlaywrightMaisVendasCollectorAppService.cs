@@ -822,22 +822,157 @@ public class PlaywrightMaisVendasCollectorAppService : IMaisVendasCollectorAppSe
             }
             catch (PlaywrightException ex)
             {
-                throw new MaisVendasSourceException("a navegação não completou", ex);
+                // Sem resposta HTTP: o erro de rede do Chromium (ERR_CONNECTION_REFUSED, ERR_TIMED_OUT,
+                // ERR_CONNECTION_RESET...) é o que separa bloqueio de IP no firewall de origem fora do ar.
+                var detail =
+                    $"a navegação para {NavigationGuard.Describe(url)} não completou em " +
+                    $"{(DateTime.UtcNow - startedAt).TotalMilliseconds:0} ms: {DescribeNetworkError(ex)}";
+
+                _logger.LogWarning("Coleta: {Detail}", detail);
+
+                throw new MaisVendasSourceException(detail, ex);
             }
+
+            var elapsed = DateTime.UtcNow - startedAt;
 
             _logger.LogInformation(
                 "Coleta: {Route} respondeu {Status} em {Elapsed:0} ms.",
                 NavigationGuard.Describe(url),
                 response?.Status,
-                (DateTime.UtcNow - startedAt).TotalMilliseconds);
+                elapsed.TotalMilliseconds);
 
             if (response is not null && response.Status >= 400)
             {
-                throw new MaisVendasSourceException($"a origem respondeu {response.Status}");
+                var detail = await DescribeHttpFailureAsync(url, response, elapsed);
+
+                // Warning porque produção só registra Warning para cima: o Information acima some lá.
+                _logger.LogWarning("Coleta: {Detail}", detail);
+
+                throw new MaisVendasSourceException(detail);
             }
 
             cancellationToken.ThrowIfCancellationRequested();
         }
+
+        /// <summary>
+        /// Cabeçalhos que identificam quem respondeu (CDN, WAF, balanceador). Nenhum carrega credencial
+        /// nem dado pessoal; cookies ficam de fora de propósito.
+        /// </summary>
+        private static readonly string[] DiagnosticHeaders =
+        {
+            "server", "via", "retry-after", "cf-ray", "cf-mitigated", "cf-cache-status",
+            "x-amz-cf-id", "x-amz-cf-pop", "x-cache", "x-amzn-requestid", "x-amzn-errortype",
+            "x-akamai-request-id", "x-iinfo", "x-cdn", "x-sucuri-id", "x-request-id"
+        };
+
+        /// <summary>Trechos típicos das páginas de bloqueio de WAF/CDN.</summary>
+        private static readonly string[] BlockMarkers =
+        {
+            "access denied", "acesso negado", "attention required", "request blocked",
+            "you have been blocked", "sorry, you have been blocked", "forbidden", "captcha",
+            "just a moment", "rate limit", "too many requests", "bloquead"
+        };
+
+        /// <summary>
+        /// Diagnóstico de uma resposta de erro da origem, para o log: status, rota final (redirect),
+        /// cabeçalhos de CDN/WAF, título e começo do texto da página, e se tem cara de bloqueio.
+        /// A página de erro é anterior ao login, então não contém dado da vendedora.
+        /// </summary>
+        private async Task<string> DescribeHttpFailureAsync(string url, IResponse response, TimeSpan elapsed)
+        {
+            var parts = new List<string>
+            {
+                $"a origem respondeu {response.Status} {response.StatusText}".TrimEnd() +
+                $" em {NavigationGuard.Describe(url)} após {elapsed.TotalMilliseconds:0} ms"
+            };
+
+            var finalRoute = NavigationGuard.Describe(response.Url);
+
+            if (finalRoute != NavigationGuard.Describe(url))
+            {
+                parts.Add($"rota final {finalRoute}");
+            }
+
+            Dictionary<string, string> headers;
+
+            try
+            {
+                headers = await response.AllHeadersAsync();
+            }
+            catch (PlaywrightException)
+            {
+                headers = new Dictionary<string, string>();
+            }
+
+            var found = DiagnosticHeaders
+                .Where(headers.ContainsKey)
+                .Select(name => $"{name}={Truncate(headers[name], 80)}")
+                .ToList();
+
+            parts.Add(found.Count > 0 ? $"cabeçalhos: {string.Join(", ", found)}" : "sem cabeçalhos de CDN/WAF");
+
+            var title = await SafePageReadAsync(() => _page.TitleAsync());
+            var body = await SafePageReadAsync(() => _page.Locator("body").InnerTextAsync(new() { Timeout = 2_000 }));
+
+            if (title is { Length: > 0 })
+            {
+                parts.Add($"título \"{Truncate(title, 120)}\"");
+            }
+
+            if (body is { Length: > 0 })
+            {
+                parts.Add($"página \"{Truncate(CollapseWhitespace(body), 300)}\"");
+            }
+
+            if (LooksBlocked(response.Status, headers, $"{title} {body}"))
+            {
+                parts.Add("INDÍCIO DE BLOQUEIO do IP do servidor pela origem (WAF/CDN/rate limit)");
+            }
+
+            return string.Join("; ", parts);
+        }
+
+        private static bool LooksBlocked(int status, Dictionary<string, string> headers, string text)
+        {
+            if (status is 403 or 429 or 451 || headers.ContainsKey("cf-mitigated") || headers.ContainsKey("retry-after"))
+            {
+                return true;
+            }
+
+            var lower = text.ToLowerInvariant();
+
+            return BlockMarkers.Any(lower.Contains);
+        }
+
+        private static async Task<string?> SafePageReadAsync(Func<Task<string>> read)
+        {
+            try
+            {
+                return await read();
+            }
+            catch (Exception ex) when (ex is PlaywrightException or TimeoutException)
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Primeira linha do erro do Playwright ("net::ERR_... at https://..."), sem a URL (pode ter
+        /// query) e sem o call log.
+        /// </summary>
+        private static string DescribeNetworkError(PlaywrightException ex)
+        {
+            var firstLine = ex.Message.Split('\n', 2)[0].Trim();
+            var at = firstLine.IndexOf(" at http", StringComparison.OrdinalIgnoreCase);
+
+            return Truncate(at > 0 ? firstLine[..at] : firstLine, 200);
+        }
+
+        private static string CollapseWhitespace(string value) =>
+            string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+
+        private static string Truncate(string value, int max) =>
+            value.Length <= max ? value : value[..max] + "…";
 
         /// <summary>Captcha ou campo de código à vista = etapa não suportada (FR-046).</summary>
         private async Task<bool> HasUnsupportedStepAsync()

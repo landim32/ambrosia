@@ -127,7 +127,14 @@ public class ImportExecutionService : IImportExecutionService
         {
             // Nada daqui volta ao worker como exceção: a execução precisa de um status final e de uma
             // mensagem segura. O original vai para o log.
-            _logger.LogWarning(ex, "Falha inesperada na execução {RunId}.", run.Id);
+            if (ex is MaisVendasSourceException { Detail.Length: > 0 } source)
+            {
+                _logger.LogWarning(ex, "Falha inesperada na execução {RunId}: {Detail}", run.Id, source.Detail);
+            }
+            else
+            {
+                _logger.LogWarning(ex, "Falha inesperada na execução {RunId}.", run.Id);
+            }
 
             if (run.Status is ImportRunStatus.Queued or ImportRunStatus.Running)
             {
