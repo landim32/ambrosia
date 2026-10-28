@@ -163,6 +163,9 @@ public static class McpSetup
         services.AddScoped<McpUserContext>();
         services.AddScoped<WriteToolHelper>();
 
+        // Download do arquivo da conversa para enviar_imagem (T066): HttpClient próprio, com as travas.
+        services.AddSingleton<Ambrosio.McpServer.Mcp.Files.SafeFileDownloader>();
+
         services.AddMcpServer()
             .WithHttpTransport(transport => transport.SessionMode = HttpServerSessionMode.Stateless)
             // Copia das opções do SDK: elas trazem o TypeInfoResolver; um JsonSerializerOptions vazio

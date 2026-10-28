@@ -140,13 +140,16 @@ public static class AuthorizationEndpoint
         // `aud` do access token = URL do MCP (R5), o valor exato que o JwtBearer do /mcp exige.
         identity.SetResources(mcp.Value.ResourceUrl);
 
+        // Ampliação (T062): a nova autorização permanente soma os escopos já concedidos a este cliente
+        // aos pedidos agora, para o próximo authorize com qualquer combinação deles não pedir
+        // consentimento de novo. O token continua só com os escopos desta requisição.
         var permanent = existing.LastOrDefault()
             ?? await authorizations.CreateAsync(
                 identity: identity,
                 subject: subject,
                 client: applicationId!,
                 type: AuthorizationTypes.Permanent,
-                scopes: identity.GetScopes());
+                scopes: await MergeGrantedScopesAsync(authorizations, subject, applicationId!, identity.GetScopes()));
 
         identity.SetAuthorizationId(await authorizations.GetIdAsync(permanent));
         identity.SetDestinations(GetDestinations);
@@ -282,6 +285,27 @@ public static class AuthorizationEndpoint
             default:
                 yield break;
         }
+    }
+
+    private static async Task<ImmutableArray<string>> MergeGrantedScopesAsync(
+        IOpenIddictAuthorizationManager authorizations,
+        string subject,
+        string applicationId,
+        ImmutableArray<string> requested)
+    {
+        var merged = new SortedSet<string>(requested, StringComparer.Ordinal);
+
+        await foreach (var authorization in authorizations.FindAsync(
+                           subject: subject,
+                           client: applicationId,
+                           status: Statuses.Valid,
+                           type: AuthorizationTypes.Permanent,
+                           scopes: null))
+        {
+            merged.UnionWith(await authorizations.GetScopesAsync(authorization));
+        }
+
+        return [.. merged];
     }
 
     /// <summary>

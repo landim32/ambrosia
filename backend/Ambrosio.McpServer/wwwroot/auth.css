@@ -99,3 +99,16 @@ button {
   font-size: .85rem;
 }
 .foot img { flex: none; }
+
+h2.area { font-size: .95rem; color: var(--muted); margin: 18px 0 4px; text-transform: uppercase; letter-spacing: .04em; }
+.scopes li.granted strong { color: var(--muted); }
+.badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: .75rem;
+  font-style: normal;
+}

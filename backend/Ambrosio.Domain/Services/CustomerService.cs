@@ -76,21 +76,7 @@ public class CustomerService : ICustomerService
     /// <inheritdoc />
     public async Task<CustomerDetailInfo> CreateAsync(long userId, CustomerInsertInfo info)
     {
-        await ThrowIfInvalid(_insertValidator, info);
-
-        // O validator já recusou CPF inválido; aqui o TryParse normaliza (descarta pontuação) e
-        // entrega os dígitos canônicos, única forma aceita no hash (FR-010, research §5).
-        if (!Cpf.TryParse(info.Cpf, out var cpf) || cpf is null)
-        {
-            throw new ValidationException([new ValidationFailure(CPF_FIELD, "CPF inválido.")]);
-        }
-
-        var cpfHash = _cpfProtection.Hash(cpf.Digits);
-
-        if (await _customers.ExistsByCpfHashAsync(userId, cpfHash))
-        {
-            throw new DuplicateException("Já existe um cliente com este CPF.");
-        }
+        var (cpf, cpfHash) = await ValidateNewCustomerAsync(userId, info);
 
         var now = _clock.UtcNow;
         var customer = new Customer
@@ -151,6 +137,36 @@ public class CustomerService : ICustomerService
                 : customer.CpfMasked,
             Summary = summary
         };
+    }
+
+    /// <inheritdoc />
+    public async Task<string> ValidateCreateAsync(long userId, CustomerInsertInfo info)
+    {
+        var (cpf, _) = await ValidateNewCustomerAsync(userId, info);
+
+        return cpf.Masked;
+    }
+
+    /// <summary>Validator, normalização do CPF e duplicidade — compartilhado pela gravação e pela prévia.</summary>
+    private async Task<(Cpf Cpf, string CpfHash)> ValidateNewCustomerAsync(long userId, CustomerInsertInfo info)
+    {
+        await ThrowIfInvalid(_insertValidator, info);
+
+        // O validator já recusou CPF inválido; aqui o TryParse normaliza (descarta pontuação) e
+        // entrega os dígitos canônicos, única forma aceita no hash (FR-010, research §5).
+        if (!Cpf.TryParse(info.Cpf, out var cpf) || cpf is null)
+        {
+            throw new ValidationException([new ValidationFailure(CPF_FIELD, "CPF inválido.")]);
+        }
+
+        var cpfHash = _cpfProtection.Hash(cpf.Digits);
+
+        if (await _customers.ExistsByCpfHashAsync(userId, cpfHash))
+        {
+            throw new DuplicateException("Já existe um cliente com este CPF.");
+        }
+
+        return (cpf, cpfHash);
     }
 
     private static CustomerInfo MapToInfo(Customer customer) => new()

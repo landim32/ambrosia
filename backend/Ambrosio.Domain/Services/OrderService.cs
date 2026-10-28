@@ -75,23 +75,7 @@ public class OrderService : IOrderService
     /// <inheritdoc />
     public async Task<OrderDetailInfo> CreateAsync(long userId, OrderInsertInfo info)
     {
-        await ThrowIfInvalid(_insertValidator, info);
-
-        // FR-023: o cliente precisa existir E ser do usuário. GetByIdAsync já filtra por userId,
-        // então cliente de outra vendedora cai na mesma 404 (SC-002, sem revelar existência).
-        var customer = await _customers.GetByIdAsync(info.CustomerId, userId);
-
-        if (customer is null)
-        {
-            throw new NotFoundException(CUSTOMER_NOT_FOUND);
-        }
-
-        // FR-014: verificação prévia dá a mensagem clara; o índice único ux_orders_user_number_date_kind
-        // resolve a corrida entre duas sessões (research §11).
-        if (await _orders.ExistsAsync(userId, info.OrderNumber.Trim(), info.OrderDate, info.Kind))
-        {
-            throw new DuplicateException("Já existe um pedido com este número, data e tipo.");
-        }
+        var customer = await ValidateNewOrderAsync(userId, info);
 
         var now = _clock.UtcNow;
         var order = new Order
@@ -135,17 +119,7 @@ public class OrderService : IOrderService
     /// <inheritdoc />
     public async Task<OrderDetailInfo> UpdateAsync(long userId, long orderId, OrderUpdateInfo info)
     {
-        await ThrowIfInvalid(_updateValidator, info);
-
-        var order = await GetOwnedOrThrowAsync(orderId, userId);
-
-        // O sinal é checado contra o Kind GRAVADO (kind é imutável — data-model): a resposta usa
-        // a mesma mensagem do validator da inserção, apontando o campo `total` (FR-024).
-        if (!Order.IsTotalSignValid(order.Kind, info.Total))
-        {
-            throw new ValidationException(
-                [new ValidationFailure(TOTAL_FIELD, OrderTotalSignRule.ErrorMessage(order.Kind))]);
-        }
+        var order = await ValidateOrderUpdateAsync(userId, orderId, info);
 
         order.UpdateStatusAndTotal(info.Status, info.Total, _clock.UtcNow);
 
@@ -192,6 +166,60 @@ public class OrderService : IOrderService
         CreatedAt = order.CreatedAt,
         UpdatedAt = order.UpdatedAt
     };
+
+    /// <inheritdoc />
+    public async Task<string> ValidateCreateAsync(long userId, OrderInsertInfo info)
+    {
+        var customer = await ValidateNewOrderAsync(userId, info);
+
+        return customer.Name;
+    }
+
+    /// <inheritdoc />
+    public async Task<OrderDetailInfo> ValidateUpdateAsync(long userId, long orderId, OrderUpdateInfo info) =>
+        MapToDetail(await ValidateOrderUpdateAsync(userId, orderId, info));
+
+    /// <summary>Validator, cliente do usuário e duplicidade — compartilhado pela gravação e pela prévia.</summary>
+    private async Task<Customer> ValidateNewOrderAsync(long userId, OrderInsertInfo info)
+    {
+        await ThrowIfInvalid(_insertValidator, info);
+
+        // FR-023: o cliente precisa existir E ser do usuário. GetByIdAsync já filtra por userId,
+        // então cliente de outra vendedora cai na mesma 404 (SC-002, sem revelar existência).
+        var customer = await _customers.GetByIdAsync(info.CustomerId, userId);
+
+        if (customer is null)
+        {
+            throw new NotFoundException(CUSTOMER_NOT_FOUND);
+        }
+
+        // FR-014: verificação prévia dá a mensagem clara; o índice único ux_orders_user_number_date_kind
+        // resolve a corrida entre duas sessões (research §11).
+        if (await _orders.ExistsAsync(userId, info.OrderNumber.Trim(), info.OrderDate, info.Kind))
+        {
+            throw new DuplicateException("Já existe um pedido com este número, data e tipo.");
+        }
+
+        return customer;
+    }
+
+    /// <summary>Validator e sinal do total pelo tipo gravado — compartilhado pela gravação e pela prévia.</summary>
+    private async Task<Order> ValidateOrderUpdateAsync(long userId, long orderId, OrderUpdateInfo info)
+    {
+        await ThrowIfInvalid(_updateValidator, info);
+
+        var order = await GetOwnedOrThrowAsync(orderId, userId);
+
+        // O sinal é checado contra o Kind GRAVADO (kind é imutável — data-model): a resposta usa
+        // a mesma mensagem do validator da inserção, apontando o campo `total` (FR-024).
+        if (!Order.IsTotalSignValid(order.Kind, info.Total))
+        {
+            throw new ValidationException(
+                [new ValidationFailure(TOTAL_FIELD, OrderTotalSignRule.ErrorMessage(order.Kind))]);
+        }
+
+        return order;
+    }
 
     internal static OrderDetailInfo MapToDetail(Order order) => new()
     {

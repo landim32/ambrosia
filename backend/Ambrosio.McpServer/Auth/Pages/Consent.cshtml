@@ -5,18 +5,34 @@
     ViewData["Title"] = "Autorizar o ChatGPT";
 }
 
-<h1>Autorizar o @Model.ClientName</h1>
-<p class="lead">O @Model.ClientName quer acessar sua conta do Ambrosio para:</p>
+@if (Model.IsExpansion)
+{
+    <h1>Ampliar o acesso do @Model.ClientName</h1>
+    <p class="lead">O @Model.ClientName já tem parte do acesso e agora pede também o que está sem a marca "já autorizado".</p>
+}
+else
+{
+    <h1>Autorizar o @Model.ClientName</h1>
+    <p class="lead">O @Model.ClientName quer acessar sua conta do Ambrosio para:</p>
+}
 
-<ul class="scopes">
-    @foreach (var scope in Model.Scopes)
-    {
-        <li>
-            <strong>@scope.DisplayName</strong>
-            <span>@scope.Description</span>
-        </li>
-    }
-</ul>
+@foreach (var area in Model.AreaGroups)
+{
+    <h2 class="area">@area.Title</h2>
+    <ul class="scopes">
+        @foreach (var scope in area.Scopes)
+        {
+            <li class="@(scope.AlreadyGranted ? "granted" : "new")" data-scope="@scope.Name">
+                <strong>@scope.DisplayName</strong>
+                @if (scope.AlreadyGranted)
+                {
+                    <em class="badge">já autorizado</em>
+                }
+                <span>@scope.Description</span>
+            </li>
+        }
+    </ul>
+}
 
 <form method="post" action="@Model.AuthorizeAction">
     @Html.AntiForgeryToken()

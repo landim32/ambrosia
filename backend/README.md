@@ -14,7 +14,8 @@ Guia de validação ponta a ponta: [quickstart.md](../specs/001-api-cadastro-cli
 | `Ambrosio.DTO` | Contratos de entrada/saída, enums, settings |
 | `Ambrosio.Infra` / `Ambrosio.Infra.Interfaces` | EF Core, repositórios, AppServices (JWT, Google, CPF) |
 | `Ambrosio.Tests` | Testes unitários (xUnit + Moq + EF InMemory) |
-| `Ambrosio.ApiTests` | Testes HTTP (xUnit + Flurl + FluentAssertions) |
+| `Ambrosio.McpServer` | Plugin do ChatGPT (feature 007): servidor MCP em `/mcp` (28 tools) e authorization server OAuth 2.1 em `/auth` (OpenIddict, telas Razor de login e consentimento, CIMD e DCR) |
+| `Ambrosio.ApiTests` | Testes HTTP (xUnit + Flurl + FluentAssertions), inclusive `McpServer/` (OAuth, tools, escopos, paridade) |
 
 ## Pré-requisitos
 

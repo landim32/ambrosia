@@ -17,6 +17,25 @@ Autenticação: `POST /auth/register` (cadastro com nome, e-mail e senha) e `POS
 
 Rotas do gateway: `/` → frontend (HU 002), `/api/` → API (o prefixo é removido), `/auth/`, `/mcp` e `/.well-known/oauth-*` → HU 005 (plugin no ChatGPT). Em homolog elas estão em `deploy/nginx/routes.inc` (gateway próprio do compose); em produção, no server block `ambrosioai.site` do `nginx.conf` do repositório `emagine-deploy`, que também serve o SPA compilado. Rotas de serviços que ainda não existem respondem 503 (homolog) ou 502 (produção).
 
+### Serviço `mcp` (plugin do ChatGPT, feature 007)
+
+Host `Ambrosio.McpServer` (target `mcp` do `backend/Dockerfile`): servidor MCP em `/mcp` e authorization server OAuth 2.1 em `/auth`, com a descoberta em `/.well-known/oauth-protected-resource` e `/.well-known/oauth-authorization-server/auth`. Usa o mesmo banco, CPF e storage da API e acrescenta:
+
+| Variável | Homolog | Produção |
+|---|---|---|
+| `Auth__Issuer` | `http://localhost:8080/auth` (fixo no compose; `http` só é aceito em localhost) | `https://ambrosioai.site/auth` (fixo) |
+| `Mcp__ResourceUrl` | `http://localhost:8080/mcp` | `https://ambrosioai.site/mcp` |
+| `Auth__SigningKeyPem` | `AMBROSIO_AUTH_SIGNING_KEY_PEM` do `.env` (obrigatória: sem ela o host não sobe) | GitHub Secret `AMBROSIO_AUTH_SIGNING_KEY_PEM` |
+| `Mcp__FrontendBaseUrl` | `http://localhost:8080` | `https://ambrosioai.site` (link da tool `iniciar_importacao`) |
+
+A chave de assinatura é RSA 2048 em PEM PKCS#8, numa linha só com `\n` no lugar das quebras (é assim que o `.env` e o heredoc do pipeline a gravam):
+
+```bash
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 | awk 'BEGIN{ORS="\\n"}{print}'
+```
+
+Trocar a chave invalida as conexões já feitas no ChatGPT (os tokens emitidos deixam de validar). A trilha de auditoria do próprio usuário fica em `GET /mcp/diagnostics/audit` só em Development e Homolog. Guia de conexão e roteiro de verificação: [`plugin/README.md`](../plugin/README.md).
+
 ## Dev (sem Docker)
 
 1. Instale o PostgreSQL 17 no Windows, com usuário `postgres`/`postgres` na porta 5432, e crie o banco `ambrosio_dev`. O container `ambrosio-postgres` do WSL também usa a 5432: pare-o antes (`wsl -e docker stop ambrosio-postgres`).

@@ -26,7 +26,7 @@
 | [002](historias/002-frontend-web-perfil-cliente-pedidos.md) | [Frontend web: perfil do cliente e pedidos (somente exibição)](historias/002-frontend-web-perfil-cliente-pedidos.md) | Implementada | [`specs/002-frontend-web-clientes-pedidos/`](../specs/002-frontend-web-clientes-pedidos/) |
 | [003](historias/003-armazenamento-imagens-s3.md) | [Armazenamento de imagens em storage compatível com S3](historias/003-armazenamento-imagens-s3.md) | Implementada | [`specs/004-s3-image-storage/`](../specs/004-s3-image-storage/) |
 | [004](historias/004-bot-migracao-mais-vendas.md) | [Importação do +Vendas pelo frontend (pedidos, clientes e fotos)](historias/004-bot-migracao-mais-vendas.md) | Implementada | [`specs/006-mais-vendas-import/`](../specs/006-mais-vendas-import/) |
-| [005](historias/005-plugin-chatgpt-mcp.md) | [Plugin do Ambrosio no ChatGPT (MCP com toda a API e login OAuth)](historias/005-plugin-chatgpt-mcp.md) | Planejada (próxima) | — |
+| [005](historias/005-plugin-chatgpt-mcp.md) | [Plugin do Ambrosio no ChatGPT (MCP com toda a API e login OAuth)](historias/005-plugin-chatgpt-mcp.md) | Implementada | [`007-chatgpt-mcp-plugin`](../specs/007-chatgpt-mcp-plugin/) |
 | [006](historias/006-frontend-pwa.md) | [Frontend como PWA](historias/006-frontend-pwa.md) | Planejada | — |
 | [007](historias/007-graphql-clientes-pedidos.md) | [GraphQL para consultas de clientes e pedidos](historias/007-graphql-clientes-pedidos.md) | Planejada | — |
 | [008](historias/008-oauth-mcp-chatgpt.md) | [OAuth 2.1 para usar o MCP no ChatGPT](historias/008-oauth-mcp-chatgpt.md) | Incorporada à 005 | — |

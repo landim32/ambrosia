@@ -1,0 +1,33 @@
+meta {
+  name: Tools List
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{mcpBaseUrl}}/mcp
+  body: json
+  auth: none
+}
+
+headers {
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/list"
+  }
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+}
+
+docs {
+  Lista das tools sem token (autenticação mista, R7). A resposta vem em SSE (event: message / data: {...}).
+}

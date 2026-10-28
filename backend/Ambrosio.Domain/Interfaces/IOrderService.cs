@@ -21,4 +21,16 @@ public interface IOrderService
 
     /// <summary>Atualização de status e total (FR-019).</summary>
     Task<OrderDetailInfo> UpdateAsync(long userId, long orderId, OrderUpdateInfo info);
+
+    /// <summary>
+    /// As checagens de <see cref="CreateAsync"/> (validator, cliente do usuário, duplicidade) sem
+    /// gravar: a prévia das tools de escrita do plugin (feature 007, R11). Devolve o nome da cliente.
+    /// </summary>
+    Task<string> ValidateCreateAsync(long userId, OrderInsertInfo info);
+
+    /// <summary>
+    /// As checagens de <see cref="UpdateAsync"/> (validator e sinal do total pelo tipo gravado) sem
+    /// gravar. Devolve o pedido como está hoje, para a prévia mostrar antes e depois.
+    /// </summary>
+    Task<OrderDetailInfo> ValidateUpdateAsync(long userId, long orderId, OrderUpdateInfo info);
 }

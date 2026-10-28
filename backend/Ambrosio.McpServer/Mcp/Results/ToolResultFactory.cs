@@ -98,7 +98,7 @@ public static class ToolResultFactory
             .Where(m => !string.IsNullOrWhiteSpace(m))
             .Distinct()),
         DuplicateException or NotFoundException or ImageRejectedException
-            or ImportLockedException or ImportRunNotCancellableException => exception.Message,
+            or ImportLockedException or ImportRunNotCancellableException or StorageUnavailableException => exception.Message,
         _ => null
     };
 
