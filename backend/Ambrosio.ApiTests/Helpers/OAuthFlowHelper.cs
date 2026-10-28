@@ -54,6 +54,9 @@ public sealed class OAuthFlowHelper(ApiTestFixture fixture)
 
     public CookieJar Cookies { get; private set; } = new();
 
+    /// <summary>HTML das telas de consentimento vistas por esta "aba", na ordem.</summary>
+    public List<string> ConsentPages { get; } = [];
+
     public string Issuer => fixture.AuthIssuer;
 
     /// <summary>Começa uma sessão de navegador nova (sem login no AS).</summary>
@@ -208,6 +211,7 @@ public sealed class OAuthFlowHelper(ApiTestFixture fixture)
     public async Task<OAuthStep> ConsentAsync(string consentUrl, string decision)
     {
         var page = await GetAsync(consentUrl);
+        ConsentPages.Add(page.Body);
         if (page.StatusCode != 200)
         {
             return page;

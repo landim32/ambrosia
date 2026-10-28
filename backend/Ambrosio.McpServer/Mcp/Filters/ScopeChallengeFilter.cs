@@ -37,6 +37,18 @@ public static class ScopeChallengeFilter
             ? new Dictionary<string, JsonElement>(args)
             : new Dictionary<string, JsonElement>();
 
+        // Schema fechado (additionalProperties: false no descritor): argumento desconhecido é recusado
+        // antes de qualquer coisa — sem chegar à tool nem à auditoria. É o que impede, por exemplo,
+        // `senha` de entrar em `iniciar_importacao`.
+        var accepted = tool.ProtocolTool.InputSchema.TryGetProperty("properties", out var properties)
+            ? properties.EnumerateObject().Select(p => p.Name).ToHashSet(StringComparer.Ordinal)
+            : [];
+        var unknown = userContext.Arguments.Keys.Where(k => !accepted.Contains(k)).ToList();
+        if (unknown.Count > 0)
+        {
+            return ErrorResult($"Argumento não aceito por {tool.ProtocolTool.Name}: {string.Join(", ", unknown)}.");
+        }
+
         var noAuth = tool.Metadata.OfType<AmbrosioNoAuthAttribute>().Any();
         var required = tool.Metadata.OfType<AmbrosioScopesAttribute>().FirstOrDefault()?.Scopes;
 

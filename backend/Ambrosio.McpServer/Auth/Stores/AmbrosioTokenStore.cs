@@ -41,6 +41,24 @@ public sealed class AmbrosioTokenStore(
     public override async ValueTask<long> RevokeBySubjectAsync(string subject, CancellationToken cancellationToken) =>
         await RevokeWhereAsync(t => t.Subject == subject, cancellationToken);
 
+    /// <summary>
+    /// Remove tokens criados antes do limite que não servem mais: vencidos, revogados ou resgatados,
+    /// ou ligados a uma autorização que deixou de valer (T017, mesma regra do OpenIddict).
+    /// </summary>
+    public override async ValueTask<long> PruneAsync(DateTimeOffset threshold, CancellationToken cancellationToken)
+    {
+        var limit = threshold.UtcDateTime;
+        var now = DateTime.UtcNow;
+        var dbContext = await context.GetDbContextAsync(cancellationToken);
+
+        return await dbContext.Set<OAuthToken>()
+            .Where(t => t.CreationDate < limit)
+            .Where(t => (t.Status != Statuses.Inactive && t.Status != Statuses.Valid)
+                        || (t.Authorization != null && t.Authorization.Status != Statuses.Valid)
+                        || t.ExpirationDate < now)
+            .ExecuteDeleteAsync(cancellationToken);
+    }
+
     private async Task<long> RevokeWhereAsync(
         System.Linq.Expressions.Expression<Func<OAuthToken, bool>> filter,
         CancellationToken cancellationToken)

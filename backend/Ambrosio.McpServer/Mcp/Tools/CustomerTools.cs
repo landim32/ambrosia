@@ -67,4 +67,72 @@ public sealed class CustomerTools
 
             return ToolResultFactory.Success(ToolMapping.CustomerDetail(customer), text);
         });
+
+    [McpServerTool(Name = "cadastrar_cliente", Title = "Cadastrar cliente", ReadOnly = false, Destructive = false, Idempotent = false, OpenWorld = false)]
+    [Description(
+        "Cadastra uma cliente com nome e CPF. Chame primeiro com confirmar=false: nada é gravado e volta " +
+        "uma prévia (com as mesmas validações da tela, inclusive CPF inválido ou já cadastrado). Mostre a " +
+        "prévia à vendedora e só chame com confirmar=true depois que ela disser sim.")]
+    [AmbrosioScopes("customers:write")]
+    [AmbrosioEndpoint("POST /customers")]
+    public static Task<CallToolResult> CadastrarCliente(
+        McpUserContext user,
+        ICustomerService customers,
+        WriteToolHelper writer,
+        [Description("Nome completo da cliente (ex.: \"Ana Lima\").")] string nome,
+        [Description("CPF da cliente, com ou sem pontuação (ex.: 123.456.789-09).")] string cpf,
+        [Description("false = só prévia, nada gravado; true = grava (depois do sim da vendedora).")] bool confirmar = false)
+    {
+        var info = new CustomerInsertInfo { Name = nome, Cpf = cpf };
+
+        return writer.RunAsync(
+            confirmar,
+            preview: async () =>
+            {
+                var masked = await customers.ValidateCreateAsync(user.RequireUserId(), info);
+
+                return (new { nome = nome.Trim(), cpfMasked = masked }, $"Cadastrar {nome.Trim()} (CPF {masked}).");
+            },
+            execute: async () =>
+            {
+                var created = await customers.CreateAsync(user.RequireUserId(), info);
+
+                return (ToolMapping.Customer(created), $"Cliente {created.Name} cadastrada (id {created.Id}).");
+            });
+    }
+
+    [McpServerTool(Name = "atualizar_cliente", Title = "Renomear cliente", ReadOnly = false, Destructive = true, Idempotent = true, OpenWorld = false)]
+    [Description(
+        "Muda o nome de uma cliente (o CPF não muda). Chame primeiro com confirmar=false para ver o " +
+        "antes e depois sem gravar, e só com confirmar=true depois do sim da vendedora.")]
+    [AmbrosioScopes("customers:write")]
+    [AmbrosioEndpoint("PUT /customers/{id}")]
+    public static Task<CallToolResult> AtualizarCliente(
+        McpUserContext user,
+        ICustomerService customers,
+        WriteToolHelper writer,
+        [Description("Id da cliente no Ambrosio.")] long cliente_id,
+        [Description("Novo nome completo.")] string nome,
+        [Description("false = só prévia, nada gravado; true = grava (depois do sim da vendedora).")] bool confirmar = false)
+    {
+        var info = new CustomerUpdateInfo { Name = nome };
+
+        return writer.RunAsync(
+            confirmar,
+            preview: async () =>
+            {
+                var current = await customers.GetByIdAsync(user.RequireUserId(), cliente_id);
+                await writer.ValidateAsync(info);
+
+                return (
+                    new { id = current.Id, antes = new { nome = current.Name }, depois = new { nome = nome.Trim() } },
+                    $"Renomear \"{current.Name}\" para \"{nome.Trim()}\".");
+            },
+            execute: async () =>
+            {
+                var updated = await customers.UpdateAsync(user.RequireUserId(), cliente_id, info);
+
+                return (ToolMapping.Customer(updated), $"Cliente renomeada para {updated.Name}.");
+            });
+    }
 }

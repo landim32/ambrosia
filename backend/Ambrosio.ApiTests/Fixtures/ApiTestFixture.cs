@@ -334,7 +334,7 @@ public class ApiTestFixture : IAsyncLifetime
             // Flurl 4 usa Stream no multipart; o nome do campo e o fileName vão no Content-Disposition.
             if (fieldOverride is not null && content is not null)
             {
-                capture.AddFile(fieldOverride, new MemoryStream(content), contentType, fileName);
+                capture.AddFile(fieldOverride, new MemoryStream(content), fileName, contentType);
             }
         }));
     }

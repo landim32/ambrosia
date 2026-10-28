@@ -1,0 +1,24 @@
+meta {
+  name: Authorization Server Metadata
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{mcpBaseUrl}}/.well-known/oauth-authorization-server/auth
+  body: none
+  auth: none
+}
+
+tests {
+  test("status 200, PKCE S256, DCR e CIMD", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.code_challenge_methods_supported).to.include("S256");
+    expect(res.body.registration_endpoint).to.be.a("string");
+    expect(res.body.client_id_metadata_document_supported).to.equal(true);
+  });
+}
+
+docs {
+  Metadata do authorization server (RFC 8414), igual a /auth/.well-known/openid-configuration.
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "ambrosio",
+  "version": "1.0.0",
+  "description": "Clientes, pedidos, vendas, imagens e importações do +Vendas da vendedora, pelo ChatGPT.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Ambrosio",
+        "developerName": "Ambrosio",
+        "category": "Productivity",
+        "websiteURL": "https://ambrosioai.site",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/logo.png"
+      }
+    }
+  }
+}

@@ -6,6 +6,7 @@ using Ambrosio.DTO.Settings;
 using Ambrosio.McpServer;
 using Ambrosio.McpServer.Auth;
 using Ambrosio.McpServer.Auth.Endpoints;
+using Ambrosio.McpServer.Mcp.Diagnostics;
 using Ambrosio.McpServer.Middlewares;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
@@ -117,12 +118,10 @@ builder.Services.Configure<McpSettings>(builder.Configuration.GetSection("Mcp"))
 // acima; estes são do authorization server e pertencem só a este processo.
 builder.Services.AddHostedService<ScopeSeeder>();
 
-// OAuthPruneService fica FORA do arranque até o T017 ser resolvido (bloqueio registrado em
-// specs/007-chatgpt-mcp-plugin/research.md). Não é preguiça: PruneAsync do OpenIddict 7.7.2 lança
-// MissingMethodException sob o EF Core 9.0.22 do projeto, em 100% dos ciclos, e rodar o serviço
-// assim publicaria no log da homologação um aviso de "tenta de novo em 6 horas" para uma falha que
-// nunca se resolve — o pior tipo de ruído, porque parece saúde. A classe fica no repo para o T017 só
-// precisar do registro de volta.
+// Limpeza periódica de tokens e autorizações vencidos (T017). O PruneAsync roda pelos stores
+// próprios (AmbrosioTokenStore/AmbrosioAuthorizationStore), compilados contra o EF Core 9 — o do
+// OpenIddict 7.7.2 lançava MissingMethodException (research R19/R22).
+builder.Services.AddHostedService<OAuthPruneService>();
 
 var app = builder.Build();
 
@@ -142,12 +141,6 @@ else
     app.Logger.LogInformation(
         "Authorization server com chave RSA da configuração (kid {KeyId}).", signingKey.KeyId);
 }
-
-// Log explícito do adiamento: sem esta linha, a ausência do prune seria invisível — exatamente o
-// formato de problema que demorou a aparecer (o serviço falhando em silêncio atrás de um warning).
-app.Logger.LogWarning(
-    "Limpeza periódica do OpenIddict DESABILITADA (T017): oauth_tokens e oauth_authorizations "
-    + "crescem sem limite até o bloqueio de versão ser resolvido.");
 
 // O authorization server e o MCP compartilham este processo (R8), mas cada um tem seu caminho na
 // borda pública: o gateway encaminha /auth/* e /mcp sem reescrever nada, então o PathBase é o que
@@ -207,6 +200,9 @@ app.MapRazorPages();
 // sem RequireAuthorization — listagem e `sobre_ambrosio` são anônimas e as tools protegidas devolvem
 // o desafio pelo ScopeChallengeFilter.
 app.MapMcp(McpSetup.McpPath).RequireRateLimiting(McpRateLimiter.PolicyName);
+
+// Trilha de auditoria do próprio usuário, só em Development e Homolog (T059).
+app.MapAmbrosioAuditDiagnostics(app.Environment);
 
 app.Run();
 

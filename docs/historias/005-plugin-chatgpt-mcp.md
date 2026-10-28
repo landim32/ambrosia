@@ -3,17 +3,17 @@
 > Documento da história de usuário 005: o Ambrosio como **plugin do ChatGPT**. Um servidor MCP remoto expõe como tools **tudo o que a API expõe** (usuário, clientes, pedidos, imagens e importação do +Vendas), com **leitura e escrita**. O acesso é pelo **login do Ambrosio via OAuth 2.1**, que o ChatGPT exige. Esta HU incorpora as antigas [008](008-oauth-mcp-chatgpt.md) (OAuth) e [009](009-mcp-app-chatgpt.md) (app no ChatGPT).
 
 **Created:** 2026-10-25
-**Last Updated:** 2026-10-27
+**Last Updated:** 2026-10-28
 
 | Campo | Valor |
 |---|---|
 | ID | 005 |
-| Status | Planejada (próxima) |
-| Spec | — |
+| Status | Implementada (em produção; falta o roteiro manual no ChatGPT) |
+| Spec | [`specs/007-chatgpt-mcp-plugin/`](../../specs/007-chatgpt-mcp-plugin/) |
 | Depende de | [001](001-api-cadastro-clientes-pedidos.md) (domínio, REST e usuários), [003](003-armazenamento-imagens-s3.md) (imagens) e [004](004-bot-migracao-mais-vendas.md) (importação do +Vendas) |
 | Habilita | [007](007-graphql-clientes-pedidos.md) (tool `consultar_graphql`) e [010](010-banco-imagens-clientes-chatgpt.md) (fotos de clientes pelo ChatGPT) |
 | Incorpora | [008](008-oauth-mcp-chatgpt.md) (OAuth 2.1) e [009](009-mcp-app-chatgpt.md) (app no ChatGPT) |
-| Código previsto | `backend/Ambrosio.Mcp/` (tools), `backend/Ambrosio.McpServer/` (host MCP), `backend/Ambrosio.Auth/` (authorization server) e `plugin/` (pacote do plugin: `plugin.json`, `mcp.json`, `skills/` e `assets/`) |
+| Código | `backend/Ambrosio.McpServer/` (host único com o servidor MCP em `/mcp` e o authorization server em `/auth`, decisão R8 da spec) e `plugin/` (pacote do plugin: `plugin.json`, `mcp.json`, `skills/` e `assets/`) |
 | Fontes | Documentação de plugins da OpenAI, consultada em 27/10/2026: [visão geral](https://developers.openai.com/plugins/), [autenticação](https://developers.openai.com/plugins/build/auth), [empacotamento](https://developers.openai.com/plugins/build/plugins), [conectar e testar](https://developers.openai.com/plugins/deploy/connect-chatgpt) e [submissão](https://developers.openai.com/plugins/deploy/submission). Especificação de autorização do MCP (revisão 2025-11-25) |
 
 ---
@@ -161,7 +161,7 @@ sequenceDiagram
 | 1 | O MCP Inspector conecta em `https://ambrosioai.site/mcp` (em dev, no endereço local) por HTTP streamable, com token do AS, e lista todas as tools da seção 6 | MCP Inspector |
 | 2 | Toda tool tem `title`, descrição em português com exemplo, `inputSchema` tipado, anotações e `securitySchemes` | `tools/list` |
 | 3 | Tools de leitura têm `readOnlyHint: true`. Tools de escrita têm `readOnlyHint: false` e `destructiveHint` coerente com a tabela | `tools/list` |
-| 4 | Sem token, ou com token inválido, o MCP responde HTTP 401 com `WWW-Authenticate: Bearer resource_metadata="https://ambrosioai.site/.well-known/oauth-protected-resource/mcp", scope="…"` | `curl -i` |
+| 4 | Com token inválido, o MCP responde HTTP 401 com `WWW-Authenticate: Bearer resource_metadata="https://ambrosioai.site/.well-known/oauth-protected-resource/mcp", error="invalid_token"`. **Ajustado pela autenticação mista (R7 da spec):** sem token, `initialize`, `tools/list` e `sobre_ambrosio` funcionam, e as tools protegidas devolvem o desafio em `_meta["mcp/www_authenticate"]` com o `scope` da tool | `curl -i` |
 | 5 | O resultado de qualquer tool só contém dados do usuário do token | Ana e Bia no mesmo servidor |
 | 6 | Nenhuma tool devolve CPF completo. `obter_cliente` devolve `cpfMasked` | Revisão das saídas |
 | 7 | Uma escrita sem confirmação não altera nada e devolve uma prévia do que seria gravado | Chamar `cadastrar_pedido` sem `confirmar` |

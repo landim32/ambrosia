@@ -65,6 +65,7 @@ public static class OpenIddictSetup
 
                 // Revogações em lote reescritas para o EF Core 9 (o DisableBulkOperations não as cobre).
                 core.ReplaceTokenStore<OAuthToken, AmbrosioTokenStore>(ServiceLifetime.Scoped);
+                core.ReplaceAuthorizationStore<OAuthAuthorization, AmbrosioAuthorizationStore>(ServiceLifetime.Scoped);
             })
 
             .AddServer(server =>

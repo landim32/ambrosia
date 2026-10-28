@@ -51,6 +51,14 @@ public static class ToolDescriptorFilter
             {
                 tool.OutputSchema = JsonDocument.Parse(schema.Json).RootElement.Clone();
             }
+
+            // Schema fechado: argumento fora da lista é recusado pelo ScopeChallengeFilter, e o modelo
+            // vê isso no descritor (ex.: `iniciar_importacao` não aceita login nem senha).
+            if (JsonNode.Parse(tool.InputSchema.GetRawText()) is JsonObject input && !input.ContainsKey("additionalProperties"))
+            {
+                input["additionalProperties"] = false;
+                tool.InputSchema = JsonSerializer.SerializeToElement(input);
+            }
         }
 
         return result;

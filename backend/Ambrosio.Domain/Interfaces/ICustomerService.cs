@@ -18,6 +18,12 @@ public interface ICustomerService
     /// <summary>Cadastro do cliente com CPF protegido (FR-006, FR-007, FR-010, FR-011).</summary>
     Task<CustomerDetailInfo> CreateAsync(long userId, CustomerInsertInfo info);
 
+    /// <summary>
+    /// As mesmas checagens de <see cref="CreateAsync"/> (validator, CPF e duplicidade) sem gravar: a
+    /// prévia das tools de escrita do plugin (feature 007, R11). Devolve o CPF mascarado.
+    /// </summary>
+    Task<string> ValidateCreateAsync(long userId, CustomerInsertInfo info);
+
     /// <summary>Atualização do nome (FR-009).</summary>
     Task<CustomerDetailInfo> UpdateAsync(long userId, long customerId, CustomerUpdateInfo info);
 }
