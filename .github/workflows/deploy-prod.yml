@@ -125,6 +125,9 @@ jobs:
         username: ${{ secrets.PROD_SSH_USER }}
         password: ${{ secrets.PROD_SSH_PASSWORD }}
         port: ${{ secrets.PROD_SSH_PORT || 22 }}
+        # O padrão da ssh-action é 10 min, e o build sem cache (bundle do EF + Chromium do Playwright)
+        # passa disso no primeiro deploy.
+        command_timeout: 60m
         script: |
           set -e
           DEPLOY_DIR="/opt/ambrosia"
