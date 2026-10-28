@@ -1,6 +1,7 @@
 using Ambrosio.Domain.Exceptions;
 using Ambrosio.Domain.Models;
 using Ambrosio.DTO.Customers;
+using Ambrosio.DTO.Insights;
 using Ambrosio.DTO.Enums;
 using Ambrosio.Infra.Context;
 using Ambrosio.Infra.Interfaces.Repository;
@@ -145,4 +146,68 @@ public class CustomerRepository : ICustomerRepository<Customer>
 
     private static bool IsUniqueViolation(DbUpdateException ex) =>
         ex.InnerException is PostgresException { SqlState: UniqueViolation };
+
+    /// <inheritdoc />
+    public async Task<Customer?> GetByCpfHashAsync(long userId, string cpfHash)
+    {
+        return await _context.Customers
+            .AsNoTracking()
+            .Where(c => c.UserId == userId)
+            .FirstOrDefaultAsync(c => c.CpfHash == cpfHash);
+    }
+
+    /// <inheritdoc />
+    public async Task<(List<InactiveCustomerInfo> Items, int TotalCount)> ListInactiveAsync(
+        long userId, DateOnly lastSaleOnOrBefore, int? minPurchases, decimal? minTotal, int limit, DateOnly today)
+    {
+        // Subconsultas correlacionadas sobre os pedidos DO usuário (user_id primeiro em todas): o
+        // PostgreSQL resolve compras, líquido e última venda por cliente numa ida ao banco.
+        var summaries = _context.Customers
+            .AsNoTracking()
+            .Where(c => c.UserId == userId)
+            .Select(c => new
+            {
+                c.Id,
+                c.Name,
+                c.CpfMasked,
+                Purchases = _context.Orders.Count(o => o.UserId == userId && o.CustomerId == c.Id && o.Kind == OrderKind.Sale),
+                NetTotal = _context.Orders.Where(o => o.UserId == userId && o.CustomerId == c.Id).Sum(o => (decimal?)o.Total) ?? 0m,
+                LastPurchase = _context.Orders
+                    .Where(o => o.UserId == userId && o.CustomerId == c.Id && o.Kind == OrderKind.Sale)
+                    .Max(o => (DateOnly?)o.OrderDate)
+            })
+            .Where(c => c.LastPurchase != null && c.LastPurchase <= lastSaleOnOrBefore);
+
+        if (minPurchases is { } purchases)
+        {
+            summaries = summaries.Where(c => c.Purchases >= purchases);
+        }
+
+        if (minTotal is { } total)
+        {
+            summaries = summaries.Where(c => c.NetTotal >= total);
+        }
+
+        var totalCount = await summaries.CountAsync();
+
+        var rows = await summaries
+            .OrderBy(c => c.LastPurchase)
+            .ThenBy(c => c.Name)
+            .Take(limit)
+            .ToListAsync();
+
+        var items = rows.Select(c => new InactiveCustomerInfo
+        {
+            Id = c.Id,
+            Name = c.Name,
+            CpfMasked = c.CpfMasked,
+            Purchases = c.Purchases,
+            NetTotal = c.NetTotal,
+            LastPurchase = c.LastPurchase!.Value,
+            // Em memória, como no GetSummaryAsync: a subtração de datas não é traduzida.
+            DaysSinceLastPurchase = today.DayNumber - c.LastPurchase!.Value.DayNumber
+        }).ToList();
+
+        return (items, totalCount);
+    }
 }

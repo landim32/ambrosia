@@ -1,5 +1,6 @@
 using Ambrosio.DTO.Customers;
 using Ambrosio.DTO.Enums;
+using Ambrosio.DTO.Insights;
 using Ambrosio.DTO.Orders;
 
 namespace Ambrosio.Infra.Interfaces.Repository;
@@ -30,4 +31,16 @@ public interface IOrderRepository<TModel> where TModel : class
     Task<TModel> InsertAsync(TModel entity);
 
     Task<TModel> UpdateAsync(TModel entity);
+
+    /// <summary>
+    /// Líquido, atendimentos (vendas) e peças (itens das vendas) do usuário no período (feature 007,
+    /// T050), calculados no banco.
+    /// </summary>
+    Task<(decimal NetTotal, int Sales, int Pieces)> GetPeriodSummaryAsync(long userId, DateOnly from, DateOnly to);
+
+    /// <summary>Contagem e soma por tipo (devolução e cancelamento) no período.</summary>
+    Task<Dictionary<OrderKind, KindTotalsInfo>> GetReturnsCancellationsAsync(long userId, DateOnly from, DateOnly to);
+
+    /// <summary>Pedidos de uma cliente com itens, mais recentes primeiro, até <paramref name="limit"/>.</summary>
+    Task<(List<TModel> Items, int TotalCount)> ListByCustomerWithItemsAsync(long userId, long customerId, int limit);
 }

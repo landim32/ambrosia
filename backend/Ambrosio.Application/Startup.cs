@@ -120,6 +120,7 @@ public static class Startup
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IImageService, ImageService>();
         services.AddScoped<IMcpAuditService, McpAuditService>();
+        services.AddScoped<IInsightService, InsightService>();
 
         // Job de limpeza de envios abandonados (FR-018, research §9): abre um escopo por ciclo, então
         // só precisa do IServiceScopeFactory singleton daqui.

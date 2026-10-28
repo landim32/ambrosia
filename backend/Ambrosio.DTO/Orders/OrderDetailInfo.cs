@@ -18,6 +18,10 @@ public class OrderDetailInfo : OrderInfo
     public DateOnly? CancelledOn { get; set; }
 
     /// <summary>Identificador externo de origem.</summary>
+    /// <summary>Última leitura do pedido na origem (+Vendas); nulo em pedido manual (feature 007, T053).</summary>
+    [JsonPropertyName("capturedAt")]
+    public DateTime? CapturedAt { get; set; }
+
     [JsonPropertyName("externalId")]
     public string? ExternalId { get; set; }
 

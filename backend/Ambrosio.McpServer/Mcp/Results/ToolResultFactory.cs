@@ -56,6 +56,26 @@ public static class ToolResultFactory
         return Success(new { itens = page, total, tem_mais = hasMore }, text(page.Count, total));
     }
 
+    /// <summary>
+    /// Executa a leitura e converte exceção de domínio (validação, não encontrado...) em
+    /// <c>isError</c> com a mensagem da API. Exceção inesperada sobe para o SDK, que a registra.
+    /// </summary>
+    public static async Task<CallToolResult> GuardAsync(Func<Task<CallToolResult>> body)
+    {
+        try
+        {
+            return await body();
+        }
+        catch (Exception ex) when (DomainMessage(ex) is not null)
+        {
+            return FromDomainException(ex)!;
+        }
+    }
+
+    /// <summary>Página de uma lista paginada (<c>pagina</c>/<c>tamanho</c>), com <c>tem_mais</c>.</summary>
+    public static CallToolResult Page<T>(IEnumerable<T> items, int page, int pageSize, int total, string text) =>
+        Success(new { itens = items.ToList(), total, pagina = page, tamanho = pageSize, tem_mais = page * pageSize < total }, text);
+
     public static CallToolResult Error(string message) =>
         new()
         {

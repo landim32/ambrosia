@@ -1,4 +1,5 @@
 using Ambrosio.DTO.Customers;
+using Ambrosio.DTO.Insights;
 
 namespace Ambrosio.Infra.Interfaces.Repository;
 
@@ -33,4 +34,15 @@ public interface ICustomerRepository<TModel> where TModel : class
     /// </summary>
     /// <param name="today">Data usada em <c>daysSinceLastPurchase</c> (vem de <c>IClock</c>, para ser testável).</param>
     Task<CustomerSummaryInfo> GetSummaryAsync(long customerId, long userId, DateOnly today);
+
+    /// <summary>Cliente do usuário pelo hash do CPF (busca por CPF sem devolver o CPF).</summary>
+    Task<TModel?> GetByCpfHashAsync(long userId, string cpfHash);
+
+    /// <summary>
+    /// Clientes do usuário cuja última venda é anterior ou igual a <paramref name="lastSaleOnOrBefore"/>,
+    /// com filtros opcionais de compras e líquido mínimos, mais antigas primeiro (feature 007, T050).
+    /// Calculado no banco; devolve no máximo <paramref name="limit"/> linhas e o total real.
+    /// </summary>
+    Task<(List<InactiveCustomerInfo> Items, int TotalCount)> ListInactiveAsync(
+        long userId, DateOnly lastSaleOnOrBefore, int? minPurchases, decimal? minTotal, int limit, DateOnly today);
 }
