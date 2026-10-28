@@ -9,7 +9,7 @@
 | Endereço | `http://localhost:5000/swagger` | `http://localhost:8080/api/swagger` | `https://ambrosioai.site/api/swagger` |
 | HTTPS | Não | Não | Cloudflare (Full strict) + Origin Certificate no nginx compartilhado do `emagine-deploy` |
 | Migrações | `dotnet ef database update` | Serviço `migrator` (bundle EF) no `up` | Job `migrate` do pipeline |
-| Storage de imagens | Spaces real (`emagine`, pasta `ambrosio/`), chaves no ambiente | Spaces real (`emagine`, pasta `ambrosio/`), chaves do `.env` | Spaces (`ambrosia-prod`), chaves dos GitHub Secrets |
+| Storage de imagens | Spaces real (`emagine`, pasta `ambrosio/`), chaves no ambiente | Spaces real (`emagine`, pasta `ambrosio/`), chaves do `.env` | Spaces real (`emagine`, pasta `ambrosio/`), chaves dos GitHub Secrets |
 | `/auth/register` e `/auth/login` | Sim | Sim | Sim |
 | Coletor do +Vendas (`MaisVendas__Collector`) | `Playwright` (Chromium local) | `Playwright` (fixo no compose) | `Playwright` (obrigatório) |
 
@@ -57,11 +57,11 @@ Development e homologação. O que muda na prática:
 | | Bucket | CORS (origens) | Chaves |
 |---|---|---|---|
 | Dev e Homolog | `ambrosio` (nyc3) | `http://localhost:8080`, `http://localhost:5173` | `.env` / ambiente do shell |
-| Produção | `ambrosia-prod` (nyc3) | `https://ambrosioai.site` | GitHub Secrets |
+| Produção | `emagine` (nyc3), o mesmo de dev e homolog | `https://ambrosioai.site` | GitHub Secrets |
 
 - Endpoint, região, bucket e `ForcePathStyle` ficam no `appsettings.<Ambiente>.json`; **só**
   `ObjectStorage__AccessKey`/`ObjectStorage__SecretKey` vêm de variável de ambiente. O nome do bucket no
-  Spaces é global entre contas, então se `ambrosio`/`ambrosia-prod` já estiverem tomados, escolha outro e
+  Spaces é global entre contas, então se o nome escolhido já estiver tomado, escolha outro e
   ajuste o appsettings junto com o `ObjectStorage__Bucket` e o `STORAGE_ORIGIN` fixos no compose.
 - A regra CORS é **por bucket** (como pede a FR-022): `AllowedOrigin` com as origens acima,
   `AllowedMethod` `GET, PUT, HEAD`, `AllowedHeader` `Content-Type`. Sem ela o navegador não consegue o
@@ -102,7 +102,7 @@ Development e homologação. O que muda na prática:
 - O container do frontend coloca a origem do storage na CSP a partir de `STORAGE_ORIGIN`
   (`frontend/nginx/default.conf.template` é um template com envsubst), que o compose fixa com a origem
   pública do bucket do ambiente (`https://emagine.nyc3.digitaloceanspaces.com` em homolog,
-  `https://ambrosia-prod.nyc3.digitaloceanspaces.com` em produção).
+  `https://emagine.nyc3.digitaloceanspaces.com` também em produção).
 
 
 ## Importação do +Vendas (feature 006)
@@ -167,7 +167,7 @@ Atrás do gateway, a API lê `X-Forwarded-Prefix`/`Proto`/`For` (`ReverseProxy:E
 
 Workflow `.github/workflows/deploy-prod.yml`, disparado manualmente (Actions → Deploy Production → Run workflow). Conecta por SSH em `/opt/ambrosia`, grava `.env.prod`, faz o build, aplica as migrações, sobe `api` e `mcp` e testa `https://ambrosioai.site/api/swagger/v1/swagger.json` e a descoberta OAuth do MCP.
 
-Produção **não** tem frontend nem gateway próprios: segue o layout dos outros apps da Emagine (Roll6, AvaBot). O nginx compartilhado do repositório `emagine-deploy` (container `emagine-app1`, no mesmo servidor) termina o HTTPS com o certificado de `emagine-secrets/SSL/ambrosioai.site.{pem,key}`, serve o SPA de `builds/ambrosio` (gerado por `scripts/build-ambrosio.ps1` daquele repositório, com a CSP do bucket `ambrosia-prod`) e faz proxy para `ambrosio-api:8080` e `ambrosio-mcp:8080` pela rede externa `emagine-network`. Ordem do primeiro deploy: `emagine-deploy` primeiro (o nginx dele sobe mesmo sem os containers do Ambrosio), depois este pipeline — o health check passa por aquele nginx.
+Produção **não** tem frontend nem gateway próprios: segue o layout dos outros apps da Emagine (Roll6, AvaBot). O nginx compartilhado do repositório `emagine-deploy` (container `emagine-app1`, no mesmo servidor) termina o HTTPS com o certificado de `emagine-secrets/SSL/ambrosioai.site.{pem,key}`, serve o SPA de `builds/ambrosio` (gerado por `scripts/build-ambrosio.ps1` daquele repositório, com a CSP do bucket `emagine`) e faz proxy para `ambrosio-api:8080` e `ambrosio-mcp:8080` pela rede externa `emagine-network`. Ordem do primeiro deploy: `emagine-deploy` primeiro (o nginx dele sobe mesmo sem os containers do Ambrosio), depois este pipeline — o health check passa por aquele nginx.
 
 ### Preparação única
 
@@ -188,9 +188,9 @@ Produção **não** tem frontend nem gateway próprios: segue o layout dos outro
 
 Guarde `AMBROSIO_CPF_ENCRYPTION_KEY` e `AMBROSIO_CPF_PEPPER` também fora do GitHub (cofre de senhas): o GitHub não permite ler um secret depois de gravado.
 
-5. **Spaces**: crie o bucket de produção (nome global entre contas), ative o bloqueio de acesso público
-   e grave a regra CORS com `AllowedOrigin = https://ambrosioai.site`, `AllowedMethod = GET, PUT, HEAD` e
+5. **Spaces**: produção usa o bucket `emagine`, o mesmo de dev e homolog (todas as chaves sob `ambrosio/`).
+   Ele precisa do bloqueio de acesso público e de uma regra CORS com `AllowedOrigin = https://ambrosioai.site`, `AllowedMethod = GET, PUT, HEAD` e
    `AllowedHeader = Content-Type`. O endpoint e o bucket ficam fixos em `appsettings.Production.json`
-   (`https://nyc3.digitaloceanspaces.com`, `ambrosia-prod`, `ForcePathStyle: false`); a região da
+   (`https://nyc3.digitaloceanspaces.com`, `emagine`, `ForcePathStyle: false`); a região da
    assinatura é a mesma do endpoint, senão o SigV4 da pré-assinatura não bate com o que o Spaces espera.
 
