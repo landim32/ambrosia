@@ -189,27 +189,44 @@ public static class McpSetup
     }
 
     /// <summary>
-    /// Autenticação mista do <c>/mcp</c> (R7): sem token passa (listagem e tool <c>noauth</c>; as
-    /// protegidas devolvem o desafio no resultado); token presente e inválido — assinatura, <c>iss</c>,
-    /// <c>aud</c>, validade, ou o HS256 das telas — responde HTTP 401 aqui, com o
-    /// <c>resource_metadata</c> que leva o cliente ao authorization server.
+    /// O <c>/mcp</c> exige token em toda requisição (research R23, revendo a autenticação mista do R7).
+    /// Sem token responde HTTP 401 com <c>WWW-Authenticate: Bearer resource_metadata="…", scope="…"</c>:
+    /// é esse desafio que faz o ChatGPT (e qualquer cliente MCP) descobrir o authorization server e
+    /// abrir o login. Token presente e inválido — assinatura, <c>iss</c>, <c>aud</c>, validade, ou o
+    /// HS256 das telas — também responde 401, com <c>error="invalid_token"</c>.
     /// </summary>
+    /// <remarks>
+    /// Com a autenticação mista, o ChatGPT sondava <c>GET /mcp</c> sem token, recebia 405 (o
+    /// transporte sem estado não tem stream GET) e desistia sem nunca iniciar o OAuth — visto no log
+    /// do nginx de produção em 28/10/2026.
+    /// </remarks>
     public static IApplicationBuilder UseAmbrosioMcpTokenGuard(this IApplicationBuilder app) =>
         app.Use(async (context, next) =>
         {
             if (context.Request.Path.StartsWithSegments(McpPath)
-                && context.Request.Headers.Authorization.Count > 0
                 && context.User.Identity?.IsAuthenticated != true)
             {
                 var resourceUrl = context.RequestServices
                     .GetRequiredService<Microsoft.Extensions.Options.IOptions<McpSettings>>().Value.ResourceUrl;
+                var logger = context.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("Ambrosio.McpServer.TokenGuard");
+
+                if (context.Request.Headers.Authorization.Count == 0)
+                {
+                    logger.LogInformation(
+                        "MCP: {Method} {Path} sem token ({UserAgent}); 401 com o desafio para iniciar o OAuth.",
+                        context.Request.Method, context.Request.Path, context.Request.Headers.UserAgent.ToString());
+
+                    context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+                    context.Response.Headers.WWWAuthenticate = McpChallenge.BuildUnauthenticated(resourceUrl, ScopeSeeder.ScopeNames);
+
+                    return;
+                }
 
                 // Motivo da recusa (audience, issuer, assinatura, validade) no log, sem o token: é a
                 // primeira coisa a olhar quando o ChatGPT diz que as ferramentas não estão disponíveis.
                 var failure = (await context.AuthenticateAsync(Scheme)).Failure;
-                context.RequestServices.GetRequiredService<ILoggerFactory>()
-                    .CreateLogger("Ambrosio.McpServer.TokenGuard")
-                    .LogWarning(
+                logger.LogWarning(
                         "MCP: token recusado com 401 ({Reason}).",
                         failure?.Message ?? "esquema Authorization não reconhecido ou token ausente");
 

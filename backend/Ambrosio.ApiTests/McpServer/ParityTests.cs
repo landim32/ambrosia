@@ -66,6 +66,10 @@ public class ParityTests(ApiTestFixture fixture)
         }
     }
 
-    private async Task<List<JsonElement>> Tools() =>
-        (await new McpTestClient(fixture).ListToolsAsync()).Result!.Value.GetProperty("tools").EnumerateArray().ToList();
+    private async Task<List<JsonElement>> Tools()
+    {
+        var seller = await McpSeller.CreateAsync(fixture);
+
+        return (await seller.Mcp.ListToolsAsync(seller.McpToken)).Result!.Value.GetProperty("tools").EnumerateArray().ToList();
+    }
 }
