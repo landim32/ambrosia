@@ -1,5 +1,6 @@
 using Ambrosio.Domain.Models;
 using Ambrosio.DTO.Enums;
+using Ambrosio.Infra.Context.OAuth;
 using Microsoft.EntityFrameworkCore;
 
 namespace Ambrosio.Infra.Context;
@@ -36,6 +37,19 @@ public class AmbrosioContext : DbContext
 
     public DbSet<MaisVendasAccount> MaisVendasAccounts { get; set; }
 
+    // authorization server do plugin do ChatGPT (feature 007, R15): os modelos do OpenIddict com
+    // chave long, no MESMO contexto para reaproveitar o migrator e as convenções do Princípio §V.
+    public DbSet<OAuthApplication> OAuthApplications { get; set; }
+
+    public DbSet<OAuthAuthorization> OAuthAuthorizations { get; set; }
+
+    public DbSet<OAuthScope> OAuthScopes { get; set; }
+
+    public DbSet<OAuthToken> OAuthTokens { get; set; }
+
+    /// <summary>Trilha de auditoria das gravações do plugin (feature 007, FR-020).</summary>
+    public DbSet<McpAuditEntry> McpAuditEntries { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -49,6 +63,11 @@ public class AmbrosioContext : DbContext
         ConfigureImportRunBlock(modelBuilder);
         ConfigureImportRunChange(modelBuilder);
         ConfigureMaisVendasAccount(modelBuilder);
+        ConfigureOAuthApplication(modelBuilder);
+        ConfigureOAuthAuthorization(modelBuilder);
+        ConfigureOAuthScope(modelBuilder);
+        ConfigureOAuthToken(modelBuilder);
+        ConfigureMcpAuditEntry(modelBuilder);
     }
 
     private static void ConfigureUser(ModelBuilder modelBuilder)
@@ -862,5 +881,355 @@ public class AmbrosioContext : DbContext
                 .HasDefaultValue(0)
                 .IsRequired();
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // authorization server do plugin do ChatGPT (feature 007, data-model §1.1–§1.4, R15).
+    //
+    // Mapeamento 100% manual, como o resto do contexto: o OpenIddict traz os modelos, mas quem dá o
+    // nome de cada coluna é este arquivo. Duas razões, ambas do Princípio §V:
+    //
+    // 1. Deixar qualquer propriedade ir por convenção produziria coluna PascalCase ("ClientId"),
+    //    violando o snake_case — inclusive as propriedades de protocolo que a data-model não listou
+    //    uma a uma (ApplicationType, ConsentType, Requirements, Settings, Properties...). Todas
+    //    aparecem aqui, sem exceção.
+    // 2. As FKs são shadow properties: os modelos do OpenIddict 7.7.2 expõem apenas a navegação
+    //    (`Application`, `Authorization`), nunca `ApplicationId`. O nome dado em HasForeignKey vira o
+    //    nome da coluna, e é assim que `oauth_application_id` existe sem alterar a classe do SDK.
+    //
+    // `concurrency_token` é string e leva IsConcurrencyToken(): é o controle otimista de concorrência
+    // do OpenIddict, de que `PruneAsync` e a rotação de refresh dependem para não sobrescrever linha
+    // alheia.
+    // ---------------------------------------------------------------------
+
+    private static void ConfigureOAuthApplication(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<OAuthApplication>(entity =>
+        {
+            entity.ToTable("oauth_applications");
+
+            entity.HasKey(e => e.Id).HasName("oauth_applications_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("oauth_application_id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.ClientId)
+                .HasColumnName("client_id")
+                .HasMaxLength(512);
+
+            entity.Property(e => e.ClientSecret)
+                .HasColumnName("client_secret")
+                .HasMaxLength(512);
+
+            entity.Property(e => e.ClientType)
+                .HasColumnName("client_type")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.ApplicationType)
+                .HasColumnName("application_type")
+                .HasMaxLength(50);
+
+            entity.Property(e => e.ConsentType)
+                .HasColumnName("consent_type")
+                .HasMaxLength(50);
+
+            entity.Property(e => e.DisplayName)
+                .HasColumnName("display_name")
+                .HasMaxLength(200);
+
+            // JSONs de protocolo do OpenIddict: ficam em text porque a dimensão é do fluxo, não nossa.
+            entity.Property(e => e.DisplayNames).HasColumnName("display_names");
+            entity.Property(e => e.RedirectUris).HasColumnName("redirect_uris");
+            entity.Property(e => e.PostLogoutRedirectUris).HasColumnName("post_logout_redirect_uris");
+            entity.Property(e => e.Permissions).HasColumnName("permissions");
+            entity.Property(e => e.Requirements).HasColumnName("requirements");
+            entity.Property(e => e.Settings).HasColumnName("settings");
+            entity.Property(e => e.Properties).HasColumnName("properties");
+            entity.Property(e => e.JsonWebKeySet).HasColumnName("json_web_key_set");
+
+            entity.Property(e => e.ConcurrencyToken)
+                .HasColumnName("concurrency_token")
+                .HasMaxLength(50)
+                .IsConcurrencyToken();
+
+            // As duas colunas próprias deste feature (data-model §1.1).
+            entity.Property(e => e.RegistrationSource)
+                .HasColumnName("registration_source")
+                .HasDefaultValue(2)
+                .IsRequired();
+
+            entity.Property(e => e.MetadataFetchedAt)
+                .HasColumnName("metadata_fetched_at")
+                .HasColumnType("timestamp without time zone");
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .HasColumnType("timestamp without time zone")
+                .IsRequired();
+
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .HasColumnType("timestamp without time zone")
+                .IsRequired();
+
+            // Cliente por CIMD ou DCR é único pelo client_id; sem índice, a busca de cada requisição
+            // de autorização viria varredura de tabela.
+            entity.HasIndex(e => e.ClientId)
+                .IsUnique()
+                .HasDatabaseName("ux_oauth_applications_client_id");
+        });
+    }
+
+    private static void ConfigureOAuthAuthorization(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<OAuthAuthorization>(entity =>
+        {
+            entity.ToTable("oauth_authorizations");
+
+            entity.HasKey(e => e.Id).HasName("oauth_authorizations_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("oauth_authorization_id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.Subject)
+                .HasColumnName("subject")
+                .HasMaxLength(400);
+
+            entity.Property(e => e.Type)
+                .HasColumnName("type")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.Scopes).HasColumnName("scopes");
+            entity.Property(e => e.Properties).HasColumnName("properties");
+
+            entity.Property(e => e.ConcurrencyToken)
+                .HasColumnName("concurrency_token")
+                .HasMaxLength(50)
+                .IsConcurrencyToken();
+
+            entity.Property(e => e.CreationDate)
+                .HasColumnName("creation_date")
+                .HasColumnType("timestamp without time zone");
+
+            // FK shadow + ClientSetNull: excluir um cliente OAuth NÃO apaga os consentimentos da
+            // vendedora. O padrão do OpenIddict é cascade; o Princípio §V proíbe, então sobrescrevemos
+            // aqui (R15, "a confirmar na implementação" do research).
+            entity.HasOne(e => e.Application)
+                .WithMany(a => a.Authorizations)
+                .HasForeignKey("oauth_application_id")
+                .HasConstraintName("fk_oauth_application_oauth_authorization")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            // Consulta quente: "autorização permanente válida deste usuário para este cliente"
+            // (AuthorizationEndpoint, T039).
+            entity.HasIndex(e => new { e.Subject, e.Status, e.Type })
+                .HasDatabaseName("ix_oauth_authorizations_subject_status_type");
+
+            entity.HasIndex(e => e.CreationDate)
+                .HasDatabaseName("ix_oauth_authorizations_creation_date");
+
+            // Índice da FK shadow declarado explicitamente: sem isto o EF cria o seu, pelo nome de
+            // convenção `IX_oauth_authorizations_oauth_application_id` (PascalCase), violando o
+            // Princípio §V — ver a mesma armadilha comentada em ConfigureCustomer.
+            entity.HasIndex("oauth_application_id")
+                .HasDatabaseName("ix_oauth_authorizations_application");
+        });
+    }
+
+    private static void ConfigureOAuthScope(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<OAuthScope>(entity =>
+        {
+            entity.ToTable("oauth_scopes");
+
+            entity.HasKey(e => e.Id).HasName("oauth_scopes_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("oauth_scope_id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.Name)
+                .HasColumnName("name")
+                .HasMaxLength(200)
+                .IsRequired();
+
+            entity.Property(e => e.DisplayName)
+                .HasColumnName("display_name")
+                .HasMaxLength(400);
+
+            entity.Property(e => e.Description)
+                .HasColumnName("description")
+                .HasMaxLength(400);
+
+            entity.Property(e => e.DisplayNames).HasColumnName("display_names");
+            entity.Property(e => e.Descriptions).HasColumnName("descriptions");
+            entity.Property(e => e.Resources).HasColumnName("resources");
+            entity.Property(e => e.Properties).HasColumnName("properties");
+
+            entity.Property(e => e.ConcurrencyToken)
+                .HasColumnName("concurrency_token")
+                .HasMaxLength(50)
+                .IsConcurrencyToken();
+
+            entity.HasIndex(e => e.Name)
+                .IsUnique()
+                .HasDatabaseName("ux_oauth_scopes_name");
+        });
+    }
+
+    private static void ConfigureOAuthToken(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<OAuthToken>(entity =>
+        {
+            entity.ToTable("oauth_tokens");
+
+            entity.HasKey(e => e.Id).HasName("oauth_tokens_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("oauth_token_id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.Subject)
+                .HasColumnName("subject")
+                .HasMaxLength(400);
+
+            entity.Property(e => e.Type)
+                .HasColumnName("type")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.Status)
+                .HasColumnName("status")
+                .HasMaxLength(50)
+                .IsRequired();
+
+            // Hash por referência (códigos e refresh tokens), nunca o valor em claro.
+            entity.Property(e => e.ReferenceId)
+                .HasColumnName("reference_id")
+                .HasMaxLength(100);
+
+            entity.Property(e => e.Payload).HasColumnName("payload");
+            entity.Property(e => e.Properties).HasColumnName("properties");
+
+            entity.Property(e => e.ConcurrencyToken)
+                .HasColumnName("concurrency_token")
+                .HasMaxLength(50)
+                .IsConcurrencyToken();
+
+            entity.Property(e => e.CreationDate)
+                .HasColumnName("creation_date")
+                .HasColumnType("timestamp without time zone");
+
+            entity.Property(e => e.ExpirationDate)
+                .HasColumnName("expiration_date")
+                .HasColumnType("timestamp without time zone");
+
+            entity.Property(e => e.RedemptionDate)
+                .HasColumnName("redemption_date")
+                .HasColumnType("timestamp without time zone");
+
+            entity.HasOne(e => e.Application)
+                .WithMany(a => a.Tokens)
+                .HasForeignKey("oauth_application_id")
+                .HasConstraintName("fk_oauth_application_oauth_token")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(e => e.Authorization)
+                .WithMany(a => a.Tokens)
+                .HasForeignKey("oauth_authorization_id")
+                .HasConstraintName("fk_oauth_authorization_oauth_token")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            // Duas buscas que precisam de índice dedicado, senão viram varredura numa tabela que
+            // cresce a cada login: a rotação de refresh (por reference_id) e o PruneAsync (por
+            // expiração).
+            entity.HasIndex(e => e.ReferenceId)
+                .HasDatabaseName("ix_oauth_tokens_reference_id");
+
+            entity.HasIndex(e => e.ExpirationDate)
+                .HasDatabaseName("ix_oauth_tokens_expiration_date");
+
+            entity.HasIndex(e => new { e.Status, e.Type })
+                .HasDatabaseName("ix_oauth_tokens_status_type");
+
+            // Índices das FKs shadow declarados explicitamente pelo mesmo motivo de
+            // ConfigureOAuthAuthorization: por convenção o EF os nomeia em PascalCase
+            // (`IX_oauth_tokens_oauth_application_id`), e o Princípio §V não aceita.
+            entity.HasIndex("oauth_application_id")
+                .HasDatabaseName("ix_oauth_tokens_application");
+
+            entity.HasIndex("oauth_authorization_id")
+                .HasDatabaseName("ix_oauth_tokens_authorization");
+        });
+    }
+
+    private static void ConfigureMcpAuditEntry(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<McpAuditEntry>(entity =>
+        {
+            entity.ToTable("mcp_audit_entries");
+
+            entity.HasKey(e => e.Id).HasName("mcp_audit_entries_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("mcp_audit_entry_id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.UserId)
+                .HasColumnName("user_id")
+                .IsRequired();
+
+            entity.Property(e => e.ToolName)
+                .HasColumnName("tool_name")
+                .HasMaxLength(100)
+                .IsRequired();
+
+            // Mesmo tamanho do client_id de oauth_applications: a coluna guarda o valor do outro lado
+            // da relação, e um client_id CIMD é uma URL https inteira.
+            entity.Property(e => e.ClientId)
+                .HasColumnName("client_id")
+                .HasMaxLength(512);
+
+            // JSON sanitizado (CPF mascarado, sem senha, sem conteúdo de arquivo, sem URL assinada).
+            entity.Property(e => e.Arguments)
+                .HasColumnName("arguments")
+                .IsRequired();
+
+            entity.Property(e => e.Outcome)
+                .HasColumnName("outcome")
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(e => e.ResultSummary)
+                .HasColumnName("result_summary")
+                .HasMaxLength(500);
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .HasColumnType("timestamp without time zone")
+                .IsRequired();
+
+            entity.HasOne(e => e.User)
+                .WithMany()
+                .HasForeignKey(e => e.UserId)
+                .HasConstraintName("fk_user_mcp_audit_entry")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            // A única leitura da tabela é "últimas ações desta vendedora, mais recentes primeiro"
+            // (T059) — o índice composto com created_at descendente atende o filtro e a ordem sem
+            // ordenar em memória.
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt })
+                .IsDescending(false, true)
+                .HasDatabaseName("ix_mcp_audit_entries_user_created");
+        });
     }
 }

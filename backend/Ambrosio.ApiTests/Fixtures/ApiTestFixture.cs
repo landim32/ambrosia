@@ -58,6 +58,32 @@ public class ApiTestFixture : IAsyncLifetime
     public string TestPassword { get; private set; } = "Senha-de-teste-123";
 
     // ---------------------------------------------------------------------
+    // Plugin do ChatGPT (feature 007, T009): o host do MCP e o authorization server rodam num
+    // serviço SEPARADO do da API (`ambrosio-homolog-mcp`), então a suíte fala com duas bases.
+    // `McpBaseUrl` é o gateway (http://localhost:8080) — os caminhos /mcp, /auth e /.well-known
+    // são roteados pelo nginx para o host do MCP. Os três valores abaixo têm de bater com o
+    // ambiente sob teste (Auth__Issuer, Mcp__ResourceUrl e Auth__AllowedRedirectUris__2 do
+    // docker-compose.yml), porque o teste de fluxo exige `resource` exato e a DCR recusa
+    // redirect_uri fora da lista: conferir contra o servidor é o ponto.
+    // ---------------------------------------------------------------------
+
+    /// <summary>Base do gateway que publica o host do MCP (sem barra no final).</summary>
+    public string McpBaseUrl { get; private set; } = "http://localhost:8080";
+
+    /// <summary>Issuer esperado do authorization server (claim <c>iss</c> dos tokens do AS).</summary>
+    public string AuthIssuer { get; private set; } = "http://localhost:8080/auth";
+
+    /// <summary>URL do recurso protegido (claim <c>aud</c> e valor obrigatório de <c>resource</c>).</summary>
+    public string McpResourceUrl { get; private set; } = "http://localhost:8080/mcp";
+
+    /// <summary>
+    /// Redirect URI que a suíte registra por DCR. Precisa estar na lista do ambiente
+    /// (<c>Auth__AllowedRedirectUris__2</c> no compose), senão o registro responde
+    /// <c>invalid_redirect_uri</c>.
+    /// </summary>
+    public string AuthTestRedirectUri { get; private set; } = "https://chatgpt.com/connector/oauth/apitest";
+
+    // ---------------------------------------------------------------------
     // Storage de imagens (feature 004, T027): os prazos que a suíte ESPERA encontrar no ambiente,
     // porque os testes de expiração e de limpeza precisam dormir exatamente esse tempo. Vêm do
     // appsettings da API sob teste (homolog usa valores curtos de propósito — research §13); quando
@@ -119,6 +145,12 @@ public class ApiTestFixture : IAsyncLifetime
         LoginEndpoint = _configuration["Auth:LoginEndpoint"] ?? "/auth/login";
         TestPassword = _configuration["Auth:TestPassword"] ?? "Senha-de-teste-123";
         TimeoutSeconds = int.TryParse(_configuration["Timeout"], out var timeout) ? timeout : 30;
+
+        // Host do MCP e authorization server (feature 007, T009).
+        McpBaseUrl = _configuration["McpBaseUrl"] ?? McpBaseUrl;
+        AuthIssuer = _configuration["Auth:Issuer"] ?? AuthIssuer;
+        McpResourceUrl = _configuration["Mcp:ResourceUrl"] ?? McpResourceUrl;
+        AuthTestRedirectUri = _configuration["Auth:TestRedirectUri"] ?? AuthTestRedirectUri;
 
         StoragePresignedReadMinutes = ReadInt("Storage:PresignedReadMinutes", StoragePresignedReadMinutes);
         StoragePresignedUploadMinutes = ReadInt("Storage:PresignedUploadMinutes", StoragePresignedUploadMinutes);

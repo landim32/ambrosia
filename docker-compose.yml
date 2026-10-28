@@ -81,6 +81,41 @@ services:
     networks:
       - ambrosio-homolog
 
+  # Plugin do ChatGPT (feature 007, R8): um único host para o servidor MCP (`/mcp`) e o
+  # authorization server OAuth 2.1 (`/auth`). Herda o `x-api-environment` porque reaproveita banco,
+  # proteção de CPF e storage da API; o que é só dele são os endereços canônicos e a chave RSA.
+  # Sem `shm_size`: o target `mcp` da imagem não carrega o Chromium — as tools de importação só
+  # leem/cancelam e o `iniciar_importacao` devolve o link da tela em vez de coletar (R9).
+  mcp:
+    build:
+      context: ./backend
+      target: mcp
+    image: ambrosio-mcp:homolog
+    container_name: ambrosio-homolog-mcp
+    restart: unless-stopped
+    environment:
+      <<: *api-environment
+      Auth__Issuer: ${AUTH_ISSUER}
+      Mcp__ResourceUrl: ${MCP_RESOURCE_URL}
+      # Chave RSA em PEM (PKCS#8). Em homolog pode ficar vazia: o host gera uma em
+      # %APPDATA%/Ambrosio apenas em Development, e aqui a suíte de testes de API é quem precisa de
+      # uma chave estável entre restarts — por isso ela é variável e não segredo de produção.
+      Auth__SigningKeyPem: ${AUTH_SIGNING_KEY_PEM:-}
+      # Terceiro item da lista do appsettings (0 e 1 são as URIs do ChatGPT): a URI de callback que a
+      # suíte de testes de API registra por DCR (ApiTestFixture Auth:TestRedirectUri).
+      Auth__AllowedRedirectUris__2: ${MCP_TEST_REDIRECT_URI:-https://chatgpt.com/connector/oauth/apitest}
+      # Origens de navegador aceitas no /mcp (R17). Em homolog é o próprio gateway. Não dá para
+      # derivar do AUTH_ISSUER: a interpolação do compose não tem sufixo `${VAR%/*}`.
+      Mcp__AllowedOrigins__0: ${MCP_ALLOWED_ORIGIN:-http://localhost:8080}
+      Mcp__FrontendBaseUrl: ${MCP_FRONTEND_BASE_URL:-http://localhost:8080}
+    volumes:
+      - mcp_dataprotection_keys:/home/app/.aspnet/DataProtection-Keys
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - ambrosio-homolog
+
   # HU 002: ativar com --profile frontend quando frontend/Dockerfile existir.
   frontend:
     profiles: ["frontend"]
@@ -121,6 +156,9 @@ services:
 volumes:
   postgres_data:
   dataprotection_keys:
+  # Chaves do Data Protection do host do MCP, separadas das da API: os dois processos têm propósitos
+  # diferentes (cookies de sessão do AS + tokens do OpenIddict vs. JWT das telas).
+  mcp_dataprotection_keys:
 
 networks:
   ambrosio-homolog:

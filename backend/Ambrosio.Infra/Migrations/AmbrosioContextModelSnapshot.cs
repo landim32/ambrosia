@@ -462,6 +462,58 @@ namespace Ambrosio.Infra.Migrations
                     b.ToTable("mais_vendas_accounts", (string)null);
                 });
 
+            modelBuilder.Entity("Ambrosio.Domain.Models.McpAuditEntry", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("mcp_audit_entry_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("Arguments")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("arguments");
+
+                    b.Property<string>("ClientId")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("client_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("Outcome")
+                        .HasColumnType("integer")
+                        .HasColumnName("outcome");
+
+                    b.Property<string>("ResultSummary")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("result_summary");
+
+                    b.Property<string>("ToolName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("tool_name");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("mcp_audit_entries_pkey");
+
+                    b.HasIndex("UserId", "CreatedAt")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("ix_mcp_audit_entries_user_created");
+
+                    b.ToTable("mcp_audit_entries", (string)null);
+                });
+
             modelBuilder.Entity("Ambrosio.Domain.Models.Order", b =>
                 {
                     b.Property<long>("Id")
@@ -778,6 +830,315 @@ namespace Ambrosio.Infra.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("Ambrosio.Infra.Context.OAuth.OAuthApplication", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("oauth_application_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ApplicationType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("application_type");
+
+                    b.Property<string>("ClientId")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("client_id");
+
+                    b.Property<string>("ClientSecret")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("client_secret");
+
+                    b.Property<string>("ClientType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("client_type");
+
+                    b.Property<string>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<string>("ConsentType")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("consent_type");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("DisplayNames")
+                        .HasColumnType("text")
+                        .HasColumnName("display_names");
+
+                    b.Property<string>("JsonWebKeySet")
+                        .HasColumnType("text")
+                        .HasColumnName("json_web_key_set");
+
+                    b.Property<DateTime?>("MetadataFetchedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("metadata_fetched_at");
+
+                    b.Property<string>("Permissions")
+                        .HasColumnType("text")
+                        .HasColumnName("permissions");
+
+                    b.Property<string>("PostLogoutRedirectUris")
+                        .HasColumnType("text")
+                        .HasColumnName("post_logout_redirect_uris");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("text")
+                        .HasColumnName("properties");
+
+                    b.Property<string>("RedirectUris")
+                        .HasColumnType("text")
+                        .HasColumnName("redirect_uris");
+
+                    b.Property<int>("RegistrationSource")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(2)
+                        .HasColumnName("registration_source");
+
+                    b.Property<string>("Requirements")
+                        .HasColumnType("text")
+                        .HasColumnName("requirements");
+
+                    b.Property<string>("Settings")
+                        .HasColumnType("text")
+                        .HasColumnName("settings");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("oauth_applications_pkey");
+
+                    b.HasIndex("ClientId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_oauth_applications_client_id");
+
+                    b.ToTable("oauth_applications", (string)null);
+                });
+
+            modelBuilder.Entity("Ambrosio.Infra.Context.OAuth.OAuthAuthorization", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("oauth_authorization_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<DateTime?>("CreationDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("creation_date");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("text")
+                        .HasColumnName("properties");
+
+                    b.Property<string>("Scopes")
+                        .HasColumnType("text")
+                        .HasColumnName("scopes");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("subject");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
+                    b.Property<long?>("oauth_application_id")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id")
+                        .HasName("oauth_authorizations_pkey");
+
+                    b.HasIndex("CreationDate")
+                        .HasDatabaseName("ix_oauth_authorizations_creation_date");
+
+                    b.HasIndex("oauth_application_id")
+                        .HasDatabaseName("ix_oauth_authorizations_application");
+
+                    b.HasIndex("Subject", "Status", "Type")
+                        .HasDatabaseName("ix_oauth_authorizations_subject_status_type");
+
+                    b.ToTable("oauth_authorizations", (string)null);
+                });
+
+            modelBuilder.Entity("Ambrosio.Infra.Context.OAuth.OAuthScope", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("oauth_scope_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("description");
+
+                    b.Property<string>("Descriptions")
+                        .HasColumnType("text")
+                        .HasColumnName("descriptions");
+
+                    b.Property<string>("DisplayName")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("display_name");
+
+                    b.Property<string>("DisplayNames")
+                        .HasColumnType("text")
+                        .HasColumnName("display_names");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("text")
+                        .HasColumnName("properties");
+
+                    b.Property<string>("Resources")
+                        .HasColumnType("text")
+                        .HasColumnName("resources");
+
+                    b.HasKey("Id")
+                        .HasName("oauth_scopes_pkey");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ux_oauth_scopes_name");
+
+                    b.ToTable("oauth_scopes", (string)null);
+                });
+
+            modelBuilder.Entity("Ambrosio.Infra.Context.OAuth.OAuthToken", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("oauth_token_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("ConcurrencyToken")
+                        .IsConcurrencyToken()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("concurrency_token");
+
+                    b.Property<DateTime?>("CreationDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("creation_date");
+
+                    b.Property<DateTime?>("ExpirationDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("expiration_date");
+
+                    b.Property<string>("Payload")
+                        .HasColumnType("text")
+                        .HasColumnName("payload");
+
+                    b.Property<string>("Properties")
+                        .HasColumnType("text")
+                        .HasColumnName("properties");
+
+                    b.Property<DateTime?>("RedemptionDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("redemption_date");
+
+                    b.Property<string>("ReferenceId")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("reference_id");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("status");
+
+                    b.Property<string>("Subject")
+                        .HasMaxLength(400)
+                        .HasColumnType("character varying(400)")
+                        .HasColumnName("subject");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("type");
+
+                    b.Property<long?>("oauth_application_id")
+                        .HasColumnType("bigint");
+
+                    b.Property<long?>("oauth_authorization_id")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id")
+                        .HasName("oauth_tokens_pkey");
+
+                    b.HasIndex("ExpirationDate")
+                        .HasDatabaseName("ix_oauth_tokens_expiration_date");
+
+                    b.HasIndex("ReferenceId")
+                        .HasDatabaseName("ix_oauth_tokens_reference_id");
+
+                    b.HasIndex("oauth_application_id")
+                        .HasDatabaseName("ix_oauth_tokens_application");
+
+                    b.HasIndex("oauth_authorization_id")
+                        .HasDatabaseName("ix_oauth_tokens_authorization");
+
+                    b.HasIndex("Status", "Type")
+                        .HasDatabaseName("ix_oauth_tokens_status_type");
+
+                    b.ToTable("oauth_tokens", (string)null);
+                });
+
             modelBuilder.Entity("Ambrosio.Domain.Models.Customer", b =>
                 {
                     b.HasOne("Ambrosio.Domain.Models.User", "User")
@@ -848,6 +1209,17 @@ namespace Ambrosio.Infra.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Ambrosio.Domain.Models.McpAuditEntry", b =>
+                {
+                    b.HasOne("Ambrosio.Domain.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .IsRequired()
+                        .HasConstraintName("fk_user_mcp_audit_entry");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Ambrosio.Domain.Models.Order", b =>
                 {
                     b.HasOne("Ambrosio.Domain.Models.Customer", "Customer")
@@ -896,6 +1268,33 @@ namespace Ambrosio.Infra.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Ambrosio.Infra.Context.OAuth.OAuthAuthorization", b =>
+                {
+                    b.HasOne("Ambrosio.Infra.Context.OAuth.OAuthApplication", "Application")
+                        .WithMany("Authorizations")
+                        .HasForeignKey("oauth_application_id")
+                        .HasConstraintName("fk_oauth_application_oauth_authorization");
+
+                    b.Navigation("Application");
+                });
+
+            modelBuilder.Entity("Ambrosio.Infra.Context.OAuth.OAuthToken", b =>
+                {
+                    b.HasOne("Ambrosio.Infra.Context.OAuth.OAuthApplication", "Application")
+                        .WithMany("Tokens")
+                        .HasForeignKey("oauth_application_id")
+                        .HasConstraintName("fk_oauth_application_oauth_token");
+
+                    b.HasOne("Ambrosio.Infra.Context.OAuth.OAuthAuthorization", "Authorization")
+                        .WithMany("Tokens")
+                        .HasForeignKey("oauth_authorization_id")
+                        .HasConstraintName("fk_oauth_authorization_oauth_token");
+
+                    b.Navigation("Application");
+
+                    b.Navigation("Authorization");
+                });
+
             modelBuilder.Entity("Ambrosio.Domain.Models.Customer", b =>
                 {
                     b.Navigation("Orders");
@@ -916,6 +1315,18 @@ namespace Ambrosio.Infra.Migrations
                     b.Navigation("Customers");
 
                     b.Navigation("StoredImages");
+                });
+
+            modelBuilder.Entity("Ambrosio.Infra.Context.OAuth.OAuthApplication", b =>
+                {
+                    b.Navigation("Authorizations");
+
+                    b.Navigation("Tokens");
+                });
+
+            modelBuilder.Entity("Ambrosio.Infra.Context.OAuth.OAuthAuthorization", b =>
+                {
+                    b.Navigation("Tokens");
                 });
 #pragma warning restore 612, 618
         }

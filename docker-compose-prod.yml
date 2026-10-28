@@ -57,6 +57,45 @@ services:
     networks:
       - ambrosia-network
 
+  # Plugin do ChatGPT (feature 007, R8): authorization server OAuth 2.1 em /auth + servidor MCP em
+  # /mcp, no mesmo host. Mesmos segredos compartilhados da API (banco, CPF, storage) porque o host
+  # reaproveita o domínio; os endereços canônicos e a chave RSA de assinatura são só dele.
+  # Nomes no padrão `ambrosia-*` do resto do arquivo — ver o cabeçalho: trocar o nome faria o deploy
+  # subir containers paralelos aos que já estão no servidor.
+  mcp:
+    build:
+      context: ./backend
+      target: mcp
+    image: ambrosia-mcp:prod
+    container_name: ambrosia-mcp
+    restart: unless-stopped
+    environment:
+      <<: *api-environment
+      # Diferença deliberada em relação à homologação: aqui os dois endereços têm default porque são
+      # fixos por decisão de produto (`https://ambrosiaai.site/auth` e `/mcp`, spec 007). Em homolog
+      # o compose não tem default — o startup recusa configuração incompleta, e é melhor falhar na
+      # subida do que emitir token para o endereço errado em teste de túnel.
+      # Compose com `${VAR}` sem valor escreve string VAZIA, e uma env vazia ETAPA o
+      # appsettings.Production.json: sem o default abaixo, um .env.prod sem a linha derrubaria o
+      # issuer canônico silenciosamente.
+      Auth__Issuer: ${AUTH_ISSUER:-https://ambrosiaai.site/auth}
+      Mcp__ResourceUrl: ${MCP_RESOURCE_URL:-https://ambrosiaai.site/mcp}
+      # Segredo de verdade: RSA 2048 em PEM (PKCS#8), gravado pelo pipeline a partir do GitHub
+      # Secret de mesmo nome. Sem ela o host recusa o startup (constituição §VI, emenda 3.4.0).
+      Auth__SigningKeyPem: ${AUTH_SIGNING_KEY_PEM}
+      # Em produção só as URIs do ChatGPT, do appsettings.Production.json: a URI de teste da suíte de
+      # API não existe aqui (não entra por env).
+      Mcp__AllowedOrigins__0: ${MCP_ALLOWED_ORIGIN:-https://ambrosiaai.site}
+      Mcp__FrontendBaseUrl: ${MCP_FRONTEND_BASE_URL:-https://ambrosiaai.site}
+    mem_limit: 512m
+    volumes:
+      - mcp_dataprotection_keys:/home/app/.aspnet/DataProtection-Keys
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - ambrosia-network
+
   # HU 002: o pipeline ativa o profile quando frontend/Dockerfile existir.
   frontend:
     profiles: ["frontend"]
@@ -98,6 +137,9 @@ services:
 
 volumes:
   dataprotection_keys:
+  # Chaves do Data Protection do host do MCP, separadas das da API (cookies de sessão do AS e
+  # tokens do OpenIddict). Preservadas entre recriações: perdê-las derruba as conexões do ChatGPT.
+  mcp_dataprotection_keys:
 
 networks:
   ambrosia-network:
