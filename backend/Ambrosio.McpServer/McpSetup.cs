@@ -3,6 +3,7 @@ using Ambrosio.McpServer.Auth;
 using Ambrosio.McpServer.Mcp;
 using Ambrosio.McpServer.Mcp.Filters;
 using Ambrosio.McpServer.Middlewares;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
@@ -202,6 +203,15 @@ public static class McpSetup
             {
                 var resourceUrl = context.RequestServices
                     .GetRequiredService<Microsoft.Extensions.Options.IOptions<McpSettings>>().Value.ResourceUrl;
+
+                // Motivo da recusa (audience, issuer, assinatura, validade) no log, sem o token: é a
+                // primeira coisa a olhar quando o ChatGPT diz que as ferramentas não estão disponíveis.
+                var failure = (await context.AuthenticateAsync(Scheme)).Failure;
+                context.RequestServices.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger("Ambrosio.McpServer.TokenGuard")
+                    .LogWarning(
+                        "MCP: token recusado com 401 ({Reason}).",
+                        failure?.Message ?? "esquema Authorization não reconhecido ou token ausente");
 
                 context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                 // Cabeçalho HTTP só aceita ASCII (o Kestrel derruba a resposta com 500 se houver

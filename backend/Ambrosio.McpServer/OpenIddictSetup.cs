@@ -116,6 +116,13 @@ public static class OpenIddictSetup
                 server.AddEventHandler(ResourceIndicatorHandler.TokenDescriptor);
                 server.AddEventHandler(RevokeAuthorizationHandler.Descriptor);
 
+                // Recusas do OAuth em Warning (produção não registra Information): sem isto uma
+                // conexão do ChatGPT que falha no authorize ou no token não deixa rastro.
+                foreach (var descriptor in OAuthRejectionLogger.Descriptors)
+                {
+                    server.AddEventHandler(descriptor);
+                }
+
                 // JWT assinado, não criptografado: o MCP valida com a chave pública do JWKS, então
                 // um JWE quebraria a validação cross-host (R13).
                 server.DisableAccessTokenEncryption();

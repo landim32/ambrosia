@@ -68,6 +68,10 @@ public static class ScopeChallengeFilter
 
         if (user?.Identity?.IsAuthenticated != true || !long.TryParse(user.FindFirst("sub")?.Value, out var userId))
         {
+            services.GetRequiredService<ILoggerFactory>()
+                .CreateLogger("Ambrosio.McpServer.Tools")
+                .LogInformation("Tool {Tool} chamada sem token: desafio invalid_token devolvido.", tool.ProtocolTool.Name);
+
             return Challenge(
                 resourceUrl,
                 McpChallenge.InvalidToken,
@@ -94,7 +98,15 @@ public static class ScopeChallengeFilter
         userContext.UserId = userId;
         userContext.ClientId = user.FindFirst("client_id")?.Value;
 
-        return await next(context, cancellationToken);
+        var result = await next(context, cancellationToken);
+
+        services.GetRequiredService<ILoggerFactory>()
+            .CreateLogger("Ambrosio.McpServer.Tools")
+            .LogInformation(
+                "Tool {Tool} chamada pelo usuário {UserId} (cliente {ClientId}): {Outcome}.",
+                userContext.ToolName, userId, userContext.ClientId, result.IsError == true ? "erro" : "ok");
+
+        return result;
     };
 
     /// <summary>
