@@ -1,0 +1,60 @@
+@page "/login"
+@model LoginModel
+@{
+    ViewData["Title"] = "Entrar no Ambrosio";
+}
+
+@if (Model.SignedInWithoutReturn)
+{
+    <h1>Você entrou no Ambrosio</h1>
+    <p class="lead">Volte ao ChatGPT para continuar a conexão.</p>
+}
+else
+{
+    <h1>Entrar no Ambrosio</h1>
+    <p class="lead">Para conectar sua conta ao ChatGPT.</p>
+
+    @if (!string.IsNullOrEmpty(Model.GoogleClientId))
+    {
+        <div id="g_id_onload"
+             data-client_id="@Model.GoogleClientId"
+             data-callback="ambrosioGoogleLogin"
+             data-auto_prompt="false"></div>
+        <div class="google">
+            <div class="g_id_signin" data-type="standard" data-theme="filled_black" data-size="large"
+                 data-text="signin_with" data-shape="pill" data-locale="pt-BR"></div>
+        </div>
+        <div class="divider">ou</div>
+    }
+
+    <form method="post" id="login-form" novalidate>
+        <input type="hidden" asp-for="ReturnUrl" />
+        <input type="hidden" asp-for="IdToken" id="id-token" />
+
+        <label for="email">E-mail</label>
+        <input type="email" id="email" asp-for="Email" autocomplete="username" required />
+
+        <label for="password">Senha</label>
+        <input type="password" id="password" asp-for="Password" autocomplete="current-password" required />
+
+        @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+        {
+            <p class="error" role="alert">@Model.ErrorMessage</p>
+        }
+
+        <button type="submit" class="btn-primary">Entrar</button>
+    </form>
+}
+
+@section Scripts {
+    @if (!Model.SignedInWithoutReturn && !string.IsNullOrEmpty(Model.GoogleClientId))
+    {
+        <script>
+            function ambrosioGoogleLogin(response) {
+                document.getElementById("id-token").value = response.credential;
+                document.getElementById("login-form").submit();
+            }
+        </script>
+        <script src="https://accounts.google.com/gsi/client" async defer></script>
+    }
+}

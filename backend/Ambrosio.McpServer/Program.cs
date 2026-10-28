@@ -5,6 +5,7 @@ using Ambrosio.Application.Settings;
 using Ambrosio.DTO.Settings;
 using Ambrosio.McpServer;
 using Ambrosio.McpServer.Auth;
+using Ambrosio.McpServer.Auth.Endpoints;
 using Ambrosio.McpServer.Middlewares;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
@@ -105,6 +106,9 @@ builder.Services.AddAmbrosioAuthorizationServer(builder.Configuration, signingKe
 // Endpoint MCP: validação do token do AS + transporte sem estado (T018/T020).
 builder.Services.AddAmbrosioMcp(builder.Configuration, signingKey);
 
+// Telas de login e consentimento do AS (T041/T042), em Auth/Pages.
+builder.Services.AddRazorPages(options => options.RootDirectory = "/Auth/Pages");
+
 // Bind das settings do MCP no container: sem isto, quem injeta IOptions<McpSettings> recebe o
 // objeto vazio e o ResourceUrl some — foi o que derrubou a semente de escopos no primeiro teste.
 builder.Services.Configure<McpSettings>(builder.Configuration.GetSection("Mcp"));
@@ -155,27 +159,54 @@ app.UsePathBase(OpenIddictSetup.AuthPathBase);
 // montaria URLs de descoberta com http e com o nome interno do container.
 if (builder.Configuration.GetValue<bool>("ReverseProxy:Enabled"))
 {
-    app.UseForwardedHeaders(new ForwardedHeadersOptions
+    var forwarded = new ForwardedHeadersOptions
     {
         ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
             | ForwardedHeaders.XForwardedPrefix
-    });
+    };
+
+    // Mesma regra da API: o padrão só confia em proxy de loopback, e o nginx chega pela rede do
+    // Docker. Sem limpar as listas o X-Forwarded-Proto é ignorado, a requisição parece http e o
+    // OpenIddict (issuer https) recusa tudo com ID2083 "This server only accepts HTTPS requests" —
+    // visto em produção. O container não publica porta: só o nginx alcança este host.
+    forwarded.KnownNetworks.Clear();
+    forwarded.KnownProxies.Clear();
+
+    app.UseForwardedHeaders(forwarded);
 }
+
+// CSS, logo e mascote das telas do AS, servidos sob /auth pelo PathBase (T043).
+app.UseStaticFiles();
+
+app.UseRouting();
+
+// Origem de navegador proibida no /mcp cai aqui, antes de qualquer chave ser conferida (T021, R17).
+app.UseAmbrosioMcpOriginGuard();
+
+// Também executa os endpoints do OpenIddict (authorize/token/revoke/jwks) e serve o Protected
+// Resource Metadata do SDK.
+app.UseAuthentication();
+
+// Depois da autenticação: o balde do rate limit é o `sub` do token (R17).
+app.UseRateLimiter();
+
+// Token presente e inválido no /mcp → 401 com resource_metadata (R7, T018/T020).
+app.UseAmbrosioMcpTokenGuard();
+
+app.UseAuthorization();
 
 // Descoberta anônima (RFC 8414): o ChatGPT consulta antes de ter qualquer credencial (T019).
 app.MapAmbrosioMetadataEndpoints();
 
-app.UseRateLimiter();
+// Authorization server: DCR, authorize/token/userinfo em passthrough e as telas (T038–T044).
+app.MapAmbrosioRegistrationEndpoint();
+app.MapAmbrosioAuthorizationEndpoints();
+app.MapRazorPages();
 
-// Origem de navegador proibida cai aqui, antes de qualquer chave ser conferida (T021, R17).
-app.UseAmbrosioMcpOriginGuard();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-// O MCP fica no caminho raiz, fora do PathBase do AS, e sem estado: duas réplicas atrás do gateway
-// sem afinidade (R6/R7). A política é obrigatória: MapMcp() sozinho atende anônimo com 200.
-app.MapMcp(McpSetup.McpPath).RequireAuthorization(McpSetup.PolicyName);
+// O MCP fica no caminho raiz, fora do PathBase do AS, e sem estado (R6). Autenticação mista (R7):
+// sem RequireAuthorization — listagem e `sobre_ambrosio` são anônimas e as tools protegidas devolvem
+// o desafio pelo ScopeChallengeFilter.
+app.MapMcp(McpSetup.McpPath).RequireRateLimiting(McpRateLimiter.PolicyName);
 
 app.Run();
 
@@ -312,9 +343,11 @@ static void ValidateCanonicalUrl(List<string> errors, string name, string value,
         errors.Add($"{name} não pode terminar em barra.");
     }
 
-    if (!environment.IsDevelopment() && uri.Scheme != Uri.UriSchemeHttps)
+    // http só em Development ou em loopback: a homologação roda no gateway local
+    // (http://localhost:8080), e nenhum endereço público pode sair sem TLS.
+    if (!environment.IsDevelopment() && uri.Scheme != Uri.UriSchemeHttps && !uri.IsLoopback)
     {
-        errors.Add($"{name} deve usar https fora de Development.");
+        errors.Add($"{name} deve usar https fora de Development (http só é aceito em localhost).");
     }
 }
 

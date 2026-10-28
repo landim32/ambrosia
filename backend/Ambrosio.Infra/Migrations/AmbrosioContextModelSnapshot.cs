@@ -1108,8 +1108,8 @@ namespace Ambrosio.Infra.Migrations
 
                     b.Property<string>("Type")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
                         .HasColumnName("type");
 
                     b.Property<long?>("oauth_application_id")

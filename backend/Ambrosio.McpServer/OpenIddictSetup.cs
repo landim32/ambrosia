@@ -2,6 +2,10 @@ using Ambrosio.DTO.Settings;
 using Ambrosio.Infra.Context;
 using Ambrosio.Infra.Context.OAuth;
 using Ambrosio.McpServer.Auth;
+using Ambrosio.McpServer.Auth.Cimd;
+using Ambrosio.McpServer.Auth.Handlers;
+using Ambrosio.McpServer.Auth.Stores;
+using static OpenIddict.Abstractions.OpenIddictConstants;
 
 namespace Ambrosio.McpServer;
 
@@ -29,8 +33,14 @@ public static class OpenIddictSetup
         SigningKeyProvider signingKey)
     {
         var authServer = configuration.GetSection("Auth").Get<AuthServerSettings>() ?? new AuthServerSettings();
+        var mcp = configuration.GetSection("Mcp").Get<McpSettings>() ?? new McpSettings();
 
         services.Configure<AuthServerSettings>(configuration.GetSection("Auth"));
+
+        // CIMD e DCR (T037/T038): registro de clientes e download do documento com travas de SSRF.
+        services.AddMemoryCache();
+        services.AddSingleton<CimdDocumentFetcher>();
+        services.AddScoped<ClientRegistrar>();
 
         // Instância já resolvida pelo Program: o host precisa do `kid` e da origem em log antes de
         // registrar serviço algum, e um container construído aqui produziria duas chaves locais
@@ -45,7 +55,16 @@ public static class OpenIddictSetup
             {
                 core.UseEntityFrameworkCore()
                     .UseDbContext<AmbrosioContext>()
-                    .ReplaceDefaultEntities<OAuthApplication, OAuthAuthorization, OAuthScope, OAuthToken, long>();
+                    .ReplaceDefaultEntities<OAuthApplication, OAuthAuthorization, OAuthScope, OAuthToken, long>()
+                    // O asset net8.0 do OpenIddict 7.7.2 foi compilado contra o EF Core 8, e as operações
+                    // em lote dele (ExecuteUpdate/ExecuteDelete) não existem no assembly Relational do
+                    // EF Core 9 do projeto: MissingMethodException na revogação da família de um refresh
+                    // reutilizado e no revoke (research R19). Sem lote, o store carrega e atualiza
+                    // linha a linha — volume pequeno no uso próprio.
+                    .DisableBulkOperations();
+
+                // Revogações em lote reescritas para o EF Core 9 (o DisableBulkOperations não as cobre).
+                core.ReplaceTokenStore<OAuthToken, AmbrosioTokenStore>(ServiceLifetime.Scoped);
             })
 
             .AddServer(server =>
@@ -60,8 +79,12 @@ public static class OpenIddictSetup
                     .SetTokenEndpointUris("connect/token")
                     .SetUserInfoEndpointUris("connect/userinfo")
                     .SetRevocationEndpointUris("connect/revoke")
-                    .SetConfigurationEndpointUris(".well-known/openid-configuration")
-                    .SetJsonWebKeySetEndpointUris(".well-known/jwks");
+                    .SetJsonWebKeySetEndpointUris(".well-known/jwks")
+                    .SetConfigurationEndpointUris(Array.Empty<string>());
+
+                // Sem SetConfigurationEndpointUris: o documento do OpenIddict não traz DCR nem CIMD, e
+                // o contrato exige o MESMO documento em /auth/.well-known/openid-configuration e em
+                // /.well-known/oauth-authorization-server/auth — os dois saem do MetadataEndpoints.
 
                 server.AllowAuthorizationCodeFlow()
                     .AllowRefreshTokenFlow();
@@ -69,6 +92,28 @@ public static class OpenIddictSetup
                 // PKCE obrigatório, só S256 (requisito do ChatGPT; `plain` precisa virar
                 // invalid_request — T030).
                 server.RequireProofKeyForCodeExchange();
+                server.Configure(options =>
+                {
+                    options.CodeChallengeMethods.Clear();
+                    options.CodeChallengeMethods.Add(CodeChallengeMethods.Sha256);
+                });
+
+                // RFC 8707 (R5, T035): o único recurso é o MCP. Recurso diferente (inclusive com barra
+                // no final) vira invalid_target no próprio OpenIddict; a obrigatoriedade do parâmetro
+                // é o ResourceIndicatorHandler. Os clientes do ChatGPT são criados em tempo de
+                // execução (DCR/CIMD) sem permissões por escopo ou recurso: o que limita escopo é a
+                // semente de oauth_scopes, e o que limita recurso é a lista registrada aqui.
+                server.RegisterResources(mcp.ResourceUrl);
+                server.IgnoreResourcePermissions();
+                server.IgnoreScopePermissions();
+
+                // `iss` em toda resposta de autorização (RFC 9207, T036) é nativo do OpenIddict 7
+                // (handler Authentication.AttachIssuer) e sai igual ao issuer configurado acima.
+
+                server.AddEventHandler(CimdClientHandler.Descriptor);
+                server.AddEventHandler(ResourceIndicatorHandler.AuthorizationDescriptor);
+                server.AddEventHandler(ResourceIndicatorHandler.TokenDescriptor);
+                server.AddEventHandler(RevokeAuthorizationHandler.Descriptor);
 
                 // JWT assinado, não criptografado: o MCP valida com a chave pública do JWKS, então
                 // um JWE quebraria a validação cross-host (R13).
@@ -80,12 +125,24 @@ public static class OpenIddictSetup
                 server.SetAccessTokenLifetime(TimeSpan.FromMinutes(authServer.AccessTokenMinutes));
                 server.SetRefreshTokenLifetime(TimeSpan.FromDays(authServer.RefreshTokenDays));
 
+                // Sem tolerância de reuso: o padrão do OpenIddict aceita o mesmo refresh por alguns
+                // segundos (para clientes com chamadas concorrentes), o que deixaria um refresh vazado
+                // ser trocado sem derrubar a família (R14, T031).
+                server.SetRefreshTokenReuseLeeway(TimeSpan.Zero);
+
                 // Passthrough: authorize, token e userinfo caem em controllers/pages deste host,
                 // porque é aí que entram o cookie de sessão do AS, o consentimento e o `sub`.
-                server.UseAspNetCore()
+                var aspNetCore = server.UseAspNetCore()
                     .EnableAuthorizationEndpointPassthrough()
                     .EnableTokenEndpointPassthrough()
                     .EnableUserInfoEndpointPassthrough();
+
+                // Development e homologação rodam em http (localhost); o startup só aceita issuer http
+                // em Development (Program.ValidateSettings), e em produção ele é https.
+                if (authServer.Issuer.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+                {
+                    aspNetCore.DisableTransportSecurityRequirement();
+                }
 
                 // Assinador único: RSA 2048 (R13). A chave é a do SigningKeyProvider resolvido pelo
                 // Program — obrigatoriamente de Auth__SigningKeyPem em Homolog e Production.

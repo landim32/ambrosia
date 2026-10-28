@@ -1,0 +1,33 @@
+@page "/consent"
+@model ConsentModel
+@using Ambrosio.McpServer.Auth.Endpoints
+@{
+    ViewData["Title"] = "Autorizar o ChatGPT";
+}
+
+<h1>Autorizar o @Model.ClientName</h1>
+<p class="lead">O @Model.ClientName quer acessar sua conta do Ambrosio para:</p>
+
+<ul class="scopes">
+    @foreach (var scope in Model.Scopes)
+    {
+        <li>
+            <strong>@scope.DisplayName</strong>
+            <span>@scope.Description</span>
+        </li>
+    }
+</ul>
+
+<form method="post" action="@Model.AuthorizeAction">
+    @Html.AntiForgeryToken()
+    @foreach (var parameter in Model.Parameters)
+    {
+        <input type="hidden" name="@parameter.Key" value="@parameter.Value" />
+    }
+    <div class="actions">
+        <button type="submit" class="btn-secondary" name="@AuthorizationEndpoint.DecisionField"
+                value="@AuthorizationEndpoint.DecisionDeny">Negar</button>
+        <button type="submit" class="btn-primary" name="@AuthorizationEndpoint.DecisionField"
+                value="@AuthorizationEndpoint.DecisionAccept">Autorizar</button>
+    </div>
+</form>
