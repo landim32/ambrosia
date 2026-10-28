@@ -18,7 +18,7 @@ A emenda é MINOR: acrescenta um segundo esquema com escopo restrito ao MCP e es
 
 | Aspecto | Padrão |
 |---|---|
-| Esquema do MCP (plugin do ChatGPT) | OAuth 2.1 com authorization server próprio em `/auth` (issuer `https://ambrosiaai.site/auth`): código de autorização com PKCE S256, consentimento por escopos, refresh token com rotação. Access token JWT RS256 com `aud` = URL do MCP (`https://ambrosiaai.site/mcp`), `sub` = `user_id`, validado pelo JWKS em toda chamada. Aceito **só** no MCP; a API REST não aceita esse token e o MCP não aceita o HS256 da API. |
+| Esquema do MCP (plugin do ChatGPT) | OAuth 2.1 com authorization server próprio em `/auth` (issuer `https://ambrosioai.site/auth`): código de autorização com PKCE S256, consentimento por escopos, refresh token com rotação. Access token JWT RS256 com `aud` = URL do MCP (`https://ambrosioai.site/mcp`), `sub` = `user_id`, validado pelo JWKS em toda chamada. Aceito **só** no MCP; a API REST não aceita esse token e o MCP não aceita o HS256 da API. |
 
 ### Regra de cookies (substitui a atual)
 

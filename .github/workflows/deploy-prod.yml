@@ -1,4 +1,4 @@
-# Deploy de produção (https://ambrosiaai.site) via SSH.
+# Deploy de produção (https://ambrosioai.site) via SSH.
 # Jobs sequenciais: checkout -> segredos -> rede -> build -> stop -> migrações -> deploy
 # -> health check -> limpeza -> resumo.
 # Só sobem migrator, api e mcp. O frontend (SPA compilado), o HTTPS e o proxy de /api, /auth, /mcp e
@@ -221,10 +221,10 @@ jobs:
           COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml"
 
           # O teste fala direto com os containers pela emagine-network, com os mesmos cabeçalhos que o
-          # nginx do emagine-deploy manda (Host ambrosiaai.site, exigido pelo AllowedHosts de
+          # nginx do emagine-deploy manda (Host ambrosioai.site, exigido pelo AllowedHosts de
           # produção, e X-Forwarded-*): assim ele valida este deploy sem depender do nginx
           # compartilhado, que é publicado pelo outro repositório.
-          CURL="docker run --rm --network emagine-network curlimages/curl:8.10.1 -s -o /dev/null -w %{http_code} -H Host:ambrosiaai.site -H X-Forwarded-Proto:https"
+          CURL="docker run --rm --network emagine-network curlimages/curl:8.10.1 -s -o /dev/null -w %{http_code} -H Host:ambrosioai.site -H X-Forwarded-Proto:https"
           echo "Waiting for services to start..."
           for i in $(seq 1 12); do
             HTTP_STATUS=$($CURL -H X-Forwarded-Prefix:/api http://ambrosia-api:8080/swagger/v1/swagger.json || echo "000")
@@ -273,7 +273,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "| Detail | Value |" >> $GITHUB_STEP_SUMMARY
         echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
-        echo "| URL | https://ambrosiaai.site |" >> $GITHUB_STEP_SUMMARY
+        echo "| URL | https://ambrosioai.site |" >> $GITHUB_STEP_SUMMARY
         echo "| Branch | \`main\` |" >> $GITHUB_STEP_SUMMARY
         echo "| Commit | \`${{ github.sha }}\` |" >> $GITHUB_STEP_SUMMARY
         echo "| Triggered by | \`${{ github.actor }}\` |" >> $GITHUB_STEP_SUMMARY

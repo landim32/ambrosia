@@ -20,7 +20,7 @@ servers:
     description: Desenvolvimento local
   - url: http://localhost:8080/api
     description: Homologação pelo gateway
-  - url: https://ambrosiaai.site/api
+  - url: https://ambrosioai.site/api
     description: Produção
 
 tags:

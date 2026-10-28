@@ -17,7 +17,7 @@ Phase 0 do plano. Cada item resolve um "NEEDS CLARIFICATION" do Technical Contex
 - **Decision**: Google Identity Services (GIS) carregado diretamente (`https://accounts.google.com/gsi/client`), encapsulado em um hook `useGoogleIdentity` que chama `google.accounts.id.initialize({ client_id, callback })` e `renderButton`. O `credential` recebido no callback é o ID token enviado a `POST /auth/google`. Tipagem via `@types/google.accounts` (dev dependency).
 - **Rationale**: nenhuma dependência de runtime extra; é o que a HU 002 (`docs/historias/002`) propõe; o backend já valida a audiência com `Auth:GoogleClientId`.
 - **Alternatives considered**: `@react-oauth/google` (menos código, mas adiciona dependência de terceiros ao bundle).
-- **Configuração necessária**: `VITE_GOOGLE_CLIENT_ID` com o mesmo valor de `Auth__GoogleClientId` da API. No cliente OAuth do Google Cloud, as origens JavaScript autorizadas devem incluir `http://localhost:5173` (dev), `http://localhost:8080` (homolog) e `https://ambrosiaai.site` (prod).
+- **Configuração necessária**: `VITE_GOOGLE_CLIENT_ID` com o mesmo valor de `Auth__GoogleClientId` da API. No cliente OAuth do Google Cloud, as origens JavaScript autorizadas devem incluir `http://localhost:5173` (dev), `http://localhost:8080` (homolog) e `https://ambrosioai.site` (prod).
 
 ## 3. Filtro de canal por trecho **[decisão do solicitante]**
 

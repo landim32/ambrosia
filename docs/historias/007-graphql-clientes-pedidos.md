@@ -33,7 +33,7 @@
 
 ### Dentro do escopo
 
-- Endpoint `POST /graphql` (e `GET` para consultas persistidas, se adotadas), protegido pelo mesmo JWT da API. Em produção: `https://ambrosiaai.site/api/graphql`, sob o mesmo `PathBase` (`/api`) do REST e na mesma origem do frontend, então não há CORS (ver o roteamento na [002](002-frontend-web-perfil-cliente-pedidos.md#7-dependências)).
+- Endpoint `POST /graphql` (e `GET` para consultas persistidas, se adotadas), protegido pelo mesmo JWT da API. Em produção: `https://ambrosioai.site/api/graphql`, sob o mesmo `PathBase` (`/api`) do REST e na mesma origem do frontend, então não há CORS (ver o roteamento na [002](002-frontend-web-perfil-cliente-pedidos.md#7-dependências)).
 - Queries `me`, `customers`, `customer(id)`, `orders`, `order(id)` e `salesSummary(from, to, channel)`.
 - `[UsePaging]` (cursor, conexões Relay), `[UseProjection]`, `[UseFiltering]` e `[UseSorting]` sobre `IQueryable` do EF Core.
 - Campos calculados: `Customer.summary` (`purchases`, `netTotal`, `lastPurchase`, `daysSinceLastPurchase`, `averageTicket`) e `Order.itemsCount`.
@@ -71,7 +71,7 @@
 | 12 | `salesSummary` confere com as regras do [doc 02](../02-modelo-de-dados.md#regras-de-negócio-a-respeitar): líquido = soma dos totais, PA = peças / atendimentos, VA = valor / atendimentos | Conferir contra uma base de teste |
 | 13 | Consulta com profundidade acima do limite, ou custo acima do limite, é recusada antes de executar | Consulta abusiva |
 | 14 | Mutations não existem no schema | Introspecção |
-| 15 | O IDE do GraphQL (Nitro) só fica disponível em Development | Abrir `https://ambrosiaai.site/api/graphql` no navegador em Production |
+| 15 | O IDE do GraphQL (Nitro) só fica disponível em Development | Abrir `https://ambrosioai.site/api/graphql` no navegador em Production |
 | 16 | Uma consulta típica (lista de 20 clientes com resumo) responde em menos de 1 s com 10.000 pedidos | Mesma base de carga prevista na 001 (T095) |
 | 17 | A tool MCP `consultar_graphql` existe no servidor da 005, recusa `mutation` e `subscription` e respeita os limites de profundidade e custo | MCP Inspector, enviando uma mutation |
 

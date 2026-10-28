@@ -37,7 +37,7 @@ Cada item: **Decisão**, **Motivo**, **Alternativas consideradas**. Fontes consu
 ## R5. `resource` (RFC 8707) e `iss` na resposta (RFC 9207)
 
 - **Decisão**:
-  - Handler na autorização e no token que exige `resource` igual a `Mcp:ResourceUrl` (`https://ambrosiaai.site/mcp`), por comparação exata (com barra no final é recusado), e define o `aud` do access token com esse valor (`SetResources`/`SetAudiences`).
+  - Handler na autorização e no token que exige `resource` igual a `Mcp:ResourceUrl` (`https://ambrosioai.site/mcp`), por comparação exata (com barra no final é recusado), e define o `aud` do access token com esse valor (`SetResources`/`SetAudiences`).
   - Handler na resposta de autorização (sucesso e erro) que acrescenta `iss` = issuer, e metadata com `authorization_response_iss_parameter_supported: true`.
 - **Motivo**: são requisitos R5 e R6 do ChatGPT. Com `iss` na resposta, o ChatGPT usa a redirect URI estável `https://chatgpt.com/connector_platform_oauth_redirect`.
 - **Alternativas**: não anunciar RFC 9207 e usar a redirect por `callback_id`, descartado porque a URI muda por conexão e complica a lista de permitidas.
@@ -63,14 +63,14 @@ Cada item: **Decisão**, **Motivo**, **Alternativas consideradas**. Fontes consu
 
 ## R9. Credenciais do +Vendas em `iniciar_importacao`
 
-- **Decisão**: a tool **não** inicia a execução. Ela valida o período, pede confirmação e devolve um link `https://ambrosiaai.site/importacao?inicio=AAAA-MM-DD&fim=AAAA-MM-DD`. A tela de importação passa a ler esses dois parâmetros da URL para preencher o período. A vendedora digita login e senha lá e inicia. As demais tools de importação acompanham a execução normalmente.
+- **Decisão**: a tool **não** inicia a execução. Ela valida o período, pede confirmação e devolve um link `https://ambrosioai.site/importacao?inicio=AAAA-MM-DD&fim=AAAA-MM-DD`. A tela de importação passa a ler esses dois parâmetros da URL para preencher o período. A vendedora digita login e senha lá e inicia. As demais tools de importação acompanham a execução normalmente.
 - **Motivo**: FR-024/FR-025. Argumentos de tool ficam no histórico da conversa e nos logs do provedor da LLM. Com o modo *stateless*, a *elicitation* em modo URL não está disponível, e o link em texto entrega o mesmo resultado.
 - **Alternativas**: *elicitation* em modo URL (exige sessão, R2); senha como argumento (viola FR-025).
 
 ## R10. Telas de login e consentimento do authorization server
 
 - **Decisão**: Razor Pages no `Ambrosio.McpServer`, em `/auth/login` e `/auth/consent`, com CSS próprio enxuto usando os tokens visuais do Ambrosio (tema escuro, azul `#005CF2`, mascote). Login por e-mail e senha (reaproveitando o serviço de login da feature 003) e pelo botão do Google Identity Services, cujo ID token é conferido pelo mesmo serviço do `POST /auth/google`. A sessão do login no AS fica num cookie `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/auth`, de curta duração.
-- **Motivo**: o fluxo OAuth exige que o AS mostre login e consentimento na própria origem e lembre quem entrou entre o `authorize` e o consentimento. Sem SPA envolvida, o cookie de sessão do servidor é o mecanismo padrão. O Google pelo GIS dispensa um redirect URI novo no Google Cloud (só a origem JavaScript `https://ambrosiaai.site`, que já existe).
+- **Motivo**: o fluxo OAuth exige que o AS mostre login e consentimento na própria origem e lembre quem entrou entre o `authorize` e o consentimento. Sem SPA envolvida, o cookie de sessão do servidor é o mecanismo padrão. O Google pelo GIS dispensa um redirect URI novo no Google Cloud (só a origem JavaScript `https://ambrosioai.site`, que já existe).
 - **Alternativas**: telas no frontend React com o token do AS em `localStorage` (complicaria o fluxo e exporia o código de autorização ao SPA); redirect clássico do Google (exige redirect URI novo e não reaproveita o `POST /auth/google`).
 
 ## R11. Prévia antes de gravar

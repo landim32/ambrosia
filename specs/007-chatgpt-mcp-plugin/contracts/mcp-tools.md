@@ -1,10 +1,10 @@
 # Contrato: tools do servidor MCP
 
-**Endpoint**: `POST https://ambrosiaai.site/mcp` (HTTP streamable, *stateless*). Em homologação, `http://localhost:8080/mcp` (pelo gateway) ou a URL do túnel.
+**Endpoint**: `POST https://ambrosioai.site/mcp` (HTTP streamable, *stateless*). Em homologação, `http://localhost:8080/mcp` (pelo gateway) ou a URL do túnel.
 
 ## Regras comuns
 
-- **Autenticação** (R7): `initialize`, `tools/list` e `sobre_ambrosio` funcionam sem token. Token presente e inválido → HTTP 401 com `WWW-Authenticate: Bearer resource_metadata="https://ambrosiaai.site/.well-known/oauth-protected-resource/mcp", error="invalid_token"`. Tool protegida sem token ou sem escopo → resultado de desafio (abaixo).
+- **Autenticação** (R7): `initialize`, `tools/list` e `sobre_ambrosio` funcionam sem token. Token presente e inválido → HTTP 401 com `WWW-Authenticate: Bearer resource_metadata="https://ambrosioai.site/.well-known/oauth-protected-resource/mcp", error="invalid_token"`. Tool protegida sem token ou sem escopo → resultado de desafio (abaixo).
 - **Identidade**: o usuário é sempre o `sub` do token. Nenhuma tool aceita `userId` como argumento.
 - **Descritor**: toda tool tem `name`, `title` e `description` em pt-BR (dizendo quando usar e quando não usar), `inputSchema` tipado, `annotations` (`readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint`), `securitySchemes` e `_meta["ambrosio/endpoint"]` com a operação equivalente da API (`"GET /customers"`), usada pelo teste de paridade.
 - **Saída**: `structuredContent` + um item `text` curto em pt-BR (valores em `R$ 1.234,56`, datas `dd/mm/aaaa`). Todo resultado traz `consultado_em` (UTC, ISO 8601). Listas trazem `itens` (máx. 200), `total` e `tem_mais`.
@@ -20,7 +20,7 @@
   "content": [{ "type": "text", "text": "É preciso autorizar o Ambrosio a cadastrar clientes." }],
   "_meta": {
     "mcp/www_authenticate": [
-      "Bearer resource_metadata=\"https://ambrosiaai.site/.well-known/oauth-protected-resource/mcp\", error=\"insufficient_scope\", error_description=\"Falta o escopo customers:write\", scope=\"customers:write\""
+      "Bearer resource_metadata=\"https://ambrosioai.site/.well-known/oauth-protected-resource/mcp\", error=\"insufficient_scope\", error_description=\"Falta o escopo customers:write\", scope=\"customers:write\""
     ]
   }
 }
@@ -64,7 +64,7 @@ Legenda das anotações: **RO** `readOnlyHint`, **D** `destructiveHint`, **I** `
 | Tool | Endpoint | Escopos | RO | D | I | OW | Entrada | Saída |
 |---|---|---|---|---|---|---|---|---|
 | `sugestao_periodo_importacao` | `GET /imports/mais-vendas/defaults` | `imports:read` | ✓ | — | — | ✗ | — | `inicioSugerido` (ou nulo), `fimSugerido` |
-| `iniciar_importacao` | `POST /imports/mais-vendas/runs` | `imports:write` | ✗ | ✗ | ✓ | ✓ | `inicio`, `fim`, `simular?`, `confirmar` | Prévia (período e blocos) ou **link** `https://ambrosiaai.site/importacao?inicio=…&fim=…` para a vendedora digitar as credenciais na tela (R9). Não aceita login nem senha |
+| `iniciar_importacao` | `POST /imports/mais-vendas/runs` | `imports:write` | ✗ | ✗ | ✓ | ✓ | `inicio`, `fim`, `simular?`, `confirmar` | Prévia (período e blocos) ou **link** `https://ambrosioai.site/importacao?inicio=…&fim=…` para a vendedora digitar as credenciais na tela (R9). Não aceita login nem senha |
 | `importacao_atual` | `GET /imports/mais-vendas/runs/current` | `imports:read` | ✓ | — | — | ✗ | — | Execução em andamento com progresso por bloco, ou nenhuma |
 | `obter_importacao` | `GET /imports/mais-vendas/runs/{runId}` | `imports:read` | ✓ | — | — | ✗ | `importacao_id` | Relatório: contagens, blocos, alterações e erros |
 | `listar_importacoes` | `GET /imports/mais-vendas/runs` | `imports:read` | ✓ | — | — | ✗ | `pagina?`, `tamanho?` | Histórico paginado |

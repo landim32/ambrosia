@@ -229,7 +229,7 @@ Complexity Tracking — não passou despercebida.
 
 **6. CORS.** Com Spaces a regra é **por bucket** (o desvio "por servidor" do plano desapareceu). Como
 Development e homologação compartilham o bucket `ambrosio`, as origens `localhost:8080`/`localhost:5173`
-vivem no mesmo bucket dos dois, e o bucket de produção terá só `https://ambrosiaai.site` — aceito porque
+vivem no mesmo bucket dos dois, e o bucket de produção terá só `https://ambrosioai.site` — aceito porque
 o bucket de produção é separado e os dados locais são de teste.
 
 **7. A exceção ao §VI.** `ListStaleAsync` é a única leitura de repositório sem filtro de usuário, e não

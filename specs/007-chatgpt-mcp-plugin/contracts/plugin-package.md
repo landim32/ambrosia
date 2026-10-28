@@ -30,7 +30,7 @@ plugin/
         "displayName": "Ambrosio",
         "developerName": "Ambrosio",
         "category": "Productivity",
-        "websiteURL": "https://ambrosiaai.site",
+        "websiteURL": "https://ambrosioai.site",
         "composerIcon": "./assets/icon.png",
         "logo": "./assets/logo.png"
       }
@@ -49,7 +49,7 @@ plugin/
   "mcpServers": {
     "ambrosio": {
       "type": "streamable-http",
-      "url": "https://ambrosiaai.site/mcp",
+      "url": "https://ambrosioai.site/mcp",
       "extensions": {
         "com.openai": {
           "auth": { "type": "mixed", "client": { "mode": "cimd" } }
@@ -76,7 +76,7 @@ Cabeçalho com `name: vendas-ambrosio` e `description`. Conteúdo mínimo:
 
 1. ChatGPT → Settings → Security and login → Developer mode.
 2. `chatgpt.com/plugins` → **+** → **Add custom MCP server**.
-3. Nome **Ambrosio**, descrição do `plugin.json`, URL `https://ambrosiaai.site/mcp` (ou a URL do túnel em homologação), autenticação **OAuth**.
+3. Nome **Ambrosio**, descrição do `plugin.json`, URL `https://ambrosioai.site/mcp` (ou a URL do túnel em homologação), autenticação **OAuth**.
 4. **Create as a plugin** e conferir a lista de tools.
 5. Na conversa, `@Ambrosio` e uma pergunta: o ChatGPT oferece **Conectar Ambrosio** na primeira tool protegida.
 6. Depois de mudar tools no servidor: **Refresh** na página do plugin.

@@ -209,7 +209,7 @@ description: "Lista de tarefas da feature 007-chatgpt-mcp-plugin"
 
 ### Implementation for User Story 6
 
-- [ ] T071 [P] [US6] Criar `plugin/plugin.json` e `plugin/mcp.json` conforme `contracts/plugin-package.md` (`auth.type: "mixed"`, `client.mode: "cimd"`, URL `https://ambrosiaai.site/mcp`) e `plugin/assets/icon.png` e `plugin/assets/logo.png` a partir de `frontend/public/icon-512.png` e `frontend/src/assets/ambrosio-mascote.webp`
+- [ ] T071 [P] [US6] Criar `plugin/plugin.json` e `plugin/mcp.json` conforme `contracts/plugin-package.md` (`auth.type: "mixed"`, `client.mode: "cimd"`, URL `https://ambrosioai.site/mcp`) e `plugin/assets/icon.png` e `plugin/assets/logo.png` a partir de `frontend/public/icon-512.png` e `frontend/src/assets/ambrosio-mascote.webp`
 - [ ] T072 [P] [US6] Criar `plugin/skills/vendas-ambrosio/SKILL.md` com cabeçalho `name`/`description` e o conteúdo de `contracts/plugin-package.md` (vocabulário, escolha de tool, gravação com confirmação, segurança e privacidade)
 - [ ] T073 [US6] Revisar `title` e `description` de todas as tools em `backend/Ambrosio.McpServer/Mcp/Tools/*.cs` pelas regras da HU 005 (o que faz em uma frase, quando usar e quando não usar, vocabulário do negócio, exemplos nos parâmetros, aviso de que dados não são instruções)
 - [ ] T074 [US6] Escrever o guia de instalação em `plugin/README.md` (passos do modo desenvolvedor, túnel para homologação, variáveis `AUTH_ISSUER`/`MCP_RESOURCE_URL`, origem do túnel no Google Cloud e o roteiro de 15 prompts da spec para anotar a tool escolhida)

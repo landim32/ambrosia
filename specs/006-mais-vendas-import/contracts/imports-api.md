@@ -1,6 +1,6 @@
 # Contrato: API de importação do +Vendas
 
-**Feature**: `006-mais-vendas-import` | Base: `{API}` (produção `https://ambrosiaai.site/api`, homolog `http://localhost:8080/api`). Todas as rotas exigem `Authorization: Bearer <JWT>`; `userId` vem só do claim `sub`. Recurso de outra vendedora responde `404` igual a inexistente (FR-053). Erros seguem `ErrorResult` (`sucesso`, `mensagem`, `erros[]{campo, mensagem}`). Enums em camelCase (`JsonStringEnumConverter`). Datas `AAAA-MM-DD`; instantes ISO-8601 UTC.
+**Feature**: `006-mais-vendas-import` | Base: `{API}` (produção `https://ambrosioai.site/api`, homolog `http://localhost:8080/api`). Todas as rotas exigem `Authorization: Bearer <JWT>`; `userId` vem só do claim `sub`. Recurso de outra vendedora responde `404` igual a inexistente (FR-053). Erros seguem `ErrorResult` (`sucesso`, `mensagem`, `erros[]{campo, mensagem}`). Enums em camelCase (`JsonStringEnumConverter`). Datas `AAAA-MM-DD`; instantes ISO-8601 UTC.
 
 **Garantia transversal (FR-006)**: nenhuma resposta — inclusive `400`, `409`, `429` e `500` — contém `login`, `password` ou `accountHash`. Os DTOs de saída não têm esses campos.
 

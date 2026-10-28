@@ -67,15 +67,15 @@ Estes valores entram nos tokens e nos metadados. Depois de publicados, não pode
 
 | Item | Valor |
 |---|---|
-| Servidor MCP e `resource` canônico | `https://ambrosiaai.site/mcp` (é a URL informada ao ChatGPT) |
-| Issuer do authorization server | `https://ambrosiaai.site/auth` (exatamente assim, **sem** barra no final) |
-| Metadata do AS (RFC 8414) | `https://ambrosiaai.site/.well-known/oauth-authorization-server/auth` |
-| Discovery OIDC | `https://ambrosiaai.site/auth/.well-known/openid-configuration` |
-| Endpoints do AS | `/connect/authorize`, `/connect/token`, `/connect/register`, `/connect/userinfo`, `/connect/revoke` e `/.well-known/jwks`, todos sob `https://ambrosiaai.site/auth` |
-| `aud` do access token | `https://ambrosiaai.site/mcp`, com comparação exata |
-| Protected Resource Metadata (RFC 9728) | `https://ambrosiaai.site/.well-known/oauth-protected-resource/mcp`. Publicar também sem o caminho, por compatibilidade |
-| Desafio de domínio da submissão | `https://ambrosiaai.site/.well-known/openai-apps-challenge` (texto puro, só o token) |
-| Política, termos e suporte | `https://ambrosiaai.site/privacidade`, `https://ambrosiaai.site/termos` e `https://ambrosiaai.site/suporte`, servidas pelo frontend |
+| Servidor MCP e `resource` canônico | `https://ambrosioai.site/mcp` (é a URL informada ao ChatGPT) |
+| Issuer do authorization server | `https://ambrosioai.site/auth` (exatamente assim, **sem** barra no final) |
+| Metadata do AS (RFC 8414) | `https://ambrosioai.site/.well-known/oauth-authorization-server/auth` |
+| Discovery OIDC | `https://ambrosioai.site/auth/.well-known/openid-configuration` |
+| Endpoints do AS | `/connect/authorize`, `/connect/token`, `/connect/register`, `/connect/userinfo`, `/connect/revoke` e `/.well-known/jwks`, todos sob `https://ambrosioai.site/auth` |
+| `aud` do access token | `https://ambrosioai.site/mcp`, com comparação exata |
+| Protected Resource Metadata (RFC 9728) | `https://ambrosioai.site/.well-known/oauth-protected-resource/mcp`. Publicar também sem o caminho, por compatibilidade |
+| Desafio de domínio da submissão | `https://ambrosioai.site/.well-known/openai-apps-challenge` (texto puro, só o token) |
+| Política, termos e suporte | `https://ambrosioai.site/privacidade`, `https://ambrosioai.site/termos` e `https://ambrosioai.site/suporte`, servidas pelo frontend |
 
 Os documentos da raiz `/.well-known/*` são servidos pelo nginx, que roteia cada um para o serviço dono dele. Nenhum deles pode cair no fallback do SPA nem no service worker do PWA ([006](006-frontend-pwa.md)). As rotas de login da API (`/api/auth/*`) não colidem com o AS, que ocupa `/auth/*` sem o prefixo `/api`.
 
@@ -117,7 +117,7 @@ sequenceDiagram
 ### Dentro do escopo
 
 **Servidor MCP**
-- Host ASP.NET Core com `ModelContextProtocol.AspNetCore` (`AddMcpServer().WithHttpTransport()` e `MapMcp("/mcp")`), em processo próprio atrás do nginx, em `https://ambrosiaai.site/mcp`.
+- Host ASP.NET Core com `ModelContextProtocol.AspNetCore` (`AddMcpServer().WithHttpTransport()` e `MapMcp("/mcp")`), em processo próprio atrás do nginx, em `https://ambrosioai.site/mcp`.
 - Tools para **todos** os endpoints da API, leitura e escrita (seção 6).
 - Tools curadas a partir do [doc 04](../04-mcp-consultas-llm.md#tools-sugeridas), sobre os serviços de domínio.
 - Tool de perfil (`perfil_ambrosio`), que o ChatGPT usa para identificar a conta conectada.
@@ -158,10 +158,10 @@ sequenceDiagram
 
 | # | Critério | Como verificar |
 |---|---|---|
-| 1 | O MCP Inspector conecta em `https://ambrosiaai.site/mcp` (em dev, no endereço local) por HTTP streamable, com token do AS, e lista todas as tools da seção 6 | MCP Inspector |
+| 1 | O MCP Inspector conecta em `https://ambrosioai.site/mcp` (em dev, no endereço local) por HTTP streamable, com token do AS, e lista todas as tools da seção 6 | MCP Inspector |
 | 2 | Toda tool tem `title`, descrição em português com exemplo, `inputSchema` tipado, anotações e `securitySchemes` | `tools/list` |
 | 3 | Tools de leitura têm `readOnlyHint: true`. Tools de escrita têm `readOnlyHint: false` e `destructiveHint` coerente com a tabela | `tools/list` |
-| 4 | Sem token, ou com token inválido, o MCP responde HTTP 401 com `WWW-Authenticate: Bearer resource_metadata="https://ambrosiaai.site/.well-known/oauth-protected-resource/mcp", scope="…"` | `curl -i` |
+| 4 | Sem token, ou com token inválido, o MCP responde HTTP 401 com `WWW-Authenticate: Bearer resource_metadata="https://ambrosioai.site/.well-known/oauth-protected-resource/mcp", scope="…"` | `curl -i` |
 | 5 | O resultado de qualquer tool só contém dados do usuário do token | Ana e Bia no mesmo servidor |
 | 6 | Nenhuma tool devolve CPF completo. `obter_cliente` devolve `cpfMasked` | Revisão das saídas |
 | 7 | Uma escrita sem confirmação não altera nada e devolve uma prévia do que seria gravado | Chamar `cadastrar_pedido` sem `confirmar` |
@@ -180,13 +180,13 @@ sequenceDiagram
 
 | # | Critério | Como verificar |
 |---|---|---|
-| 18 | `GET https://ambrosiaai.site/.well-known/oauth-protected-resource/mcp` devolve JSON (não o HTML do SPA) com `resource: "https://ambrosiaai.site/mcp"`, `authorization_servers: ["https://ambrosiaai.site/auth"]` e `scopes_supported`. A variante sem caminho devolve o mesmo | `curl` |
-| 19 | Os dois endereços de metadata do AS respondem o mesmo conteúdo, com `issuer` exatamente `https://ambrosiaai.site/auth`, `code_challenge_methods_supported` com `S256`, `client_id_metadata_document_supported: true`, `registration_endpoint`, `authorization_response_iss_parameter_supported: true` e `token_endpoint_auth_methods_supported` com `none` e `private_key_jwt` | `curl` |
+| 18 | `GET https://ambrosioai.site/.well-known/oauth-protected-resource/mcp` devolve JSON (não o HTML do SPA) com `resource: "https://ambrosioai.site/mcp"`, `authorization_servers: ["https://ambrosioai.site/auth"]` e `scopes_supported`. A variante sem caminho devolve o mesmo | `curl` |
+| 19 | Os dois endereços de metadata do AS respondem o mesmo conteúdo, com `issuer` exatamente `https://ambrosioai.site/auth`, `code_challenge_methods_supported` com `S256`, `client_id_metadata_document_supported: true`, `registration_endpoint`, `authorization_response_iss_parameter_supported: true` e `token_endpoint_auth_methods_supported` com `none` e `private_key_jwt` | `curl` |
 | 20 | Autorização sem `code_challenge`, ou com `plain`, é recusada | Requisição manual |
 | 21 | Com CIMD, o AS baixa `https://chatgpt.com/oauth/client.json`, valida o documento e só aceita `redirect_uri` listada nele | Log do AS |
 | 22 | Com DCR, o `client_id` emitido continua válido enquanto a conexão existir (sem expiração automática) | Reconectar após dias |
 | 23 | Toda resposta de autorização (sucesso e erro) inclui `iss` idêntico ao issuer | Inspecionar o redirect |
-| 24 | O token tem `aud` igual ao `resource` enviado (`https://ambrosiaai.site/mcp`) e `iss` igual a `https://ambrosiaai.site/auth`. Pedido sem `resource`, ou com outro valor (inclusive com barra no final), é recusado | Decodificar o JWT |
+| 24 | O token tem `aud` igual ao `resource` enviado (`https://ambrosioai.site/mcp`) e `iss` igual a `https://ambrosioai.site/auth`. Pedido sem `resource`, ou com outro valor (inclusive com barra no final), é recusado | Decodificar o JWT |
 | 25 | O login no AS aceita Google (e-mail verificado) e e-mail e senha. O mesmo e-mail cai no mesmo `user_id` da API | Comparar `sub` com `GET /api/users/me` |
 | 26 | A tela de consentimento lista os escopos pedidos em português, e a vendedora pode negar | Fluxo manual |
 | 27 | O MCP recusa com 401 tokens com assinatura inválida, `iss` errado, expirados, ainda não válidos (`nbf`) ou com `aud` diferente, e também o JWT HS256 da API | Testes com tokens adulterados |
@@ -309,7 +309,7 @@ Resultado de tool quando falta escopo, que faz o ChatGPT oferecer a religação:
   "content": [{ "type": "text", "text": "É preciso autorizar o Ambrosio a cadastrar clientes." }],
   "_meta": {
     "mcp/www_authenticate": [
-      "Bearer resource_metadata=\"https://ambrosiaai.site/.well-known/oauth-protected-resource/mcp\", error=\"insufficient_scope\", error_description=\"Falta o escopo customers:write\", scope=\"customers:write\""
+      "Bearer resource_metadata=\"https://ambrosioai.site/.well-known/oauth-protected-resource/mcp\", error=\"insufficient_scope\", error_description=\"Falta o escopo customers:write\", scope=\"customers:write\""
     ]
   }
 }
@@ -343,7 +343,7 @@ Resultado de tool quando falta escopo, que faz o ChatGPT oferecer a religação:
 | Login Google e e-mail/senha do Ambrosio | Direto: mesma base `users` e mesmas regras da 001 e da 003 | Sincronização por e-mail | Sincronização por e-mail |
 | Custo e operação | Só infraestrutura. Rotação de chaves e atualizações por nossa conta | Gerenciado. Pago ao crescer | Outra stack (Java) para operar |
 
-**Recomendação: authorization server próprio no .NET com OpenIddict**, no processo `Ambrosio.Auth` em `https://ambrosiaai.site/auth`. Motivos: CIMD e `resource` ficam sob nosso controle, o `sub` do token é o `user_id` do Ambrosio sem sincronização, a stack é a mesma (.NET 8, EF Core e PostgreSQL) e a decisão fecha o `TODO(AUTH_SCHEME)`. Se o esforço ficar alto demais, o plano B é o Keycloak.
+**Recomendação: authorization server próprio no .NET com OpenIddict**, no processo `Ambrosio.Auth` em `https://ambrosioai.site/auth`. Motivos: CIMD e `resource` ficam sob nosso controle, o `sub` do token é o `user_id` do Ambrosio sem sincronização, a stack é a mesma (.NET 8, EF Core e PostgreSQL) e a decisão fecha o `TODO(AUTH_SCHEME)`. Se o esforço ficar alto demais, o plano B é o Keycloak.
 
 ### Demais decisões
 
@@ -352,23 +352,23 @@ Resultado de tool quando falta escopo, que faz o ChatGPT oferecer a religação:
 | SDK MCP | `ModelContextProtocol` e `ModelContextProtocol.AspNetCore` (C#). Tools com `[McpServerToolType]` e `[McpServerTool]`, anotações pelos parâmetros do atributo |
 | Transporte | HTTP streamable em `/mcp`. Avaliar o modo *stateless* (ver perguntas em aberto) |
 | `securitySchemes` e `_meta` no SDK C# | Verificar se o SDK aceita campos extras no descritor. Se não aceitar, um filtro de `tools/list` acrescenta `securitySchemes`, e um *filter* comum às tools confere o escopo antes de executar e monta o `_meta["mcp/www_authenticate"]` |
-| Validação do token no MCP | `AddJwtBearer` com `Authority` = `https://ambrosiaai.site/auth`, `ValidIssuer` igual ao issuer e `ValidAudience` = `https://ambrosiaai.site/mcp`. Política por escopo em cada tool |
+| Validação do token no MCP | `AddJwtBearer` com `Authority` = `https://ambrosioai.site/auth`, `ValidIssuer` igual ao issuer e `ValidAudience` = `https://ambrosioai.site/mcp`. Política por escopo em cada tool |
 | Token | JWT assinado (RS256 ou ES256), **sem criptografia** (o OpenIddict criptografa por padrão, e o MCP não validaria pelo JWKS). Access token de 30 min e refresh de 14 dias, deslizante e com rotação. Claims: `sub` (= `user_id`), `iss`, `aud`, `scope`, `exp`, `nbf`, `iat` e `client_id`. ID token emitido, para o ChatGPT poder mandar `id_token_hint` na religação |
 | CIMD | Quando o `client_id` é uma URL `https`, o AS baixa o documento com proteções contra SSRF (só `https`, sem IP privado, *timeout* de 5 s, limite de 64 KB e cache), valida `client_id` igual à URL, `redirect_uris` e o método de autenticação. Para `private_key_jwt`, usa o JWKS do documento |
 | DCR | `POST /connect/register` que aceita só as `redirect_uris` do ChatGPT e emite cliente público (`none`) sem expiração |
 | Redirect URIs | `https://chatgpt.com/connector_platform_oauth_redirect` (AS com RFC 9207) e `https://chatgpt.com/connector/oauth/{callback_id}`. Copiar a URI exata exibida na página do plugin |
-| Issuer com caminho | `SetIssuer(new Uri("https://ambrosiaai.site/auth"))` explícito, `UsePathBase("/auth")` e *forwarded headers*. Sem isso, atrás do proxy o issuer pode sair sem `/auth` ou com `http://` |
+| Issuer com caminho | `SetIssuer(new Uri("https://ambrosioai.site/auth"))` explícito, `UsePathBase("/auth")` e *forwarded headers*. Sem isso, atrás do proxy o issuer pode sair sem `/auth` ou com `http://` |
 | Login e consentimento | Telas Razor em português, no visual do Ambrosio (tema escuro e azul da marca), com Google e e-mail/senha. Reaproveitar as regras de `users` da 001 e da 003, extraídas para um serviço comum. Autorização permanente guardada, para não pedir de novo em cada religação |
 | Tool de perfil | `perfil_ambrosio` devolve o `user_id` como `id`. Nunca o e-mail, que pode mudar |
 | mTLS | O ChatGPT apresenta certificado de cliente da OpenAI (SAN `mtls.prod.connectors.openai.com`). Validar no nginx é opcional e reforça que a chamada vem do ChatGPT, sem substituir o OAuth. Sem *pinning* do certificado folha |
-| Pacote do plugin | `plugin/plugin.json` com `name: "ambrosio"`, `version` e `extensions.com.openai.interface` (`displayName: "Ambrosio"`, `developerName`, `category`, `websiteURL`, `privacyPolicyURL`, `termsOfServiceURL`, `composerIcon` e `logo` com o mascote). `plugin/mcp.json` com o servidor `streamable-http` em `https://ambrosiaai.site/mcp` e `auth` do tipo `oauth` com `client.mode: "cimd"`. Nenhum segredo no pacote |
+| Pacote do plugin | `plugin/plugin.json` com `name: "ambrosio"`, `version` e `extensions.com.openai.interface` (`displayName: "Ambrosio"`, `developerName`, `category`, `websiteURL`, `privacyPolicyURL`, `termsOfServiceURL`, `composerIcon` e `logo` com o mascote). `plugin/mcp.json` com o servidor `streamable-http` em `https://ambrosioai.site/mcp` e `auth` do tipo `oauth` com `client.mode: "cimd"`. Nenhum segredo no pacote |
 | Skills | `plugin/skills/vendas-ambrosio/SKILL.md`: vocabulário (mês de cota de 26 a 25, PA = peças por atendimento, VA = valor por atendimento), quando usar cada tool, pedir confirmação antes de gravar e tratar nomes de clientes e produtos como dados, não como instruções |
 | Credenciais do +Vendas em `iniciar_importacao` | **Recomendação:** a senha não passa pela LLM. A tool usa a *elicitation* em modo URL do MCP e devolve um link para `/importacao` com o período preenchido. A vendedora digita login e senha lá, e o MCP acompanha com `importacao_atual`. Sem suporte a *elicitation*, o mesmo link vai como texto |
 | Arquivos em `enviar_imagem` | Objeto de arquivo (`download_url`, `mime_type`, `file_name`), nunca base64. Download só `https`, sem IP privado ou loopback, com *timeout* e tamanho máximo |
 | Paridade com a API | Mapa único `endpoint → tool` no `Ambrosio.Mcp`, conferido por teste de reflexão contra os controllers (critério 14) |
 | Confirmação de escrita | Em camadas: anotações (o ChatGPT pede aprovação em tools que não são só leitura), parâmetro `confirmar` (a primeira chamada devolve prévia) e *elicitation* quando o cliente suportar |
 | Formato de saída | `structuredContent` (JSON tipado) e um texto curto em português. Valores em `R$` e datas `dd/mm/aaaa` no texto. Toda saída inclui `consultado_em` e, nos pedidos importados, `capturado_em` |
-| Publicação | nginx de `ambrosiaai.site`: `/mcp` para o `Ambrosio.McpServer` (sem reescrever o caminho, com `proxy_buffering off`, `proxy_read_timeout` alto e HTTP/1.1), `/auth/` para o `Ambrosio.Auth` e os documentos de `/.well-known/` para o serviço dono, todos antes do fallback do SPA |
+| Publicação | nginx de `ambrosioai.site`: `/mcp` para o `Ambrosio.McpServer` (sem reescrever o caminho, com `proxy_buffering off`, `proxy_read_timeout` alto e HTTP/1.1), `/auth/` para o `Ambrosio.Auth` e os documentos de `/.well-known/` para o serviço dono, todos antes do fallback do SPA |
 | Ambientes | O ChatGPT só conecta em HTTPS público. A homologação local precisa de um túnel (o **Secure MCP Tunnel** do ChatGPT ou um túnel HTTPS para o gateway), e o AS também precisa estar acessível, porque o ChatGPT chama o token endpoint. Um plugin de desenvolvimento aponta para homologação e o publicado aponta para produção |
 | Testes | xUnit para as tools e o AS (skill `dotnet-test`), testes HTTP com cliente MCP do SDK (skill `dotnet-test-api`), MCP Inspector e o roteiro da seção 11 no ChatGPT |
 | Observabilidade | Log estruturado por chamada de tool (tool, usuário, duração, erro), sem dados pessoais, para medir o critério 36 |
@@ -381,7 +381,7 @@ flowchart LR
         CG[ChatGPT - plugin Ambrosio]
         OUT[Codex / Claude / MCP Inspector]
     end
-    subgraph Dominio[ambrosiaai.site - nginx]
+    subgraph Dominio[ambrosioai.site - nginx]
         MS[Ambrosio.McpServer - /mcp]
         AS[Ambrosio.Auth - /auth]
         API[Ambrosio.API - /api]
@@ -519,8 +519,8 @@ Os casos marcados com **(+)** e **(−)** formam os 5 positivos e 3 negativos ex
 | [003](003-armazenamento-imagens-s3.md) | Obrigatória | `IImageService`, regras de aceitação e URLs pré-assinadas |
 | [004](004-bot-migracao-mais-vendas.md) | Obrigatória | Serviços de importação (`IImportRunService`) e tela `/importacao` |
 | [007](007-graphql-clientes-pedidos.md) | Posterior (não bloqueia) | Adiciona `consultar_graphql` a este servidor |
-| DNS, TLS e nginx de `ambrosiaai.site` | Obrigatória | Issuer e URL do MCP públicos e estáveis. O nginx roteia `/auth/`, `/mcp` e `/.well-known/` antes do fallback do SPA |
-| Projeto Google Cloud | Obrigatória | Cliente OAuth do Google com o redirect do AS sob `https://ambrosiaai.site/auth` (o caminho definitivo sai da spec) |
+| DNS, TLS e nginx de `ambrosioai.site` | Obrigatória | Issuer e URL do MCP públicos e estáveis. O nginx roteia `/auth/`, `/mcp` e `/.well-known/` antes do fallback do SPA |
+| Projeto Google Cloud | Obrigatória | Cliente OAuth do Google com o redirect do AS sob `https://ambrosioai.site/auth` (o caminho definitivo sai da spec) |
 | Conta ChatGPT com modo desenvolvedor | Obrigatória | Criar e testar o plugin |
 | Organização na plataforma OpenAI com identidade verificada | Para publicar | Submissão em `platform.openai.com/plugins` |
 
@@ -567,4 +567,4 @@ Os casos marcados com **(+)** e **(−)** formam os 5 positivos e 3 negativos ex
 12. Haverá a tool `noauth` `sobre_ambrosio`, ou todas as tools exigem conta?
 13. A API REST e o frontend vão migrar para os tokens do AS no futuro? Se sim, em qual HU?
 
-Resolvida em 25/10/2026: os endereços definitivos são o issuer `https://ambrosiaai.site/auth` e o MCP `https://ambrosiaai.site/mcp`, em subpastas do domínio principal, com cada serviço em processo próprio.
+Resolvida em 25/10/2026: os endereços definitivos são o issuer `https://ambrosioai.site/auth` e o MCP `https://ambrosioai.site/mcp`, em subpastas do domínio principal, com cada serviço em processo próprio.

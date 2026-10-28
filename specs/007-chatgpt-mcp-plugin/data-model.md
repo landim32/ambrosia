@@ -71,7 +71,7 @@ Escopos registrados na inicialização (semente idempotente): `openid`, `email`,
 | `oauth_scope_id` | bigint identity | PK |
 | `name` | varchar(200) | Único |
 | `display_name` / `description` | varchar(400) | pt-BR |
-| `resources` | text | JSON: `["https://ambrosiaai.site/mcp"]` |
+| `resources` | text | JSON: `["https://ambrosioai.site/mcp"]` |
 
 ### 1.5 `mcp_audit_entries`: auditoria das gravações pelo plugin
 

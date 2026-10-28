@@ -83,7 +83,7 @@ JavaScript autorizadas exatamente onde o app roda:
 ```text
 http://localhost:5173     # npm run dev
 http://localhost:8080     # homologação local (gateway nginx)
-https://ambrosiaai.site   # produção
+https://ambrosioai.site   # produção
 ```
 
 O mesmo Client ID vai para a API em `Auth__GoogleClientId` — valores diferentes

@@ -1,4 +1,4 @@
-# Produção (https://ambrosiaai.site), executado pelo pipeline .github/workflows/deploy-prod.yml.
+# Produção (https://ambrosioai.site), executado pelo pipeline .github/workflows/deploy-prod.yml.
 # Mesmo layout dos outros apps da Emagine (Roll6, AvaBot): Cloudflare na frente e o nginx compartilhado
 # do servidor (repositório emagine-deploy, container emagine-app1) termina o HTTPS, serve o SPA já
 # compilado (builds/ambrosia) e faz proxy de /api para ambrosia-api:8080 e de /auth, /mcp e
@@ -77,15 +77,15 @@ services:
     environment:
       <<: *api-environment
       # Endereços canônicos e imutáveis do serviço (spec 007, "Endereços definitivos"), fixos.
-      Auth__Issuer: https://ambrosiaai.site/auth
-      Mcp__ResourceUrl: https://ambrosiaai.site/mcp
+      Auth__Issuer: https://ambrosioai.site/auth
+      Mcp__ResourceUrl: https://ambrosioai.site/mcp
       # Segredo de verdade: RSA 2048 em PEM (PKCS#8), gravado pelo pipeline a partir do GitHub
       # Secret de mesmo nome. Sem ela o host recusa o startup (constituição §VI, emenda 3.4.0).
       Auth__SigningKeyPem: ${AMBROSIO_AUTH_SIGNING_KEY_PEM}
       # Em produção só as URIs do ChatGPT, do appsettings.Production.json: a URI de teste da suíte de
       # API não existe aqui (não entra por env).
-      Mcp__AllowedOrigins__0: https://ambrosiaai.site
-      Mcp__FrontendBaseUrl: https://ambrosiaai.site
+      Mcp__AllowedOrigins__0: https://ambrosioai.site
+      Mcp__FrontendBaseUrl: https://ambrosioai.site
     mem_limit: 512m
     volumes:
       - mcp_dataprotection_keys:/home/app/.aspnet/DataProtection-Keys

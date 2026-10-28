@@ -24,7 +24,7 @@
 ## 2. Contexto e objetivo
 
 - O storage S3, os metadados e as URLs pré-assinadas vêm da [003](003-armazenamento-imagens-s3.md).
-- As tools ficam no servidor MCP em `https://ambrosiaai.site/mcp` ([005](005-plugin-chatgpt-mcp.md)), e os endpoints de leitura para o frontend ficam na API, em `https://ambrosiaai.site/api`.
+- As tools ficam no servidor MCP em `https://ambrosioai.site/mcp` ([005](005-plugin-chatgpt-mcp.md)), e os endpoints de leitura para o frontend ficam na API, em `https://ambrosioai.site/api`.
 - O ChatGPT entrega arquivos a uma tool quando ela declara `_meta["openai/fileParams"]` com o nome dos campos de arquivo. Cada campo recebe um objeto `{ download_url, file_id, mime_type, file_name }` (`download_url` e `file_id` obrigatórios) e pode ser um array, para vários arquivos.
 - A `download_url` é **temporária**: o servidor precisa baixar o arquivo na hora da chamada e gravar no S3.
 - A documentação **não informa** o tamanho máximo nem o prazo de validade da `download_url`.
@@ -215,7 +215,7 @@ erDiagram
 
 ### Endpoints REST de leitura (para a 002)
 
-Rotas relativas à base da API (`https://ambrosiaai.site/api` em produção). As URLs pré-assinadas apontam para o endpoint do bucket, outra origem, coberta pelo CORS do bucket e pela CSP descritos na [003](003-armazenamento-imagens-s3.md#6-decisões-técnicas-propostas).
+Rotas relativas à base da API (`https://ambrosioai.site/api` em produção). As URLs pré-assinadas apontam para o endpoint do bucket, outra origem, coberta pelo CORS do bucket e pela CSP descritos na [003](003-armazenamento-imagens-s3.md#6-decisões-técnicas-propostas).
 
 | Método | Rota | Resposta |
 |---|---|---|

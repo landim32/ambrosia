@@ -1,6 +1,6 @@
 # Contrato: authorization server e descoberta OAuth
 
-**Issuer**: `https://ambrosiaai.site/auth` (sem barra no final). **Recurso protegido**: `https://ambrosiaai.site/mcp`.
+**Issuer**: `https://ambrosioai.site/auth` (sem barra no final). **Recurso protegido**: `https://ambrosioai.site/mcp`.
 Em homologação, os dois valores vêm de configuração (`Auth:Issuer`, `Mcp:ResourceUrl`), com a URL do túnel quando o teste for pelo ChatGPT.
 
 ## 1. Descoberta
@@ -11,8 +11,8 @@ Anônimo. `200 application/json`:
 
 ```json
 {
-  "resource": "https://ambrosiaai.site/mcp",
-  "authorization_servers": ["https://ambrosiaai.site/auth"],
+  "resource": "https://ambrosioai.site/mcp",
+  "authorization_servers": ["https://ambrosioai.site/auth"],
   "scopes_supported": ["openid", "email", "profile", "offline_access", "customers:read", "customers:write", "orders:read", "orders:write", "images:write", "imports:read", "imports:write"],
   "bearer_methods_supported": ["header"],
   "resource_name": "Ambrosio"
@@ -25,13 +25,13 @@ Anônimos, mesmo conteúdo. Campos obrigatórios:
 
 ```json
 {
-  "issuer": "https://ambrosiaai.site/auth",
-  "authorization_endpoint": "https://ambrosiaai.site/auth/connect/authorize",
-  "token_endpoint": "https://ambrosiaai.site/auth/connect/token",
-  "registration_endpoint": "https://ambrosiaai.site/auth/connect/register",
-  "userinfo_endpoint": "https://ambrosiaai.site/auth/connect/userinfo",
-  "revocation_endpoint": "https://ambrosiaai.site/auth/connect/revoke",
-  "jwks_uri": "https://ambrosiaai.site/auth/.well-known/jwks",
+  "issuer": "https://ambrosioai.site/auth",
+  "authorization_endpoint": "https://ambrosioai.site/auth/connect/authorize",
+  "token_endpoint": "https://ambrosioai.site/auth/connect/token",
+  "registration_endpoint": "https://ambrosioai.site/auth/connect/register",
+  "userinfo_endpoint": "https://ambrosioai.site/auth/connect/userinfo",
+  "revocation_endpoint": "https://ambrosioai.site/auth/connect/revoke",
+  "jwks_uri": "https://ambrosioai.site/auth/.well-known/jwks",
   "response_types_supported": ["code"],
   "grant_types_supported": ["authorization_code", "refresh_token"],
   "code_challenge_methods_supported": ["S256"],
@@ -71,7 +71,7 @@ Entrada `application/json` (RFC 7591): `redirect_uris` (obrigatório), `client_n
 
 ## 3. Autorização: `GET /auth/connect/authorize`
 
-Parâmetros obrigatórios: `response_type=code`, `client_id`, `redirect_uri`, `scope`, `state`, `code_challenge`, `code_challenge_method=S256`, `resource=https://ambrosiaai.site/mcp`. Opcional: `id_token_hint`.
+Parâmetros obrigatórios: `response_type=code`, `client_id`, `redirect_uri`, `scope`, `state`, `code_challenge`, `code_challenge_method=S256`, `resource=https://ambrosioai.site/mcp`. Opcional: `id_token_hint`.
 
 | Situação | Resposta |
 |---|---|
@@ -81,7 +81,7 @@ Parâmetros obrigatórios: `response_type=code`, `client_id`, `redirect_uri`, `s
 | Sem sessão no AS | Redireciona para `/auth/login?returnUrl=…` |
 | Com sessão e consentimento permanente cobrindo os escopos | Emite o código direto |
 | Com sessão e sem consentimento | Redireciona para `/auth/consent` |
-| Sucesso | `302 {redirect_uri}?code=…&state=…&iss=https%3A%2F%2Fambrosiaai.site%2Fauth` |
+| Sucesso | `302 {redirect_uri}?code=…&state=…&iss=https%3A%2F%2Fambrosioai.site%2Fauth` |
 | Erro com `redirect_uri` válida | `302 {redirect_uri}?error=…&error_description=…&state=…&iss=…` |
 
 Toda resposta para a `redirect_uri` traz `iss` idêntico ao issuer (RFC 9207).
@@ -117,8 +117,8 @@ Resposta `200`:
 
 | Claim | Valor |
 |---|---|
-| `iss` | `https://ambrosiaai.site/auth` |
-| `aud` | `https://ambrosiaai.site/mcp` |
+| `iss` | `https://ambrosioai.site/auth` |
+| `aud` | `https://ambrosioai.site/mcp` |
 | `sub` | `user_id` em texto |
 | `scope` | Escopos concedidos, separados por espaço |
 | `client_id` | Cliente OAuth |
@@ -138,8 +138,8 @@ RFC 7009. Revoga o refresh token (e a autorização ligada). `200` sempre que a 
 
 | Chave | Exemplo | Regra |
 |---|---|---|
-| `Auth__Issuer` | `https://ambrosiaai.site/auth` | Obrigatória, `https` fora de Development, sem barra no final |
-| `Mcp__ResourceUrl` | `https://ambrosiaai.site/mcp` | Idem |
+| `Auth__Issuer` | `https://ambrosioai.site/auth` | Obrigatória, `https` fora de Development, sem barra no final |
+| `Mcp__ResourceUrl` | `https://ambrosioai.site/mcp` | Idem |
 | `Auth__SigningKeyPem` | PEM PKCS#8 RSA 2048 | Obrigatória em Homolog e Production (segredo) |
 | `Auth__AllowedRedirectUris` | lista | Padrão com as URIs do ChatGPT |
 | `Auth__Cimd__AllowedHosts` | `["chatgpt.com"]` | — |
