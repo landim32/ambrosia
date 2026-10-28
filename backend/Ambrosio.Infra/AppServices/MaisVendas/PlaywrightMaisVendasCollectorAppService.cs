@@ -271,7 +271,7 @@ public class PlaywrightMaisVendasCollectorAppService : IMaisVendasCollectorAppSe
             EnsureOpen();
 
             await _limiter.WaitAsync(cancellationToken);
-            await NavigateAsync($"{_settings.BaseUrl.TrimEnd('/')}/login", cancellationToken);
+            await NavigateAsync($"{_settings.BaseUrl.TrimEnd('/')}/login", "#username", cancellationToken);
 
             // 1ª etapa: usuário (e-mail ou nome de usuário) e "Próximo". O id "submit" se repete no
             // "Cadastre-se", por isso o botão é escolhido pelo texto.
@@ -808,8 +808,13 @@ public class PlaywrightMaisVendasCollectorAppService : IMaisVendasCollectorAppSe
 
         // -------------------------------------------------------------- navegação
 
-        /// <summary>Navegação sempre pela allowlist, com rota e tempo no log (FR-042/FR-052).</summary>
-        private async Task NavigateAsync(string url, CancellationToken cancellationToken)
+        /// <summary>
+        /// Navegação sempre pela allowlist, com rota e tempo no log (FR-042/FR-052).
+        /// <paramref name="spaReadySelector"/> é o elemento que prova que a SPA montou a tela: o +Vendas
+        /// fica num bucket do Google Cloud Storage (<c>server: UploadServer</c>), que responde 404 com o
+        /// <c>index.html</c> para toda rota da SPA. Esse 404 só é aceito quando o elemento aparece.
+        /// </summary>
+        private async Task NavigateAsync(string url, string spaReadySelector, CancellationToken cancellationToken)
         {
             _guard.EnsureAllowed(url);
 
@@ -840,6 +845,14 @@ public class PlaywrightMaisVendasCollectorAppService : IMaisVendasCollectorAppSe
                 NavigationGuard.Describe(url),
                 response?.Status,
                 elapsed.TotalMilliseconds);
+
+            if (response is { Status: 404 } && await _page.Locator(spaReadySelector).CountAsync() > 0)
+            {
+                // Fallback da SPA: a rota não existe como arquivo no bucket, mas a tela montou.
+                cancellationToken.ThrowIfCancellationRequested();
+
+                return;
+            }
 
             if (response is not null && response.Status >= 400)
             {
