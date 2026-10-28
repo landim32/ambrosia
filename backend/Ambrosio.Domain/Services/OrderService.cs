@@ -193,7 +193,7 @@ public class OrderService : IOrderService
         UpdatedAt = order.UpdatedAt
     };
 
-    private static OrderDetailInfo MapToDetail(Order order) => new()
+    internal static OrderDetailInfo MapToDetail(Order order) => new()
     {
         Id = order.Id,
         CustomerId = order.CustomerId,
@@ -212,6 +212,7 @@ public class OrderService : IOrderService
         OriginalSaleOn = order.OriginalSaleOn,
         CancelledOn = order.CancelledOn,
         ExternalId = order.ExternalId,
+        CapturedAt = order.CapturedAt,
         // SC-005: CustomerInfo não tem campo para o CPF completo — a decifração nem acontece aqui.
         Customer = MapCustomer(order.Customer),
         Items = order.Items

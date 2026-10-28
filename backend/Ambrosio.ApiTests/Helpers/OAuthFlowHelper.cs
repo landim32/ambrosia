@@ -257,13 +257,35 @@ public sealed class OAuthFlowHelper(ApiTestFixture fixture)
             ["resource"] = fixture.McpResourceUrl
         });
 
-    /// <summary>Fluxo inteiro, do DCR ao token, para um usuário já cadastrado.</summary>
+    /// <summary>
+    /// Cliente DCR compartilhado pela execução: o servidor limita o registro dinâmico a 30 por minuto
+    /// (rota anônima que grava no banco), e a suíte só precisa de um cliente para pedir tokens. Os
+    /// testes do próprio registro continuam chamando <see cref="RegisterClientAsync"/>.
+    /// </summary>
+    private static readonly SemaphoreSlim SharedClientGate = new(1, 1);
+
+    private static string? _sharedClientId;
+
+    public async Task<string> GetSharedClientAsync()
+    {
+        await SharedClientGate.WaitAsync();
+        try
+        {
+            return _sharedClientId ??= await RegisterClientAsync();
+        }
+        finally
+        {
+            SharedClientGate.Release();
+        }
+    }
+
+    /// <summary>Fluxo inteiro, do cliente compartilhado ao token, para um usuário já cadastrado.</summary>
     public async Task<(string ClientId, OAuthTokens Tokens)> GetTokensAsync(
         string email,
         string password,
         string scopes = DefaultScopes)
     {
-        var clientId = await RegisterClientAsync();
+        var clientId = await GetSharedClientAsync();
         var tokens = await GetTokensForClientAsync(clientId, email, password, scopes);
 
         return (clientId, tokens);

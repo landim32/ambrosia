@@ -1,6 +1,7 @@
 using Ambrosio.Domain.Exceptions;
 using Ambrosio.Domain.Models;
 using Ambrosio.DTO.Enums;
+using Ambrosio.DTO.Insights;
 using Ambrosio.DTO.Orders;
 using Ambrosio.Infra.Context;
 using Ambrosio.Infra.Interfaces.Repository;
@@ -118,6 +119,67 @@ public class OrderRepository : IOrderRepository<Order>
             .ThenByDescending(o => o.Id)
             .Skip((query.Page - 1) * query.PageSize)
             .Take(query.PageSize)
+            .ToListAsync();
+
+        foreach (var order in items)
+        {
+            SortItems(order);
+        }
+
+        return (items, totalCount);
+    }
+
+    /// <inheritdoc />
+    public async Task<(decimal NetTotal, int Sales, int Pieces)> GetPeriodSummaryAsync(long userId, DateOnly from, DateOnly to)
+    {
+        var period = _context.Orders
+            .AsNoTracking()
+            .Where(o => o.UserId == userId && o.OrderDate >= from && o.OrderDate <= to);
+
+        var netTotal = await period.SumAsync(o => (decimal?)o.Total) ?? 0m;
+        var sales = await period.CountAsync(o => o.Kind == OrderKind.Sale);
+
+        var pieces = await _context.OrderItems
+            .AsNoTracking()
+            .CountAsync(i => i.Order!.UserId == userId
+                             && i.Order.Kind == OrderKind.Sale
+                             && i.Order.OrderDate >= from
+                             && i.Order.OrderDate <= to);
+
+        return (netTotal, sales, pieces);
+    }
+
+    /// <inheritdoc />
+    public async Task<Dictionary<OrderKind, KindTotalsInfo>> GetReturnsCancellationsAsync(long userId, DateOnly from, DateOnly to)
+    {
+        var rows = await _context.Orders
+            .AsNoTracking()
+            .Where(o => o.UserId == userId
+                        && o.OrderDate >= from
+                        && o.OrderDate <= to
+                        && (o.Kind == OrderKind.Return || o.Kind == OrderKind.Cancellation))
+            .GroupBy(o => o.Kind)
+            .Select(g => new { Kind = g.Key, Count = g.Count(), Total = g.Sum(o => o.Total) })
+            .ToListAsync();
+
+        return rows.ToDictionary(r => r.Kind, r => new KindTotalsInfo { Count = r.Count, Total = r.Total });
+    }
+
+    /// <inheritdoc />
+    public async Task<(List<Order> Items, int TotalCount)> ListByCustomerWithItemsAsync(long userId, long customerId, int limit)
+    {
+        var owned = _context.Orders
+            .AsNoTracking()
+            .Where(o => o.UserId == userId && o.CustomerId == customerId);
+
+        var totalCount = await owned.CountAsync();
+
+        var items = await owned
+            .Include(o => o.Customer)
+            .Include(o => o.Items)
+            .OrderByDescending(o => o.OrderDate)
+            .ThenByDescending(o => o.Id)
+            .Take(limit)
             .ToListAsync();
 
         foreach (var order in items)
