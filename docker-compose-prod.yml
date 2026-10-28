@@ -1,28 +1,31 @@
 # Produção (https://ambrosiaai.site), executado pelo pipeline .github/workflows/deploy-prod.yml.
-# Cloudflare na frente (SSL "Full (strict)") -> gateway nginx com Origin Certificate -> serviços.
+# Mesmo layout dos outros apps da Emagine (Roll6, AvaBot): Cloudflare na frente e o nginx compartilhado
+# do servidor (repositório emagine-deploy, container emagine-app1) termina o HTTPS, serve o SPA já
+# compilado (builds/ambrosia) e faz proxy de /api para ambrosia-api:8080 e de /auth, /mcp e
+# /.well-known/oauth-* para ambrosia-mcp:8080 pela rede externa compartilhada "emagine-network".
+# Nenhuma porta é publicada aqui, e não sobe frontend nem gateway.
 # Banco: DigitalOcean Managed PostgreSQL (não sobe container de banco aqui).
 #   docker compose --env-file .env.prod -f docker-compose-prod.yml up -d --build
 # Os nomes de projeto, containers, imagens e redes continuam "ambrosia" de propósito: são os que já
-# rodam no servidor. Trocar aqui faria o próximo deploy subir containers novos sem derrubar os
-# antigos (o `down` só enxerga o projeto com o nome novo), e o gateway brigaria pelas portas 80/443.
+# rodam no servidor, e o nginx do emagine-deploy chega aos serviços pelo container_name.
 name: ambrosia
 
 x-api-environment: &api-environment
   ASPNETCORE_ENVIRONMENT: Production
-  ConnectionStrings__AmbrosioContext: ${DB_CONNECTION_STRING}
-  Auth__JwtSecret: ${AUTH_JWT_SECRET}
-  Auth__GoogleClientId: ${AUTH_GOOGLE_CLIENT_ID}
-  CpfProtection__Pepper: ${CPF_PEPPER}
-  CpfProtection__EncryptionKey: ${CPF_ENCRYPTION_KEY}
-  # Storage de imagens (feature 004, T054): só o par de chaves e segredo e entra aqui;
-  # endpoint, regiao, bucket e ForcePathStyle ficam no appsettings.Production.json
+  ConnectionStrings__AmbrosioContext: ${AMBROSIO_CONNECTION_STRING}
+  Auth__JwtSecret: ${AMBROSIO_JWT_SECRET}
+  Auth__GoogleClientId: ${AMBROSIO_GOOGLE_CLIENT_ID}
+  CpfProtection__Pepper: ${AMBROSIO_CPF_PEPPER}
+  CpfProtection__EncryptionKey: ${AMBROSIO_CPF_ENCRYPTION_KEY}
+  # Storage de imagens (feature 004, T054): só o par de chaves e segredo e vem do .env.prod;
+  # o bucket e fixo aqui, e endpoint, regiao e ForcePathStyle ficam no appsettings.Production.json
   # (skill dotnet-env). Os prazos ficam os de producao (15/5/60/15) do appsettings base.
-  ObjectStorage__AccessKey: ${OBJECT_STORAGE_ACCESS_KEY}
-  ObjectStorage__SecretKey: ${OBJECT_STORAGE_SECRET_KEY}
-  # Importação do +Vendas (feature 006): produção usa o coletor Playwright real. O startup recusa
-  # Collector=Fake em Production (research §3), então o default já é Playwright e o pipeline não
-  # precisa exportar MAIS_VENDAS_COLLECTOR.
-  MaisVendas__Collector: ${MAIS_VENDAS_COLLECTOR:-Playwright}
+  ObjectStorage__AccessKey: ${S3_ACCESS_KEY}
+  ObjectStorage__SecretKey: ${S3_SECRET_KEY}
+  ObjectStorage__Bucket: ambrosia-prod
+  # Importação do +Vendas (feature 006): produção usa o coletor Playwright real, fixo. O startup
+  # recusa Collector=Fake em Production (research §3).
+  MaisVendas__Collector: Playwright
 
 services:
   migrator:
@@ -56,12 +59,14 @@ services:
         condition: service_completed_successfully
     networks:
       - ambrosia-network
+      # Rede compartilhada: o nginx do emagine-deploy chega em ambrosia-api:8080 (/api).
+      - emagine-network
 
   # Plugin do ChatGPT (feature 007, R8): authorization server OAuth 2.1 em /auth + servidor MCP em
   # /mcp, no mesmo host. Mesmos segredos compartilhados da API (banco, CPF, storage) porque o host
   # reaproveita o domínio; os endereços canônicos e a chave RSA de assinatura são só dele.
-  # Nomes no padrão `ambrosia-*` do resto do arquivo — ver o cabeçalho: trocar o nome faria o deploy
-  # subir containers paralelos aos que já estão no servidor.
+  # Nomes no padrão `ambrosia-*` do resto do arquivo — ver o cabeçalho: o nginx do emagine-deploy
+  # depende do container_name.
   mcp:
     build:
       context: ./backend
@@ -71,22 +76,16 @@ services:
     restart: unless-stopped
     environment:
       <<: *api-environment
-      # Diferença deliberada em relação à homologação: aqui os dois endereços têm default porque são
-      # fixos por decisão de produto (`https://ambrosiaai.site/auth` e `/mcp`, spec 007). Em homolog
-      # o compose não tem default — o startup recusa configuração incompleta, e é melhor falhar na
-      # subida do que emitir token para o endereço errado em teste de túnel.
-      # Compose com `${VAR}` sem valor escreve string VAZIA, e uma env vazia ETAPA o
-      # appsettings.Production.json: sem o default abaixo, um .env.prod sem a linha derrubaria o
-      # issuer canônico silenciosamente.
-      Auth__Issuer: ${AUTH_ISSUER:-https://ambrosiaai.site/auth}
-      Mcp__ResourceUrl: ${MCP_RESOURCE_URL:-https://ambrosiaai.site/mcp}
+      # Endereços canônicos e imutáveis do serviço (spec 007, "Endereços definitivos"), fixos.
+      Auth__Issuer: https://ambrosiaai.site/auth
+      Mcp__ResourceUrl: https://ambrosiaai.site/mcp
       # Segredo de verdade: RSA 2048 em PEM (PKCS#8), gravado pelo pipeline a partir do GitHub
       # Secret de mesmo nome. Sem ela o host recusa o startup (constituição §VI, emenda 3.4.0).
-      Auth__SigningKeyPem: ${AUTH_SIGNING_KEY_PEM}
+      Auth__SigningKeyPem: ${AMBROSIO_AUTH_SIGNING_KEY_PEM}
       # Em produção só as URIs do ChatGPT, do appsettings.Production.json: a URI de teste da suíte de
       # API não existe aqui (não entra por env).
-      Mcp__AllowedOrigins__0: ${MCP_ALLOWED_ORIGIN:-https://ambrosiaai.site}
-      Mcp__FrontendBaseUrl: ${MCP_FRONTEND_BASE_URL:-https://ambrosiaai.site}
+      Mcp__AllowedOrigins__0: https://ambrosiaai.site
+      Mcp__FrontendBaseUrl: https://ambrosiaai.site
     mem_limit: 512m
     volumes:
       - mcp_dataprotection_keys:/home/app/.aspnet/DataProtection-Keys
@@ -95,45 +94,9 @@ services:
         condition: service_completed_successfully
     networks:
       - ambrosia-network
-
-  # HU 002: o pipeline ativa o profile quando frontend/Dockerfile existir.
-  frontend:
-    profiles: ["frontend"]
-    build:
-      context: ./frontend
-      # A entrada de desenvolvimento nao existe em ambiente nenhum desde a 003
-      # (FR-012/FR-013); `npm run verify:prod` roda no Dockerfile em todo modo.
-      args:
-        BUILD_MODE: production
-        VITE_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID}
-    image: ambrosia-frontend:prod
-    container_name: ambrosia-frontend
-    restart: unless-stopped
-    # CSP do container (feature 004, T054): a origem publica do bucket entra por variavel
-    # de RUNTIME e o nginx faz envsubst do template no startup, entao a imagem nao casa
-    # nenhuma origem de storage (FR-023).
-    environment:
-      STORAGE_ORIGIN: ${OBJECT_STORAGE_PUBLIC_ORIGIN}
-    networks:
-      - ambrosia-network
-
-  gateway:
-    image: nginx:1.27-alpine
-    container_name: ambrosia-gateway
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./deploy/nginx/prod.conf:/etc/nginx/conf.d/default.conf:ro
-      - ./deploy/nginx/routes.inc:/etc/nginx/ambrosio/routes.inc:ro
-      - ./deploy/nginx/cloudflare-ips.inc:/etc/nginx/ambrosio/cloudflare-ips.inc:ro
-      - ./deploy/nginx/certs:/etc/nginx/certs:ro
-    depends_on:
-      - api
-    networks:
-      - ambrosia-network
-      - ambrosia-external
+      # Rede compartilhada: o nginx do emagine-deploy chega em ambrosia-mcp:8080 (/auth, /mcp,
+      # /.well-known/oauth-*).
+      - emagine-network
 
 volumes:
   dataprotection_keys:
@@ -144,5 +107,6 @@ volumes:
 networks:
   ambrosia-network:
     driver: bridge
-  ambrosia-external:
+  # Criada pelo deploy do emagine-deploy (e pelo deste pipeline, se ainda não existir).
+  emagine-network:
     external: true

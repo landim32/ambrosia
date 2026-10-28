@@ -29,3 +29,6 @@ coverage/
 deploy/nginx/certs/
 *.pem
 *.key
+
+# Segredos gerados localmente (chave RSA do MCP etc.): nunca versionar
+secrets/

@@ -10,11 +10,11 @@ produção usa bucket próprio. Só o par de chaves é segredo e nunca vai no `a
 
 ```powershell
 # .env (homolog) e ambiente do shell (Development)
-OBJECT_STORAGE_ACCESS_KEY=<spaces access key>
-OBJECT_STORAGE_SECRET_KEY=<spaces secret key>
-OBJECT_STORAGE_BUCKET=emagine
-OBJECT_STORAGE_PUBLIC_ORIGIN=https://emagine.nyc3.digitaloceanspaces.com
+S3_ACCESS_KEY=<spaces access key>
+S3_SECRET_KEY=<spaces secret key>
 ```
+
+O bucket e a origem pública dele (CSP do frontend) são fixos em cada `docker-compose*.yml`.
 
 Sem as duas chaves a API recusa subir. Bucket e regra CORS estão explicados em
 [`deploy/README.md`](deploy/README.md); o guia ponta a ponta é o

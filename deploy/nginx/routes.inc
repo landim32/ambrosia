@@ -1,4 +1,5 @@
-# Rotas comuns de homolog e produção (docs/README.md, "Endereços de produção").
+# Rotas do gateway de homologação. Em produção as mesmas rotas ficam no server block ambrosiaai.site
+# do nginx.conf do repositório emagine-deploy (deploy/README.md).
 # Os upstreams são resolvidos em tempo de requisição (resolver do Docker): se um serviço ainda não
 # existir — frontend (HU 002), auth (HU 007), mcp (HU 006) —, o nginx sobe mesmo assim e a rota
 # responde 503 em vez de derrubar o gateway.
@@ -22,6 +23,13 @@ location = /api {
 location /api/ {
     set $api_upstream http://api:8080;
     rewrite ^/api/(.*)$ /$1 break;
+    # `proxy_set_header` só herda do nível de cima quando a location não declara nenhum: como esta
+    # declara o X-Forwarded-Prefix, os demais cabeçalhos se repetem aqui.
+    proxy_set_header Host               $host;
+    proxy_set_header X-Real-IP          $remote_addr;
+    proxy_set_header X-Forwarded-For    $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto  $forwarded_proto;
+    proxy_set_header X-Forwarded-Host   $host;
     proxy_set_header X-Forwarded-Prefix /api;
     proxy_pass $api_upstream;
 }

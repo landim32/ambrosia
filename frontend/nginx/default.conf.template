@@ -13,7 +13,7 @@
 # ${STORAGE_ORIGIN} (o NGINX_ENVSUBST_FILTER no Dockerfile protege as variaveis do
 # proprio nginx, como $uri, de serem substituidas). Assim a CSP aponta para o
 # storage de cada ambiente sem rebuild: MinIO nao existe mais aqui, e o valor vem
-# de OBJECT_STORAGE_PUBLIC_ORIGIN no compose (research §15).
+# do STORAGE_ORIGIN fixo no docker-compose.yml (research §15).
 #
 # Atencao: `add_header` nao herda quando o bloco de location declara o seu — os
 # tres cabecalhos de seguranca se repetem em cada location de proposito.
