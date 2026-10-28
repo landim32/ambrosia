@@ -1,27 +1,49 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 3.2.0 → 3.3.0 (MINOR)
+Version change: 3.3.0 → 3.4.0 (MINOR)
 
-Bump rationale: Princípio VI passa a descrever cadastro/login com e-mail e senha ao lado do
-Google e PROÍBE emissão de token sem credencial em qualquer ambiente (o dev-login, antes
-permitido em Development/Homolog, foi removido pela feature 003). Princípio VII esclarece
-que os testes de API criam seus próprios usuários. Novo quality gate correspondente.
+Bump rationale: o plugin do ChatGPT (feature 007) exige OAuth 2.1 com authorization server
+próprio. O Princípio VI descrevia um único esquema — o JWT HS256 da API — e tinha duas regras que
+o desenho da feature não cumpre: "tokens NUNCA DEVEM ser armazenados em cookies" e
+"`[AllowAnonymous]` só é permitido em `/auth/*`". A emenda acrescenta um segundo esquema com
+escopo restrito ao MCP, esclarece as duas regras e torna obrigatória a chave de assinatura por
+variável de ambiente. A API REST e o frontend não mudam de esquema (impacto em código existente:
+nenhum).
 
 Modified principles:
-- VI. Autenticação e Segurança: linha "Esquema" reescrita (três rotas públicas devolvendo o
-  mesmo `LoginResult`); regra do dev-login substituída pela proibição de token sem credencial;
-  nova regra de hash de senha e de resposta uniforme em falha de login; rationale ampliado.
-- VII. Ambientes e Testes de API: esclarecimento — os testes de API criam seus próprios
-  usuários por cadastro + login, sem usuário pré-existente nem atalho sem senha.
+- VI. Autenticação e Segurança: nova linha "Esquema do MCP (plugin do ChatGPT)" (OAuth 2.1 com AS
+  próprio em `/auth`, PKCE S256, consentimento por escopos, refresh com rotação; access token JWT
+  RS256 com `aud` = URL do MCP e `sub` = `user_id`, aceito **só** no MCP — o HS256 da API não vale
+  nele e o token do AS não vale na API); regra de cookies substituída (exceção limitada ao cookie
+  de sessão `HttpOnly` das telas de login/consentimento do AS, que não carrega token de API);
+  regra de rotas anônimas substituída (documentos `/.well-known/oauth-*` e, no endpoint MCP,
+  `initialize`/`tools/list`/tools `noauth`, desde que não devolvam dado de usuário); nova regra da
+  chave de assinatura RSA/PEM via variável de ambiente em Homolog/Production com recusa do startup,
+  e de issuer/URL do MCP validados sem barra no final. Rationale ampliado: os dois esquemas
+  convivem por **escopo** (telas × plugin), não por ambiente.
+- VII. Ambientes e Testes de API: sem mudança de texto — o host novo segue a mesma regra de
+  homologação reconstruída e testes de API no fim do ciclo.
 
 Added sections: none
 Removed sections: none
-Quality gates: added "nenhuma rota/flag de emissão de token sem credencial; testes de API e
-coleções obtêm o token por cadastro + login".
-Templates/skills afetados: nenhum (`dotnet-test-api` já usa fixture com login real).
-Follow-up: histórias 007/009 (`docs/historias`) mencionavam o dev-login como possível
-bootstrap do bot/MCP — devem usar cadastro + login ou token próprio.
+Quality gates: added "tools do MCP conferem escopo antes de executar, nunca recebem `userId` como
+argumento e não aceitam o JWT HS256 da API".
+Templates/skills afetados: nenhum obrigatoriamente — `dotnet-architecture`, `dotnet-env`,
+`wsl-docker` e `dotnet-test-api` continuam aplicáveis ao host novo (`Ambrosio.McpServer`).
+Follow-up: se a publicação no diretório do ChatGPT entrar no escopo, avaliar o mTLS do conector
+(SAN `mtls.prod.connectors.openai.com`) no nginx e as páginas de privacidade/terms — reforços
+futuros, não requisitos deste princípio (R18).
+
+Previous amendment (3.2.0 → 3.3.0, MINOR): Princípio VI passou a descrever cadastro/login com
+e-mail e senha ao lado do Google e PROIBIU emissão de token sem credencial em qualquer ambiente
+(o dev-login, antes permitido em Development/Homolog, foi removido pela feature 003); linha
+"Esquema" reescrita (três rotas públicas devolvendo o mesmo `LoginResult`); nova regra de hash de
+senha e de resposta uniforme em falha de login; rationale ampliado. Princípio VII esclarece que os
+testes de API criam seus próprios usuários por cadastro + login, sem usuário pré-existente nem
+atalho sem senha. Quality gate correspondente adicionado. `dotnet-test-api` já usa fixture com
+login real. Histórias 007/009 (`docs/historias`) mencionavam o dev-login como possível bootstrap
+do bot/MCP — devem usar cadastro + login ou token próprio.
 
 Previous amendment (3.1.0 → 3.2.0, MINOR): new principle VIII (Estratégia de Testes) defining the
 project's testing policy — backend only through API tests, frontend only through unit tests, with
@@ -221,16 +243,26 @@ cascata.
 | Aspecto | Padrão |
 |---|---|
 | Esquema | JWT Bearer HS256 emitido pela própria API (`sub` = `user_id`, `email`, `name`; `iss`/`aud` configuráveis; expiração padrão de 8 h), obtido por **uma** das rotas públicas: `POST /auth/register` (cadastro com nome, e-mail e senha — já devolve a sessão), `POST /auth/login` (e-mail e senha) ou `POST /auth/google` (troca do ID token do Google). As três devolvem o mesmo `LoginResult`. |
+| Esquema do MCP (plugin do ChatGPT) | OAuth 2.1 com authorization server próprio em `/auth` (issuer `https://ambrosiaai.site/auth`): código de autorização com PKCE S256, consentimento por escopos, refresh token com rotação. Access token JWT RS256 com `aud` = URL do MCP (`https://ambrosiaai.site/mcp`), `sub` = `user_id`, validado pelo JWKS em toda chamada. Aceito **só** no MCP; a API REST não aceita esse token e o MCP não aceita o HS256 da API. |
 | Storage (frontend) | localStorage, chave `"login-with-metamask:auth"` |
 | Proteção de rotas | Atributo `[Authorize]` nos controllers |
 
 **Regras de segurança**
 
-- Tokens NUNCA DEVEM ser armazenados em cookies. Usar localStorage.
+- Tokens de acesso NUNCA DEVEM ser armazenados em cookies. O frontend usa localStorage.
+  **Exceção**: as telas de login e consentimento do authorization server podem usar um cookie de
+  sessão próprio (`HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/auth`, curta duração, formulários
+  com antiforgery). Esse cookie não carrega token de API.
 - Connection strings e secrets NUNCA DEVEM ser expostos no frontend.
 - Controllers com dados sensíveis DEVEM ter `[Authorize]`.
 - CORS `AllowAnyOrigin` é permitido APENAS no ambiente Development.
-- `[AllowAnonymous]` só é permitido em `/auth/*`.
+- `[AllowAnonymous]` só é permitido em `/auth/*` e nos documentos de descoberta OAuth em
+  `/.well-known/oauth-*`. No endpoint MCP, `initialize`, `tools/list` e tools declaradas `noauth`
+  podem ser anônimas **desde que não devolvam dado de usuário**. Toda tool que acessa dados exige
+  o token do MCP e confere os escopos antes de executar.
+- A chave de assinatura do authorization server (RSA, PEM) DEVE vir de variável de ambiente em
+  Homolog e Production, e o host DEVE recusar o startup sem ela. Issuer e URL do MCP DEVEM ser
+  configurados sem barra no final e validados no startup.
 - O identificador do usuário DEVE vir exclusivamente do claim `sub`. Nenhum DTO de entrada pode
   carregar `userId`.
 - Todo método de leitura de repositório DEVE receber `userId` e filtrá-lo como primeira cláusula.
@@ -254,7 +286,9 @@ cascata.
 e endpoints desprotegidos, independentemente do esquema de autenticação adotado. O acesso sem
 senha, mesmo restrito a ambientes internos, é uma porta aberta em bancos com dados reais de
 homologação; o cadastro + login por senha cobre o mesmo uso (testes, Bruno, desenvolvimento
-local) sem o risco.
+local) sem o risco. Os dois esquemas convivem por **escopo**, não por ambiente: o HS256 atende às
+telas e à API REST, e o token do authorization server atende exclusivamente ao MCP — nenhum dos
+dois é aceito no território do outro, o que limita o alcance de um vazamento.
 
 ### VII. Ambientes e Testes de API
 
@@ -348,6 +382,8 @@ Antes de submeter qualquer código, o contribuidor DEVE verificar:
 - [ ] Leituras de repositório filtram por `userId`.
 - [ ] Nenhuma rota/flag de emissão de token sem credencial foi adicionada; testes de API e
       coleções obtêm o token por cadastro + login.
+- [ ] Tools do MCP conferem escopo antes de executar, nunca recebem `userId` como argumento e não
+      aceitam o JWT HS256 da API.
 - [ ] Comandos Docker locais seguiram a skill `wsl-docker`.
 - [ ] Ambientes Dev, Homolog e Prod seguem a skill `dotnet-env`.
 - [ ] Ao final do ciclo, a homologação foi reconstruída e os testes de API passaram contra ela.
@@ -372,4 +408,4 @@ Code reviews DEVEM recusar alterações que não cumpram este checklist.
 - Para orientação detalhada de implementação, use as skills `dotnet-architecture`,
   `react-architecture`, `dotnet-graphql`, `wsl-docker`, `dotnet-env` e `dotnet-test-api`.
 
-**Version**: 3.3.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-26
+**Version**: 3.4.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-27

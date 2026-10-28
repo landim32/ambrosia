@@ -13,7 +13,11 @@ COPY Ambrosio.Domain/Ambrosio.Domain.csproj Ambrosio.Domain/
 COPY Ambrosio.DTO/Ambrosio.DTO.csproj Ambrosio.DTO/
 COPY Ambrosio.Infra/Ambrosio.Infra.csproj Ambrosio.Infra/
 COPY Ambrosio.Infra.Interfaces/Ambrosio.Infra.Interfaces.csproj Ambrosio.Infra.Interfaces/
+COPY Ambrosio.McpServer/Ambrosio.McpServer.csproj Ambrosio.McpServer/
 RUN dotnet restore Ambrosio.API/Ambrosio.API.csproj
+# O host do MCP tem grafo próprio (ModelContextProtocol/OpenIddict) — restaurar em camada separada
+# para que mudar um pacote do MCP não invalidar o cache da API.
+RUN dotnet restore Ambrosio.McpServer/Ambrosio.McpServer.csproj
 
 # Chromium do coletor do +Vendas (feature 006, research §2). Parte da camada de restore — e não do
 # publish — para só invalidar quando a VERSÃO FIXA do Microsoft.Playwright mudar no .csproj (o
@@ -29,6 +33,10 @@ RUN set -eu; \
 FROM restore AS build
 COPY . .
 RUN dotnet publish Ambrosio.API/Ambrosio.API.csproj -c Release -o /app/publish /p:UseAppHost=false --no-restore
+
+FROM restore AS mcp-build
+COPY . .
+RUN dotnet publish Ambrosio.McpServer/Ambrosio.McpServer.csproj -c Release -o /app/publish-mcp /p:UseAppHost=false --no-restore
 
 # Bundle de migrações: executável único que aplica as migrações usando a mesma configuração da
 # API (ConnectionStrings__AmbrosioContext e demais variáveis validadas no startup).
@@ -72,3 +80,23 @@ RUN chmod 755 /app/.playwright/node/linux-x64/node \
     && mkdir -p /home/app/.aspnet/DataProtection-Keys && chown -R app:app /home/app/.aspnet
 USER app
 ENTRYPOINT ["dotnet", "Ambrosio.API.dll"]
+
+# Host do plugin do ChatGPT (feature 007, R8): servidor MCP em `/mcp` + authorization server em
+# `/auth`. Mesmo padrão do target `final` (porta 8080, usuário `app`, entrypoint pelo dll).
+# Diferença deliberada: SEM a camada do Chromium. O host chama `IImportRunService` só para ler e
+# cancelar, e o `iniciar_importacao` devolve o link da tela em vez de iniciar a execução (R9), então
+# o coletor Playwright nunca é instanciado aqui. Os dois `IHostedService` da camada Application
+# (`ImportRunWorker` e `PendingImageCleanupService`) são removidos no `Program.cs` do host — a API é
+# o único processo que executa importações e faz a limpeza de pendentes; deixá-los ativos aqui
+# dobraria o consumo da fila.
+FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS mcp
+WORKDIR /app
+ENV ASPNETCORE_HTTP_PORTS=8080
+EXPOSE 8080
+COPY --from=mcp-build /app/publish-mcp .
+# Mesma razão do target `final`: o cookie de sessão do authorization server e os tokens de
+# autenticação do OpenIddict usam Data Protection, e as chaves precisam sobreviver à recriação do
+# container — senão toda conexão do ChatGPT cai no restart (R13).
+RUN mkdir -p /home/app/.aspnet/DataProtection-Keys && chown -R app:app /home/app/.aspnet
+USER app
+ENTRYPOINT ["dotnet", "Ambrosio.McpServer.dll"]

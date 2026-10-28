@@ -19,6 +19,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ambrosio.Tests", "Ambrosio.
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ambrosio.ApiTests", "Ambrosio.ApiTests\Ambrosio.ApiTests.csproj", "{77929FB4-C44E-4592-B7C6-FE60A387076B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ambrosio.McpServer", "Ambrosio.McpServer\Ambrosio.McpServer.csproj", "{ABBE8FFB-F03C-440D-8DB8-340309554BE6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -125,6 +127,18 @@ Global
 		{77929FB4-C44E-4592-B7C6-FE60A387076B}.Release|x64.Build.0 = Release|Any CPU
 		{77929FB4-C44E-4592-B7C6-FE60A387076B}.Release|x86.ActiveCfg = Release|Any CPU
 		{77929FB4-C44E-4592-B7C6-FE60A387076B}.Release|x86.Build.0 = Release|Any CPU
+		{ABBE8FFB-F03C-440D-8DB8-340309554BE6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ABBE8FFB-F03C-440D-8DB8-340309554BE6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ABBE8FFB-F03C-440D-8DB8-340309554BE6}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{ABBE8FFB-F03C-440D-8DB8-340309554BE6}.Debug|x64.Build.0 = Debug|Any CPU
+		{ABBE8FFB-F03C-440D-8DB8-340309554BE6}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{ABBE8FFB-F03C-440D-8DB8-340309554BE6}.Debug|x86.Build.0 = Debug|Any CPU
+		{ABBE8FFB-F03C-440D-8DB8-340309554BE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ABBE8FFB-F03C-440D-8DB8-340309554BE6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ABBE8FFB-F03C-440D-8DB8-340309554BE6}.Release|x64.ActiveCfg = Release|Any CPU
+		{ABBE8FFB-F03C-440D-8DB8-340309554BE6}.Release|x64.Build.0 = Release|Any CPU
+		{ABBE8FFB-F03C-440D-8DB8-340309554BE6}.Release|x86.ActiveCfg = Release|Any CPU
+		{ABBE8FFB-F03C-440D-8DB8-340309554BE6}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,4 +1,6 @@
-# Homologação local: frontend + API + PostgreSQL atrás de um gateway nginx, no Docker do WSL2.
+# Homologação local: frontend + API atrás de um gateway nginx, no Docker do WSL2. O banco é externo
+# (não sobe container de banco aqui): a API recebe a connection string pronta em
+# AMBROSIO_CONNECTION_STRING.
 #   wsl --cd /mnt/c/repos/ambrosia -e docker compose up -d --build
 #   http://localhost:8080/api/swagger
 # Variáveis em .env (copiar de .env.example). O frontend entra com --profile frontend (HU 002).
@@ -6,48 +8,26 @@ name: ambrosio-homolog
 
 x-api-environment: &api-environment
   ASPNETCORE_ENVIRONMENT: Homolog
-  ConnectionStrings__AmbrosioContext: Host=db;Port=5432;Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
-  Auth__JwtSecret: ${AUTH_JWT_SECRET}
-  Auth__GoogleClientId: ${AUTH_GOOGLE_CLIENT_ID:-}
-  CpfProtection__Pepper: ${CPF_PEPPER}
-  CpfProtection__EncryptionKey: ${CPF_ENCRYPTION_KEY}
-  # Storage de imagens (feature 004): endpoint/bucket ficam no appsettings.Homolog.json; só o
-  # segredo entra aqui, e os prazos curtos de homolog (1/1/2/1 min) vêm do .env com padrão
-  # sobrescrevível — são eles que fazem os testes de expiração e de limpeza rodarem em minutos.
-  ObjectStorage__AccessKey: ${OBJECT_STORAGE_ACCESS_KEY}
-  ObjectStorage__SecretKey: ${OBJECT_STORAGE_SECRET_KEY}
-  ObjectStorage__Bucket: ${OBJECT_STORAGE_BUCKET:-emagine}
+  ConnectionStrings__AmbrosioContext: ${AMBROSIO_CONNECTION_STRING}
+  Auth__JwtSecret: ${AMBROSIO_JWT_SECRET}
+  Auth__GoogleClientId: ${AMBROSIO_GOOGLE_CLIENT_ID:-}
+  CpfProtection__Pepper: ${AMBROSIO_CPF_PEPPER}
+  CpfProtection__EncryptionKey: ${AMBROSIO_CPF_ENCRYPTION_KEY}
+  # Storage de imagens (feature 004): o endpoint fica no appsettings.Homolog.json e o bucket é fixo;
+  # só o par de chaves é segredo e vem do .env. Os prazos curtos de homolog (1/1/2/1 min) vêm do .env
+  # com padrão sobrescrevível — são eles que fazem os testes de expiração e de limpeza rodarem em minutos.
+  ObjectStorage__AccessKey: ${S3_ACCESS_KEY}
+  ObjectStorage__SecretKey: ${S3_SECRET_KEY}
+  ObjectStorage__Bucket: emagine
   ObjectStorage__PresignedReadMinutes: ${STORAGE_PRESIGNED_READ_MINUTES:-1}
   ObjectStorage__PresignedUploadMinutes: ${STORAGE_PRESIGNED_UPLOAD_MINUTES:-1}
   ObjectStorage__PendingTtlMinutes: ${STORAGE_PENDING_TTL_MINUTES:-2}
   ObjectStorage__CleanupIntervalMinutes: ${STORAGE_CLEANUP_INTERVAL_MINUTES:-1}
   # Importação do +Vendas (feature 006, research §3/§13): homolog importa de verdade com o coletor
-  # Playwright (Chromium na imagem). Para rodar a suíte de testes de API, que depende do Fake
-  # determinístico (falha de bloco, divergência de contadores, foto com erro — constituição §VIII),
-  # suba a API com MAIS_VENDAS_COLLECTOR=Fake.
-  MaisVendas__Collector: ${MAIS_VENDAS_COLLECTOR:-Playwright}
+  # Playwright (Chromium na imagem). Fixo, sem configuração.
+  MaisVendas__Collector: Playwright
 
 services:
-  db:
-    image: postgres:17-alpine
-    container_name: ambrosio-homolog-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "${DB_PORT:-5433}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-    networks:
-      - ambrosio-homolog
-
   migrator:
     build:
       context: ./backend
@@ -56,9 +36,6 @@ services:
     container_name: ambrosio-homolog-migrator
     restart: "no"
     environment: *api-environment
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - ambrosio-homolog
 
@@ -81,6 +58,41 @@ services:
     networks:
       - ambrosio-homolog
 
+  # Plugin do ChatGPT (feature 007, R8): um único host para o servidor MCP (`/mcp`) e o
+  # authorization server OAuth 2.1 (`/auth`). Herda o `x-api-environment` porque reaproveita banco,
+  # proteção de CPF e storage da API; o que é só dele são os endereços canônicos e a chave RSA.
+  # Sem `shm_size`: o target `mcp` da imagem não carrega o Chromium — as tools de importação só
+  # leem/cancelam e o `iniciar_importacao` devolve o link da tela em vez de coletar (R9).
+  mcp:
+    build:
+      context: ./backend
+      target: mcp
+    image: ambrosio-mcp:homolog
+    container_name: ambrosio-homolog-mcp
+    restart: unless-stopped
+    environment:
+      <<: *api-environment
+      # Endereços canônicos da homologação, fixos (o fluxo do ChatGPT só é testado em produção).
+      Auth__Issuer: http://localhost:8080/auth
+      Mcp__ResourceUrl: http://localhost:8080/mcp
+      # Chave RSA em PEM (PKCS#8). Em homolog pode ficar vazia: o host gera uma em
+      # %APPDATA%/Ambrosio apenas em Development, e aqui a suíte de testes de API é quem precisa de
+      # uma chave estável entre restarts — por isso ela é variável e não segredo de produção.
+      Auth__SigningKeyPem: ${AMBROSIO_AUTH_SIGNING_KEY_PEM:-}
+      # Terceiro item da lista do appsettings (0 e 1 são as URIs do ChatGPT): a URI de callback que a
+      # suíte de testes de API registra por DCR (ApiTestFixture Auth:TestRedirectUri).
+      Auth__AllowedRedirectUris__2: ${MCP_TEST_REDIRECT_URI:-https://chatgpt.com/connector/oauth/apitest}
+      # Origens de navegador aceitas no /mcp (R17). Em homolog é o próprio gateway.
+      Mcp__AllowedOrigins__0: http://localhost:8080
+      Mcp__FrontendBaseUrl: http://localhost:8080
+    volumes:
+      - mcp_dataprotection_keys:/home/app/.aspnet/DataProtection-Keys
+    depends_on:
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - ambrosio-homolog
+
   # HU 002: ativar com --profile frontend quando frontend/Dockerfile existir.
   frontend:
     profiles: ["frontend"]
@@ -91,16 +103,15 @@ services:
       # homolog e production constroem exatamente igual.
       args:
         BUILD_MODE: homolog
-        VITE_GOOGLE_CLIENT_ID: ${AUTH_GOOGLE_CLIENT_ID:-}
+        VITE_GOOGLE_CLIENT_ID: ${AMBROSIO_GOOGLE_CLIENT_ID:-}
     image: ambrosio-frontend:homolog
     container_name: ambrosio-homolog-frontend
     restart: unless-stopped
     # CSP do container (feature 004, T054): a origem publica do bucket entra por
     # variavel de RUNTIME -- o nginx faz envsubst do template no startup -- entao
-    # nenhuma origem de storage fica fixa na imagem (FR-023). Sem a variavel, o
-    # default do Dockerfile e o endpoint do Spaces.
+    # nenhuma origem de storage fica fixa na imagem (FR-023).
     environment:
-      STORAGE_ORIGIN: ${OBJECT_STORAGE_PUBLIC_ORIGIN:-https://emagine.nyc3.digitaloceanspaces.com}
+      STORAGE_ORIGIN: https://emagine.nyc3.digitaloceanspaces.com
     networks:
       - ambrosio-homolog
 
@@ -109,7 +120,7 @@ services:
     container_name: ambrosio-homolog-gateway
     restart: unless-stopped
     ports:
-      - "${HTTP_PORT:-8080}:80"
+      - "8080:80"
     volumes:
       - ./deploy/nginx/homolog.conf:/etc/nginx/conf.d/default.conf:ro
       - ./deploy/nginx/routes.inc:/etc/nginx/ambrosio/routes.inc:ro
@@ -119,8 +130,10 @@ services:
       - ambrosio-homolog
 
 volumes:
-  postgres_data:
   dataprotection_keys:
+  # Chaves do Data Protection do host do MCP, separadas das da API: os dois processos têm propósitos
+  # diferentes (cookies de sessão do AS + tokens do OpenIddict vs. JWT das telas).
+  mcp_dataprotection_keys:
 
 networks:
   ambrosio-homolog:

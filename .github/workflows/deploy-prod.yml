@@ -1,6 +1,9 @@
 # Deploy de produção (https://ambrosiaai.site) via SSH.
-# Jobs sequenciais: checkout -> segredos -> certificado -> rede -> build -> stop -> migrações
-# -> deploy -> health check -> limpeza -> resumo.
+# Jobs sequenciais: checkout -> segredos -> rede -> build -> stop -> migrações -> deploy
+# -> health check -> limpeza -> resumo.
+# Só sobem migrator, api e mcp. O frontend (SPA compilado), o HTTPS e o proxy de /api, /auth, /mcp e
+# /.well-known/oauth-* ficam no nginx compartilhado do repositório emagine-deploy (container
+# emagine-app1), que alcança ambrosia-api e ambrosia-mcp pela rede externa emagine-network.
 name: Deploy Production
 
 on:
@@ -32,7 +35,7 @@ jobs:
             cd "$DEPLOY_DIR"
             git fetch origin
             git reset --hard "origin/$BRANCH"
-            git clean -fd -e .env.prod -e deploy/nginx/certs/
+            git clean -fd -e .env.prod
           else
             echo "Cloning repository..."
             git clone --branch "$BRANCH" --single-branch "$REPO_URL" "$DEPLOY_DIR"
@@ -57,14 +60,20 @@ jobs:
           cd "$DEPLOY_DIR"
 
           cat > .env.prod <<'ENVEOF'
-          DB_CONNECTION_STRING=${{ secrets.DB_CONNECTION_STRING }}
-          AUTH_JWT_SECRET=${{ secrets.AUTH_JWT_SECRET }}
-          AUTH_GOOGLE_CLIENT_ID=${{ secrets.AUTH_GOOGLE_CLIENT_ID }}
-          CPF_PEPPER=${{ secrets.CPF_PEPPER }}
-          CPF_ENCRYPTION_KEY=${{ secrets.CPF_ENCRYPTION_KEY }}
-          OBJECT_STORAGE_ACCESS_KEY=${{ secrets.OBJECT_STORAGE_ACCESS_KEY }}
-          OBJECT_STORAGE_SECRET_KEY=${{ secrets.OBJECT_STORAGE_SECRET_KEY }}
-          OBJECT_STORAGE_PUBLIC_ORIGIN=${{ secrets.OBJECT_STORAGE_PUBLIC_ORIGIN }}
+          AMBROSIO_CONNECTION_STRING=${{ secrets.AMBROSIO_CONNECTION_STRING }}
+          AMBROSIO_JWT_SECRET=${{ secrets.AMBROSIO_JWT_SECRET }}
+          AMBROSIO_GOOGLE_CLIENT_ID=${{ secrets.AMBROSIO_GOOGLE_CLIENT_ID }}
+          AMBROSIO_CPF_PEPPER=${{ secrets.AMBROSIO_CPF_PEPPER }}
+          AMBROSIO_CPF_ENCRYPTION_KEY=${{ secrets.AMBROSIO_CPF_ENCRYPTION_KEY }}
+          S3_ACCESS_KEY=${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY=${{ secrets.S3_SECRET_KEY }}
+          # Plugin do ChatGPT (feature 007, R13): chave RSA que assina os access tokens do
+          # authorization server. Precisa ser um GitHub Secret em LINHA ÚNICA, com \n no lugar das
+          # quebras reais do PEM — este heredoc escreve uma linha `KEY=valor`, e um valor multilinha
+          # quebraria o .env.prod (as linhas seguintes virariam comandos/keys sem valor). É a única
+          # variável nova do host que é segredo: os endereços canônicos (issuer e resource) são
+          # fixos no docker-compose-prod.yml.
+          AMBROSIO_AUTH_SIGNING_KEY_PEM=${{ secrets.AMBROSIO_AUTH_SIGNING_KEY_PEM }}
           ENVEOF
 
           sed -i 's/^[[:space:]]*//' .env.prod
@@ -75,7 +84,7 @@ jobs:
           # configuração da feature 004 passou a exigir também o par de chaves do Spaces, FR-020), mas
           # é melhor parar aqui do que derrubar o container depois do build. Não se faz `source` do
           # arquivo: senha de banco com espaço viraria "comando", e o conteúdo é segredo.
-          for var in DB_CONNECTION_STRING AUTH_JWT_SECRET CPF_PEPPER CPF_ENCRYPTION_KEY OBJECT_STORAGE_ACCESS_KEY OBJECT_STORAGE_SECRET_KEY OBJECT_STORAGE_PUBLIC_ORIGIN; do
+          for var in AMBROSIO_CONNECTION_STRING AMBROSIO_JWT_SECRET AMBROSIO_CPF_PEPPER AMBROSIO_CPF_ENCRYPTION_KEY S3_ACCESS_KEY S3_SECRET_KEY AMBROSIO_AUTH_SIGNING_KEY_PEM; do
             if ! grep -Eq "^${var}=.+" .env.prod; then
               echo "::error::O secret $var não está configurado (GitHub Secrets). O deploy parou antes do build."
               exit 1
@@ -83,39 +92,9 @@ jobs:
           done
           echo "Todos os segredos obrigatórios estão presentes"
 
-  inject-certificates:
-    runs-on: ubuntu-latest
-    needs: inject-secrets
-    steps:
-    - name: Write Cloudflare Origin Certificate
-      uses: appleboy/ssh-action@v1
-      with:
-        host: ${{ secrets.PROD_SSH_HOST }}
-        username: ${{ secrets.PROD_SSH_USER }}
-        password: ${{ secrets.PROD_SSH_PASSWORD }}
-        port: ${{ secrets.PROD_SSH_PORT || 22 }}
-        script: |
-          set -e
-          DEPLOY_DIR="/opt/ambrosia"
-          cd "$DEPLOY_DIR"
-          mkdir -p deploy/nginx/certs
-
-          cat > deploy/nginx/certs/origin.pem <<'CERTEOF'
-          ${{ secrets.CLOUDFLARE_ORIGIN_CERT }}
-          CERTEOF
-          cat > deploy/nginx/certs/origin.key <<'KEYEOF'
-          ${{ secrets.CLOUDFLARE_ORIGIN_KEY }}
-          KEYEOF
-
-          sed -i 's/^[[:space:]]*//' deploy/nginx/certs/origin.pem deploy/nginx/certs/origin.key
-          chmod 644 deploy/nginx/certs/origin.pem
-          chmod 600 deploy/nginx/certs/origin.key
-          # nginx roda como root no master e lê a chave antes de trocar de usuário.
-          openssl x509 -in deploy/nginx/certs/origin.pem -noout -subject -enddate
-
   network-setup:
     runs-on: ubuntu-latest
-    needs: inject-certificates
+    needs: inject-secrets
     steps:
     - name: Ensure Docker network exists
       uses: appleboy/ssh-action@v1
@@ -127,8 +106,9 @@ jobs:
         script: |
           set -e
           DEPLOY_DIR="/opt/ambrosia"
-          docker network inspect ambrosia-external >/dev/null 2>&1 || docker network create ambrosia-external
-          echo "Network ambrosia-external ready"
+          # Rede compartilhada com o nginx do emagine-deploy (mesmo comando do pipeline dele).
+          docker network inspect emagine-network >/dev/null 2>&1 || docker network create emagine-network
+          echo "Network emagine-network ready"
 
   build:
     runs-on: ubuntu-latest
@@ -145,9 +125,7 @@ jobs:
           set -e
           DEPLOY_DIR="/opt/ambrosia"
           cd "$DEPLOY_DIR"
-          PROFILE_ARGS=""
-          if [ -f frontend/Dockerfile ]; then PROFILE_ARGS="--profile frontend"; fi
-          COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml $PROFILE_ARGS"
+          COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml"
 
           $COMPOSE build --pull
           echo "Images built"
@@ -167,10 +145,10 @@ jobs:
           set -e
           DEPLOY_DIR="/opt/ambrosia"
           cd "$DEPLOY_DIR"
-          PROFILE_ARGS=""
-          if [ -f frontend/Dockerfile ]; then PROFILE_ARGS="--profile frontend"; fi
-          COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml $PROFILE_ARGS"
+          COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml"
 
+          # --remove-orphans também derruba ambrosia-frontend e ambrosia-gateway de deploys antigos,
+          # que saíram do compose e liberam as portas 80/443 para o nginx do emagine-deploy.
           $COMPOSE down --remove-orphans || true
           echo "Services stopped"
 
@@ -189,9 +167,7 @@ jobs:
           set -e
           DEPLOY_DIR="/opt/ambrosia"
           cd "$DEPLOY_DIR"
-          PROFILE_ARGS=""
-          if [ -f frontend/Dockerfile ]; then PROFILE_ARGS="--profile frontend"; fi
-          COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml $PROFILE_ARGS"
+          COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml"
 
           $COMPOSE run --rm migrator
           echo "Migrations applied"
@@ -211,9 +187,7 @@ jobs:
           set -e
           DEPLOY_DIR="/opt/ambrosia"
           cd "$DEPLOY_DIR"
-          PROFILE_ARGS=""
-          if [ -f frontend/Dockerfile ]; then PROFILE_ARGS="--profile frontend"; fi
-          COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml $PROFILE_ARGS"
+          COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml"
 
           $COMPOSE up -d
           echo "Services started"
@@ -233,24 +207,28 @@ jobs:
           set -e
           DEPLOY_DIR="/opt/ambrosia"
           cd "$DEPLOY_DIR"
-          PROFILE_ARGS=""
-          if [ -f frontend/Dockerfile ]; then PROFILE_ARGS="--profile frontend"; fi
-          COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml $PROFILE_ARGS"
+          COMPOSE="docker compose --env-file .env.prod -f docker-compose-prod.yml"
 
+          # O teste passa pelo nginx do emagine-deploy (127.0.0.1:443 com Host ambrosiaai.site): ele
+          # precisa estar no ar com o server block do Ambrosio, senão o health check falha.
           echo "Waiting for services to start..."
           for i in $(seq 1 12); do
             HTTP_STATUS=$(curl -sk -o /dev/null -w "%{http_code}"               --resolve ambrosiaai.site:443:127.0.0.1               https://ambrosiaai.site/api/swagger/v1/swagger.json || echo "000")
-            if [ "$HTTP_STATUS" = "200" ]; then
-              echo "Health check passed (HTTP $HTTP_STATUS)"
+            # Host do plugin (feature 007): a descoberta OAuth é anônima e é a primeira coisa que o
+            # ChatGPT consulta — se ela não responder JSON 200, o plugin não conecta e o resto do
+            # deploy está inútil mesmo com a API verde.
+            MCP_STATUS=$(curl -sk -o /dev/null -w "%{http_code}"               --resolve ambrosiaai.site:443:127.0.0.1               https://ambrosiaai.site/.well-known/oauth-protected-resource/mcp || echo "000")
+            if [ "$HTTP_STATUS" = "200" ] && [ "$MCP_STATUS" = "200" ]; then
+              echo "Health check passed (API HTTP $HTTP_STATUS, MCP HTTP $MCP_STATUS)"
               $COMPOSE ps
               exit 0
             fi
             sleep 5
           done
 
-          echo "Health check failed (HTTP $HTTP_STATUS)"
+          echo "Health check failed (API HTTP $HTTP_STATUS, MCP HTTP $MCP_STATUS)"
           $COMPOSE ps
-          $COMPOSE logs --tail=80 api gateway
+          $COMPOSE logs --tail=80 api mcp
           exit 1
 
   cleanup:

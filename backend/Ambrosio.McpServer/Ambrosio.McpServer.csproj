@@ -1,0 +1,33 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <!-- McpServer: um único host para o servidor MCP (`/mcp`) e o authorization server OAuth 2.1
+       (`/auth`) do plugin do ChatGPT (feature 007, R8). Reaproveita os serviços de domínio da API
+       chamando `ConfigureServices` da camada Application, com o `userId` vindo do `sub` do token. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- SDK oficial C# do MCP (R1). A série 2.x pede Microsoft.Extensions.* 10.x; o grafo fica
+         resolvido aqui e só neste host — Application/Infra/Domain mantêm o pin 9.0.22 (nota do
+         Ambrosio.Infra.csproj). Versão fixada por decisão de implementação, como exige R1. -->
+    <PackageReference Include="ModelContextProtocol.AspNetCore" Version="2.3.0" />
+    <!-- Authorization server próprio (R3). >= 7.7.0 por causa da GHSA-925x-4h4v-2792 (validação
+         de `aud` em client assertions). -->
+    <PackageReference Include="OpenIddict.AspNetCore" Version="7.7.2" />
+    <PackageReference Include="OpenIddict.EntityFrameworkCore" Version="7.7.2" />
+    <!-- Validação do JWT RS256 do AS no endpoint MCP; mesma versão usada pela Ambrosio.API. -->
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.33" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Ambrosio.Application\Ambrosio.Application.csproj" />
+    <ProjectReference Include="..\Ambrosio.Domain\Ambrosio.Domain.csproj" />
+    <ProjectReference Include="..\Ambrosio.DTO\Ambrosio.DTO.csproj" />
+    <ProjectReference Include="..\Ambrosio.Infra\Ambrosio.Infra.csproj" />
+    <ProjectReference Include="..\Ambrosio.Infra.Interfaces\Ambrosio.Infra.Interfaces.csproj" />
+  </ItemGroup>
+
+</Project>
