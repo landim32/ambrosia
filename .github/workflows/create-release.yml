@@ -79,15 +79,6 @@ jobs:
 
           echo "Release branch created: $BRANCH_NAME"
 
-      - name: Download package built by "Version and Tag"
-        if: steps.version_check.outputs.should_release == 'true'
-        uses: actions/download-artifact@v4
-        with:
-          name: maestro-package
-          path: package
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Create GitHub Release
         if: steps.version_check.outputs.should_release == 'true'
         env:
@@ -95,15 +86,14 @@ jobs:
         run: |
           LATEST_TAG="${{ steps.version_check.outputs.latest_tag }}"
           PREVIOUS_TAG="${{ steps.version_check.outputs.previous_tag }}"
-          ASSETS=$(ls package/maestro-*.tgz 2>/dev/null || true)
 
           if [ -n "$PREVIOUS_TAG" ]; then
-            gh release create "$LATEST_TAG" $ASSETS \
+            gh release create "$LATEST_TAG" \
               --title "Release $LATEST_TAG" \
               --generate-notes \
               --notes-start-tag "$PREVIOUS_TAG"
           else
-            gh release create "$LATEST_TAG" $ASSETS \
+            gh release create "$LATEST_TAG" \
               --title "Release $LATEST_TAG" \
               --generate-notes
           fi

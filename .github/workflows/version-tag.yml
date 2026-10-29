@@ -44,35 +44,6 @@ jobs:
           echo "SemVer: ${{ steps.gitversion.outputs.semVer }}"
           echo "NuGetVersionV2: ${{ steps.gitversion.outputs.nuGetVersionV2 }}"
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build with the GitVersion version
-        env:
-          GITVERSION_SEMVER: ${{ steps.gitversion.outputs.semVer }}
-          GITVERSION_FULLSEMVER: ${{ steps.gitversion.outputs.fullSemVer }}
-          GITVERSION_MAJORMINORPATCH: ${{ steps.gitversion.outputs.majorMinorPatch }}
-          GITVERSION_SHA: ${{ steps.gitversion.outputs.shortSha }}
-          GITVERSION_BRANCHNAME: ${{ steps.gitversion.outputs.branchName }}
-        run: |
-          npm run version:sync -- "${{ steps.gitversion.outputs.semVer }}"
-          npm run build
-          node dist/index.js --version
-          npm pack
-
-      - name: Upload package
-        uses: actions/upload-artifact@v4
-        with:
-          name: maestro-package
-          path: maestro-*.tgz
-          if-no-files-found: error
-
       - name: Check if tag exists
         id: check_tag
         run: |
@@ -94,7 +65,7 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## ??? Version Tag Created" >> $GITHUB_STEP_SUMMARY
+          echo "## Version Tag Created" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- Version: \`${{ steps.gitversion.outputs.nuGetVersionV2 }}\`" >> $GITHUB_STEP_SUMMARY
           echo "- SemVer: \`${{ steps.gitversion.outputs.semVer }}\`" >> $GITHUB_STEP_SUMMARY
