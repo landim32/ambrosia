@@ -126,8 +126,8 @@ public static class ToolDescriptorFilter
                           || current["type"] is JsonArray types && types.Any(t => t?.GetValue<string>() == "array");
 
             JsonObject replacement = isArray
-                ? new JsonObject { ["type"] = "array", ["items"] = OpenAiFileObject() }
-                : OpenAiFileObject();
+                ? new JsonObject { ["type"] = "array", ["items"] = FileOrPath() }
+                : FileOrPath();
 
             if (current["description"] is JsonNode description)
             {
@@ -139,6 +139,22 @@ public static class ToolDescriptorFilter
 
         return JsonSerializer.SerializeToElement(input);
     }
+
+    /// <summary>
+    /// O objeto do <c>openai/fileParams</c> <b>ou</b> um texto: o caminho de uma imagem gerada na conversa
+    /// (<c>/mnt/data/...</c>), que o ChatGPT pode converter em objeto com link. Com só o objeto, o modelo
+    /// não tem como escrever o caminho e a conversão nunca é tentada (FileArgumentConverter).
+    /// </summary>
+    private static JsonObject FileOrPath() => new()
+    {
+        ["anyOf"] = new JsonArray(
+            OpenAiFileObject(),
+            new JsonObject
+            {
+                ["type"] = "string",
+                ["description"] = "Caminho do arquivo gerado nesta conversa (ex.: /mnt/data/imagem.png)."
+            })
+    };
 
     private static JsonObject OpenAiFileObject() => new()
     {

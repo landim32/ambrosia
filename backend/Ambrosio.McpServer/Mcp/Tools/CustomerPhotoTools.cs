@@ -110,6 +110,8 @@ public sealed class CustomerPhotoTools
     [Description(
         "Anexa ao álbum de uma cliente fotos enviadas na conversa. Cada arquivo vem como objeto com " +
         "download_url (https), mime_type e file_name — nunca base64 — e são no máximo 10 por chamada. " +
+        "Para uma imagem gerada nesta conversa, passe como item o caminho do arquivo (ex.: " +
+        "/mnt/data/imagem.png). " +
         "Chame primeiro com confirmar=false: cada arquivo é baixado só para medir tipo e tamanho, nada é " +
         "gravado, e volta a prévia com o nome da cliente. Com confirmar=true grava e anexa; um arquivo " +
         "recusado não interrompe os demais. A mesma foto enviada de novo para a mesma cliente dá " +
@@ -126,7 +128,7 @@ public sealed class CustomerPhotoTools
         IOptions<ObjectStorageSettings> storage,
         WriteToolHelper writer,
         [Description("Id da cliente no Ambrosio — nunca o nome: ache o id com listar_clientes ou buscar_cliente.")] long cliente_id,
-        [Description("Arquivos da conversa, até 10: download_url (https), mime_type e file_name.")] FileArgument[] fotos,
+        [Description("Arquivos da conversa, até 10: objetos com download_url, file_id, mime_type e file_name ou, para imagem gerada na conversa, o caminho do arquivo (/mnt/data/...).")] FileArgument[] fotos,
         [Description("Legenda aplicada a todas as fotos deste lote (até 500 caracteres); ausente = sem legenda.")] string? descricao = null,
         [Description("false = só prévia, nada gravado; true = grava (depois do sim da vendedora).")] bool confirmar = false,
         CancellationToken cancellationToken = default)

@@ -16,6 +16,7 @@ using ModelContextProtocol.Server;
 namespace Ambrosio.McpServer.Mcp.Tools;
 
 /// <summary>Arquivo da conversa que o ChatGPT entrega à tool: um link de download, nunca base64.</summary>
+[JsonConverter(typeof(FileArgumentConverter))]
 public sealed class FileArgument
 {
     [JsonPropertyName("download_url")]
@@ -66,7 +67,9 @@ public sealed class ImageTools
     [McpServerTool(Name = "enviar_imagem", Title = "Guardar imagem da conversa", ReadOnly = false, Destructive = false, Idempotent = true, OpenWorld = true)]
     [Description(
         "Guarda no Ambrosio uma imagem enviada na conversa (JPEG, PNG ou WebP, até o limite do " +
-        "armazenamento). Recebe o arquivo como link de download, nunca como base64. Chame primeiro com " +
+        "armazenamento). Recebe o arquivo como link de download, nunca como base64. Para uma imagem " +
+        "gerada nesta conversa, passe no campo o caminho do arquivo (ex.: /mnt/data/imagem.png). " +
+        "Chame primeiro com " +
         "confirmar=false para ver tipo e tamanho sem gravar; com confirmar=true grava. A mesma imagem " +
         "enviada de novo não duplica (criada=false).")]
     [AmbrosioScopes("images:write")]
@@ -78,7 +81,7 @@ public sealed class ImageTools
         SafeFileDownloader downloader,
         IOptions<ObjectStorageSettings> storage,
         WriteToolHelper writer,
-        [Description("Arquivo da conversa: download_url (https), mime_type e file_name.")] FileArgument arquivo,
+        [Description("Arquivo da conversa (download_url, file_id, mime_type, file_name) ou, para imagem gerada na conversa, o caminho do arquivo (/mnt/data/...).")] FileArgument arquivo,
         [Description("false = só prévia, nada gravado; true = grava (depois do sim da vendedora).")] bool confirmar = false,
         CancellationToken cancellationToken = default)
     {
