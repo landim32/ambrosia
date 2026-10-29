@@ -179,6 +179,40 @@ public class CustomerPhotoToolsTests(ApiTestFixture fixture)
     }
 
     [Fact]
+    public async Task AnexarFotos_FileAsText_HttpsLinkIsStored_AndRawSandboxPathGetsItsOwnMessage()
+    {
+        // Imagem gerada na conversa: o modelo escreve o caminho no campo. Convertido pelo ChatGPT, chega
+        // como objeto (os outros testes); cru, a resposta diz que o caminho não virou link. Um link https
+        // passado como texto é baixado como qualquer outro.
+        var seller = await McpSeller.CreateAsync(fixture, "Vendedora Caminho", PhotoScopes);
+        var (customerId, _) = await seller.CreateCustomerAsync("Caminho Gerado");
+
+        var fotos = new object[]
+        {
+            await PublicFileUrlAsync("small.jpg"),
+            "/mnt/data/imagem-gerada.png"
+        };
+
+        var preview = WriteToolsTests.Structured(await seller.CallAsync(
+            "anexar_fotos_cliente", new { cliente_id = customerId, fotos }));
+        var medidas = preview.GetProperty("previa").GetProperty("fotos").EnumerateArray().ToList();
+        medidas[0].GetProperty("tipo").GetString().Should().Be("image/jpeg", medidas[0].ToString());
+        medidas[1].GetProperty("motivo").GetString().Should().Contain("caminho interno do arquivo");
+
+        var result = WriteToolsTests.Structured(await seller.CallAsync(
+            "anexar_fotos_cliente", new { cliente_id = customerId, fotos, confirmar = true }));
+        var itens = result.GetProperty("registro").GetProperty("fotos").EnumerateArray().ToList();
+
+        itens[0].GetProperty("resultado").GetString().Should().Be("guardada", itens[0].ToString());
+        itens[1].GetProperty("resultado").GetString().Should().Be("recusada", itens[1].ToString());
+        itens[1].GetProperty("motivo").GetString().Should().Be(
+            "O ChatGPT mandou o caminho interno do arquivo em vez de um link de download, então o Ambrosio " +
+            "não consegue baixar esta imagem. Baixe a imagem e anexe-a na conversa para enviá-la.");
+
+        (await AlbumCountAsync(seller, customerId)).Should().Be(1);
+    }
+
+    [Fact]
     public async Task AnexarFotos_AboveTenFiles_IsRefusedBeforeDownloadingAnything()
     {
         var seller = await McpSeller.CreateAsync(fixture, "Vendedora Demais", PhotoScopes);
@@ -298,9 +332,14 @@ public class CustomerPhotoToolsTests(ApiTestFixture fixture)
     /// Objeto de arquivo do <c>openai/fileParams</c>: <c>download_url</c> e <c>file_id</c> obrigatórios,
     /// <c>mime_type</c> e <c>file_name</c> declarados e opcionais, nenhuma outra obrigatória.
     /// </summary>
-    private static void AssertOpenAiFileObject(JsonElement schema)
+    private static void AssertOpenAiFileObject(JsonElement fileOrPath)
     {
-        schema.GetProperty("type").GetString().Should().Be("object");
+        // O campo aceita o objeto do openai/fileParams OU o caminho de uma imagem gerada na conversa.
+        var variants = fileOrPath.GetProperty("anyOf").EnumerateArray().ToList();
+        variants.Should().HaveCount(2);
+        variants.Should().ContainSingle(v => v.GetProperty("type").GetString() == "string");
+
+        var schema = variants.Single(v => v.GetProperty("type").GetString() == "object");
 
         schema.GetProperty("properties").EnumerateObject().Select(p => p.Name)
             .Should().Contain(["download_url", "file_id", "mime_type", "file_name"]);

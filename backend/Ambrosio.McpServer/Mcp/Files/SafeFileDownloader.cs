@@ -43,6 +43,13 @@ public sealed class SafeFileDownloader : IDisposable
     /// <exception cref="Domain.Exceptions.ImageRejectedException">Arquivo acima do limite.</exception>
     public async Task<DownloadedFile> DownloadAsync(string? url, string? declaredMimeType, string? fileName, CancellationToken cancellationToken)
     {
+        // Caminho interno do ChatGPT que chegou sem virar link: a imagem gerada na conversa não foi
+        // convertida pelo openai/fileParams. A frase diz isso e o que fazer, para o modelo não insistir.
+        if (IsSandboxPath(url))
+        {
+            throw Invalid(SandboxPathMessage);
+        }
+
         if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || !string.IsNullOrEmpty(uri.UserInfo))
         {
             throw Invalid("O download_url precisa ser uma URL https.");
@@ -104,6 +111,17 @@ public sealed class SafeFileDownloader : IDisposable
     }
 
     public void Dispose() => _http.Dispose();
+
+    /// <summary>Resposta para o caminho interno do ChatGPT que chegou cru (sem <c>download_url</c>).</summary>
+    public const string SandboxPathMessage =
+        "O ChatGPT mandou o caminho interno do arquivo em vez de um link de download, então o Ambrosio " +
+        "não consegue baixar esta imagem. Baixe a imagem e anexe-a na conversa para enviá-la.";
+
+    private static bool IsSandboxPath(string? url) =>
+        url is not null
+        && (url.StartsWith("/mnt/", StringComparison.Ordinal)
+            || url.StartsWith("sandbox:", StringComparison.OrdinalIgnoreCase)
+            || url.StartsWith("file:", StringComparison.OrdinalIgnoreCase));
 
     private static ValidationException Invalid(string message) =>
         new([new ValidationFailure("download_url", message)]);
