@@ -1,10 +1,10 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { CircleUserRound, LogOut, X } from 'lucide-react'
+import { ChevronRight, CircleUserRound, LogOut, X } from 'lucide-react'
 
 import { useAuth } from '@/hooks/useAuth'
-import { NAV_ITEMS } from '@/components/layout/navItems'
+import { NAV_ITEMS, SETTINGS_ITEM, isSettingsPath } from '@/components/layout/navItems'
 import { Button } from '@/components/ui/button'
 import { initials } from '@/lib/initials'
 import { cn } from '@/lib/utils'
@@ -21,9 +21,10 @@ const tabClass = (active: boolean): string =>
  * translúcido, ícone + rótulo, item ativo no azul da marca e respiro para o
  * home indicator (`pb-safe`). Cada item tem ≥ 44 px de altura (FR-028).
  *
- * O último item, "Conta", abre uma folha (sheet) com a identidade da vendedora
- * e o "Sair" — no desktop isso fica na barra superior (`AppHeader`). A folha
- * fecha com Esc, com toque fora e ao trocar de rota.
+ * O último item, "Conta", abre uma folha (sheet) com a identidade da vendedora,
+ * o link para "Configurações" e o "Sair" — no desktop isso fica no menu da
+ * conta da barra superior (`AppHeader`). A folha fecha com Esc, com toque fora
+ * e ao trocar de rota; "Conta" fica marcado enquanto a rota é de configuração.
  */
 export const TabBar = () => {
   const { t } = useTranslation()
@@ -33,6 +34,8 @@ export const TabBar = () => {
   const sheetId = useId()
   const closeRef = useRef<HTMLButtonElement>(null)
   const user = session?.user
+  const onSettings = isSettingsPath(location.pathname)
+  const SettingsIcon = SETTINGS_ITEM.icon
 
   useEffect(() => {
     setAccountOpen(false)
@@ -106,6 +109,15 @@ export const TabBar = () => {
                 </span>
               </div>
 
+              <NavLink
+                to={SETTINGS_ITEM.to}
+                className="flex min-h-12 items-center gap-3 rounded-xl bg-secondary px-4 text-sm font-medium text-foreground transition-colors focus-visible:outline-none active:bg-accent"
+              >
+                <SettingsIcon aria-hidden="true" className="size-5 text-muted-foreground" />
+                {t(SETTINGS_ITEM.labelKey)}
+                <ChevronRight aria-hidden="true" className="ml-auto size-4 text-muted-foreground" />
+              </NavLink>
+
               <Button
                 type="button"
                 variant="secondary"
@@ -141,7 +153,7 @@ export const TabBar = () => {
 
           <button
             type="button"
-            className={tabClass(accountOpen)}
+            className={tabClass(accountOpen || onSettings)}
             aria-haspopup="dialog"
             aria-expanded={accountOpen}
             aria-controls={accountOpen ? sheetId : undefined}
@@ -149,7 +161,7 @@ export const TabBar = () => {
               setAccountOpen((open) => !open)
             }}
           >
-            <CircleUserRound aria-hidden="true" className="size-6" strokeWidth={accountOpen ? 2.25 : 1.75} />
+            <CircleUserRound aria-hidden="true" className="size-6" strokeWidth={accountOpen || onSettings ? 2.25 : 1.75} />
             <span>{t('nav.account')}</span>
           </button>
         </div>
