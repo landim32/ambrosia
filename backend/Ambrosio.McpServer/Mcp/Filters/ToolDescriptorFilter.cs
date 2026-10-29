@@ -56,6 +56,8 @@ public static class ToolDescriptorFilter
             {
                 tool.Meta[FileParamsMetaKey] = new JsonArray(
                     fileParams.FileParams.Select(name => (JsonNode)JsonValue.Create(name)!).ToArray());
+
+                tool.InputSchema = WithOpenAiFileSchema(tool.InputSchema, fileParams.FileParams);
             }
 
             if (serverTool.Metadata.OfType<AmbrosioOutputSchemaAttribute>().FirstOrDefault() is { } schema)
@@ -94,6 +96,61 @@ public static class ToolDescriptorFilter
         }
 
         await next(context, cancellationToken);
+    };
+
+    /// <summary>
+    /// Troca o schema de cada campo de arquivo pelo formato que o ChatGPT exige para entregar o anexo
+    /// (Apps SDK, <c>openai/fileParams</c>): objeto com <c>download_url</c> e <c>file_id</c>
+    /// obrigatórios e <c>mime_type</c>/<c>file_name</c> declarados como opcionais — num array, o mesmo
+    /// objeto em <c>items</c>. O schema que o SDK gera do <c>FileArgument</c> não marca nada como
+    /// obrigatório (as propriedades são anuláveis para a tool responder com a mensagem da 004 em vez de
+    /// falhar na desserialização), e fora desse formato o ChatGPT não manda o arquivo: o modelo fica
+    /// sem link e desiste. A desserialização continua tolerante — só o descritor muda.
+    /// </summary>
+    private static JsonElement WithOpenAiFileSchema(JsonElement inputSchema, IReadOnlyList<string> fileParams)
+    {
+        if (JsonNode.Parse(inputSchema.GetRawText()) is not JsonObject input
+            || input["properties"] is not JsonObject properties)
+        {
+            return inputSchema;
+        }
+
+        foreach (var name in fileParams)
+        {
+            if (properties[name] is not JsonObject current)
+            {
+                continue;
+            }
+
+            var isArray = current["type"] is JsonValue type && type.GetValue<string>() == "array"
+                          || current["type"] is JsonArray types && types.Any(t => t?.GetValue<string>() == "array");
+
+            JsonObject replacement = isArray
+                ? new JsonObject { ["type"] = "array", ["items"] = OpenAiFileObject() }
+                : OpenAiFileObject();
+
+            if (current["description"] is JsonNode description)
+            {
+                replacement["description"] = description.DeepClone();
+            }
+
+            properties[name] = replacement;
+        }
+
+        return JsonSerializer.SerializeToElement(input);
+    }
+
+    private static JsonObject OpenAiFileObject() => new()
+    {
+        ["type"] = "object",
+        ["properties"] = new JsonObject
+        {
+            ["download_url"] = new JsonObject { ["type"] = "string", ["description"] = "URL https de onde o arquivo é baixado." },
+            ["file_id"] = new JsonObject { ["type"] = "string", ["description"] = "Id do arquivo no ChatGPT." },
+            ["mime_type"] = new JsonObject { ["type"] = "string", ["description"] = "Tipo do arquivo (ex.: image/jpeg)." },
+            ["file_name"] = new JsonObject { ["type"] = "string", ["description"] = "Nome do arquivo (ex.: foto.jpg)." }
+        },
+        ["required"] = new JsonArray("download_url", "file_id")
     };
 
     private static JsonArray SecuritySchemes(McpServerTool tool)

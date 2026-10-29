@@ -22,6 +22,14 @@ public sealed class FileArgument
     [Description("URL https de onde o arquivo é baixado (o ChatGPT fornece).")]
     public string? DownloadUrl { get; set; }
 
+    /// <summary>
+    /// Id do arquivo no ChatGPT. Não é usado — o download é pela <see cref="DownloadUrl"/> —, mas o
+    /// ChatGPT sempre o manda e o contrato do <c>openai/fileParams</c> exige a propriedade no schema.
+    /// </summary>
+    [JsonPropertyName("file_id")]
+    [Description("Id do arquivo no ChatGPT.")]
+    public string? FileId { get; set; }
+
     [JsonPropertyName("mime_type")]
     [Description("Tipo do arquivo (ex.: image/jpeg).")]
     public string? MimeType { get; set; }
@@ -63,6 +71,7 @@ public sealed class ImageTools
         "enviada de novo não duplica (criada=false).")]
     [AmbrosioScopes("images:write")]
     [AmbrosioEndpoint("POST /images")]
+    [AmbrosioFileParams("arquivo")]
     public static Task<CallToolResult> EnviarImagem(
         McpUserContext user,
         IImageService images,
