@@ -35,7 +35,8 @@ const renderTabBar = (path = '/pedidos') =>
 
 /**
  * Tab bar do rodapé (layout mobile estilo iOS): as três seções com rótulo e o
- * item "Conta", que abre a folha com a identidade da vendedora e o "Sair".
+ * item "Conta", que abre a folha com a identidade da vendedora, "Configurações"
+ * e o "Sair".
  */
 describe('TabBar', () => {
   beforeEach(() => {
@@ -57,6 +58,7 @@ describe('TabBar', () => {
     expect(within(nav).getByRole('link', { name: 'Clientes' })).toHaveAttribute('href', '/clientes')
     expect(within(nav).getByRole('link', { name: 'Importar' })).toHaveAttribute('href', '/importacao')
     expect(within(nav).getByRole('link', { name: 'Pedidos' })).toHaveAttribute('aria-current', 'page')
+    expect(within(nav).queryByRole('link', { name: 'Configurações' })).not.toBeInTheDocument()
   })
 
   it('"Conta" abre a folha com nome, e-mail e Sair; Esc fecha', async () => {
@@ -71,6 +73,10 @@ describe('TabBar', () => {
     const sheet = screen.getByRole('dialog', { name: 'Sua conta' })
     expect(within(sheet).getByText('Ana Souza')).toBeInTheDocument()
     expect(within(sheet).getByText('ana@exemplo.com')).toBeInTheDocument()
+    expect(within(sheet).getByRole('link', { name: 'Configurações' })).toHaveAttribute(
+      'href',
+      '/configuracoes/mais-vendas',
+    )
     expect(within(sheet).getByRole('button', { name: 'Sair da sessão atual' })).toBeInTheDocument()
     expect(account).toHaveAttribute('aria-expanded', 'true')
 
@@ -87,5 +93,35 @@ describe('TabBar', () => {
     await events.click(screen.getByRole('button', { name: 'Sair da sessão atual' }))
 
     expect(localStorage.length).toBe(0)
+  })
+
+  it('"Configurações" na folha navega e fecha a folha', async () => {
+    const events = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/pedidos']}>
+        <AuthProvider>
+          <Routes>
+            <Route
+              path="*"
+              element={
+                <>
+                  <Routes>
+                    <Route path="/configuracoes/mais-vendas" element={<div>CONFIGURACOES</div>} />
+                    <Route path="*" element={null} />
+                  </Routes>
+                  <TabBar />
+                </>
+              }
+            />
+          </Routes>
+        </AuthProvider>
+      </MemoryRouter>,
+    )
+
+    await events.click(screen.getByRole('button', { name: 'Conta' }))
+    await events.click(screen.getByRole('link', { name: 'Configurações' }))
+
+    expect(screen.getByText('CONFIGURACOES')).toBeInTheDocument()
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 })

@@ -23,6 +23,18 @@ export const NAV_ITEMS: readonly NavItem[] = [
   { to: '/clientes', labelKey: 'nav.customers', icon: Users },
   { to: '/pedidos', labelKey: 'nav.orders', icon: ReceiptText },
   { to: '/importacao', labelKey: 'nav.import', icon: CloudDownload },
-  // Feature 008: "Configurações" no menu (contracts/ui.md), destino do aviso da importação.
-  { to: MAIS_VENDAS_SETTINGS_PATH, labelKey: 'nav.settings', icon: Settings },
 ]
+
+/**
+ * "Configurações" (feature 008, destino do aviso da importação) mora DENTRO do
+ * menu "Conta", não entre as seções: a folha da tab bar no mobile e o painel da
+ * conta na barra superior no desktop.
+ */
+export const SETTINGS_ITEM: NavItem = {
+  to: MAIS_VENDAS_SETTINGS_PATH,
+  labelKey: 'nav.settings',
+  icon: Settings,
+}
+
+/** A rota atual é de configuração? Marca o item "Conta" como ativo. */
+export const isSettingsPath = (pathname: string): boolean => pathname.startsWith('/configuracoes')
