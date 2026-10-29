@@ -63,7 +63,10 @@ export interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-/** `setTimeout` só aceita até ~24,8 dias; o token da API dura 8 h. */
+/**
+ * `setTimeout` só aceita até ~24,8 dias e o token da API dura 90: o timer dispara no máximo nesse
+ * intervalo e, se o token ainda não venceu, reagenda para o restante.
+ */
 const MAX_TIMEOUT_MS = 2_147_483_647
 
 /** Constrói a sessão a partir da resposta de login (data-model §1). */
@@ -192,10 +195,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const expiresAt = Date.parse(session.expiresAt)
     if (Number.isNaN(expiresAt)) return
 
-    const delay = Math.min(Math.max(expiresAt - Date.now(), 0), MAX_TIMEOUT_MS)
-    const timer = setTimeout(() => {
+    const delayUntilExpiry = () => Math.min(Math.max(expiresAt - Date.now(), 0), MAX_TIMEOUT_MS)
+    const onTimeout = () => {
+      if (Date.now() < expiresAt) {
+        timer = setTimeout(onTimeout, delayUntilExpiry())
+        return
+      }
       logout('expirada')
-    }, delay)
+    }
+    let timer = setTimeout(onTimeout, delayUntilExpiry())
 
     return () => {
       clearTimeout(timer)

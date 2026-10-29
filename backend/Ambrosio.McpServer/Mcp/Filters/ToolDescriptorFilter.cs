@@ -22,6 +22,9 @@ public static class ToolDescriptorFilter
 
     public const string SecuritySchemesKey = "securitySchemes";
 
+    /// <summary>Chave que o ChatGPT lê para saber quais argumentos recebem arquivos da conversa.</summary>
+    public const string FileParamsMetaKey = "openai/fileParams";
+
     public static McpRequestFilter<ListToolsRequestParams, ListToolsResult> Create() => next => async (context, cancellationToken) =>
     {
         var result = await next(context, cancellationToken);
@@ -45,6 +48,14 @@ public static class ToolDescriptorFilter
             if (serverTool.Metadata.OfType<AmbrosioEndpointAttribute>().FirstOrDefault() is { } endpoint)
             {
                 tool.Meta[EndpointMetaKey] = endpoint.Endpoint;
+            }
+
+            // Ferramentas que recebem anexo da conversa (feature 009, T057): sem esta linha o ChatGPT
+            // não oferece o arquivo como objeto de download e a tool recebe nada.
+            if (serverTool.Metadata.OfType<AmbrosioFileParamsAttribute>().FirstOrDefault() is { } fileParams)
+            {
+                tool.Meta[FileParamsMetaKey] = new JsonArray(
+                    fileParams.FileParams.Select(name => (JsonNode)JsonValue.Create(name)!).ToArray());
             }
 
             if (serverTool.Metadata.OfType<AmbrosioOutputSchemaAttribute>().FirstOrDefault() is { } schema)

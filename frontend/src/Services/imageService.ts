@@ -25,6 +25,25 @@ class ImageService {
     return apiRequest<ImageInfo>('GET', `/images/${String(imageId)}`)
   }
 
+  /**
+   * `POST /images` — multipart com o campo `file` (feature 004, rota que a
+   * feature 009 usa para os bytes da foto e para o recorte do perfil, R7).
+   *
+   * O corpo vai como `FormData`: sem `JSON.stringify` e sem `Content-Type`
+   * próprio, porque o `boundary` é do navegador (T024). Validação de tipo,
+   * tamanho e SHA-256 continuam do lado do servidor, intactas.
+   */
+  async upload(file: File | Blob, fileName?: string): Promise<ImageInfo> {
+    const formData = new FormData()
+
+    // `File` já traz o próprio nome (o servidor usa o mime declarado); só um
+    // `Blob` solto — o recorte que sai do canvas — precisa de nome explícito.
+    if (file instanceof File) formData.append('file', file)
+    else formData.append('file', file, fileName ?? 'foto.webp')
+
+    return apiRequest<ImageInfo>('POST', '/images', { formData })
+  }
+
   /** URL de leitura da imagem, do cache enquanto vale; `null` quando não há. */
   async getReadUrl(imageId: number): Promise<string | null> {
     const cached = this.cache.get(imageId)

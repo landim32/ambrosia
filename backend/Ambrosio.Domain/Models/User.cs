@@ -41,6 +41,13 @@ public class User
     public ICollection<StoredImage> StoredImages { get; set; } = [];
 
     /// <summary>
+    /// Fotos do álbum das clientes desta conta (feature 009). Mesmo propósito da de cima: existir
+    /// para o EF mapear <c>fk_user_customer_photo</c> com <c>ClientSetNull</c>, de modo que excluir a
+    /// conta nunca remova foto alguma por cascata — a limpeza é explícita (research R13).
+    /// </summary>
+    public ICollection<CustomerPhoto> CustomerPhotos { get; set; } = [];
+
+    /// <summary>
     /// A conta tem senha? <c>false</c> significa que ela só entra pelo Google (e que o login por
     /// senha cai no 401 genérico — FR-008).
     /// </summary>

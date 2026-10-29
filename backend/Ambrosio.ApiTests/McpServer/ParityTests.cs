@@ -23,9 +23,13 @@ namespace Ambrosio.ApiTests.McpServer;
 public class ParityTests(ApiTestFixture fixture)
 {
     /// <summary>
-    /// 29 tools do contrato (contracts/mcp-tools.md da 007 + <c>atualizar_base</c> da 008, T034).
+    /// 37 tools do contrato (contracts/mcp-tools.md da 007 + <c>atualizar_base</c> da 008, T034 + as
+    /// oito ferramentas do álbum de fotos da 009, T060: <c>listar_fotos_cliente</c>,
+    /// <c>anexar_fotos_cliente</c>, <c>descrever_foto_cliente</c>, <c>favoritar_foto_cliente</c>,
+    /// <c>desfavoritar_foto_cliente</c>, <c>definir_foto_perfil</c>, <c>remover_foto_perfil</c> e
+    /// <c>excluir_foto_cliente</c>).
     /// </summary>
-    private const int ExpectedToolCount = 29;
+    private const int ExpectedToolCount = 37;
 
     /// <summary>
     /// Operações da API sem tool correspondente, por decisão de contrato — <b>FR-019 da 008</b>: as

@@ -102,6 +102,7 @@ public static class Startup
         services.AddScoped<ICustomerRepository<Customer>, CustomerRepository>();
         services.AddScoped<IOrderRepository<Order>, OrderRepository>();
         services.AddScoped<IStoredImageRepository<StoredImage>, StoredImageRepository>();
+        services.AddScoped<ICustomerPhotoRepository<CustomerPhoto>, CustomerPhotoRepository>();
         services.AddScoped<IMcpAuditRepository<McpAuditEntry>, McpAuditRepository>();
 
         // AppServices
@@ -125,6 +126,11 @@ public static class Startup
         services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<IImageService, ImageService>();
+
+        // Álbum de fotos da cliente (feature 009). Scoped porque depende do DbContext dos repositórios,
+        // igual às demais regras de negócio daqui. Os validadores de CustomerPhoto* não são listados:
+        // AddValidatorsFromAssembly acima (constituição §III) já varre a assembly do Domain.
+        services.AddScoped<ICustomerPhotoService, CustomerPhotoService>();
         services.AddScoped<IMcpAuditService, McpAuditService>();
         services.AddScoped<IInsightService, InsightService>();
 

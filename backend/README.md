@@ -33,7 +33,7 @@ Sobrescrevem `appsettings*.json` (separador `__`). Em Development, `appsettings.
 | `ConnectionStrings__AmbrosioContext` | Connection string do PostgreSQL |
 | `Auth__JwtSecret` | Segredo HS256 do JWT (mínimo 32 bytes UTF-8) |
 | `Auth__GoogleClientId` | Client ID usado como audiência do ID token Google |
-| `Auth__ExpirationMinutes` | Duração do token (padrão 480) |
+| `Auth__ExpirationMinutes` | Duração do token (padrão 129600 = 90 dias) |
 | `CpfProtection__Pepper` | Pepper do HMAC do CPF (obrigatório) |
 | `CpfProtection__EncryptionKey` | Chave AES: base64 de exatamente 32 bytes |
 | `MaisVendas__CredentialsKey` | Chave da cifra das credenciais do +Vendas: base64 de exatamente 32 bytes, **dedicada** (não é a do CPF). Obrigatória — API e host do MCP recusam o startup sem ela (feature 008, constituição §VI emenda 3.4.1). Localmente ela já vem nos `appsettings.Development.json`; nos containers vem de `AMBROSIO_MAIS_VENDAS_CREDENTIALS_KEY` no `.env` |
@@ -62,11 +62,38 @@ $env:ObjectStorage__AccessKey = '<spaces access key>'
 $env:ObjectStorage__SecretKey = '<spaces secret key>'
 ```
 
-O `AWSSDK.S3` e o `SixLabors.ImageSharp` ficam restritos ao `Ambrosio.Infra`, atrás de
-`IObjectStorageAppService` e `IImageProcessingAppService`, e o primeiro `BackgroundService` do projeto
-(`PendingImageCleanupService`, na `Ambrosio.Application`) roda a limpeza. O ImageSharp 3.2.0 exige
-licença da Six Labors no build **Release** (em `Debug` é só aviso): veja a seção de licença em
-[`deploy/README.md`](../deploy/README.md).
+O `AWSSDK.S3` fica restrito ao `Ambrosio.Infra`, atrás de `IObjectStorageAppService`, e o primeiro
+`BackgroundService` do projeto (`PendingImageCleanupService`, na `Ambrosio.Application`) roda a limpeza.
+
+**Correção (2026-10-29, feature 009):** este parágrafo citava `SixLabors.ImageSharp` e uma
+`IImageProcessingAppService` que **não existem no repositório** — nem pacote nos `.csproj`, nem arquivo
+da interface. O texto estava assim desde a 004, e a 004 nunca decodificou imagem:
+`ImageService.ConfirmUploadAsync` grava `width: null, height: null` ("sem processador de imagem, as
+dimensões ficam desconhecidas"). A revisão de escopo da 009 confirmou a decisão de continuar sem
+biblioteca de imagem no servidor, por licença (a linha 3.2+ trava o build `Release` sem chave paga) e
+por superfície de CVEs (todos os advisories da 3.1.x estão no codec TIFF, que o Ambrosio não usa).
+Ver `specs/009-customer-photos/research.md`.
+
+### Fotos de clientes (feature 009)
+
+Rotas `customers/{customerId}/photos*`: `GET photos`, `POST photos`,
+`PUT photos/{photoId}/description`, `PUT` e `DELETE photos/{photoId}/favorite`,
+`DELETE photos/{photoId}`, `PUT` e `DELETE profile-photo`. São 8 operações e **nenhuma recebe
+arquivo**: o binário entra por `POST /images` (ou pelo fluxo pré-assinado da 004) e o que estas rotas
+fazem é relacionar `imageId` ↔ cliente, com `customer_photos` e as duas colunas de perfil em
+`customers`.
+
+Consequências que quem chega depois precisa saber, porque são decisão e não acidente:
+
+- a grade serve o **arquivo original** — não há miniatura nem recorte gerado no servidor;
+- o quadrado da foto de perfil é produzido **no navegador** da vendedora e enviado como arquivo;
+  sem navegador (conversa), o círculo usa a própria foto;
+- o metadado EXIF/GPS **permanece** no arquivo guardado (a FR-005 que pedia a remoção foi revogada);
+- a renovação de URL vencida de uma foto é `GET /images/{imageId}` da 004 — não existe rota avulsa de
+  foto, e é por isso que a paridade MCP não tem exceção;
+- excluir foto apaga o arquivo do storage **só se ficou órfão** (nenhuma outra foto, nenhum perfil,
+  nenhum `order_items.image_id`), porque a deduplicação por `(user_id, sha256)` faz a mesma imagem
+  servir a mais de uma cliente.
 
 ### Importação do +Vendas (feature 006, credenciais guardadas na 008)
 

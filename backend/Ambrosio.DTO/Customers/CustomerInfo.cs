@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Ambrosio.DTO.CustomerPhotos;
 
 namespace Ambrosio.DTO.Customers;
 
@@ -23,4 +24,15 @@ public class CustomerInfo
 
     [JsonPropertyName("updatedAt")]
     public DateTime UpdatedAt { get; set; }
+
+    /// <summary>
+    /// Foto de perfil da cliente (feature 009, FR-016): é o que o avatar redondo lê no lugar das
+    /// iniciais. <c>null</c> quando ela não tem perfil — e aí as iniciais continuam (cenário US3-5).
+    /// <para>
+    /// Na <b>listagem</b> vem sem <c>originalUrl</c>: assinar a URL do original custa uma assinatura
+    /// por linha e nenhuma lista abre visualizador (data-model §6).
+    /// </para>
+    /// </summary>
+    [JsonPropertyName("profilePhoto")]
+    public CustomerProfilePhotoInfo? ProfilePhoto { get; set; }
 }

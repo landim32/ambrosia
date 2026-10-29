@@ -67,6 +67,28 @@ export const formatDateOnly = (value: string | null | undefined): string => {
 }
 
 /**
+ * Instante ISO → `dd de mmm. de aaaa` no fuso do navegador (feature 009: a data
+ * da foto na grade e no visualizador). Diferente de `formatDateOnly`, aqui o
+ * valor É um instante, então o deslocamento de fuso é desejável — e o mês por
+ * extenso vem do locale (como a moeda em `lib/currency.ts`), não de string no
+ * código. `''` quando o texto não é um instante parseável.
+ */
+const longDateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  day: '2-digit',
+  month: 'short',
+  year: 'numeric',
+})
+
+export const formatDateLong = (value: string | null | undefined): string => {
+  if (typeof value !== 'string' || value === '') return ''
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+
+  return longDateFormatter.format(date)
+}
+
+/**
  * Instante ISO → `dd/mm/aaaa HH:mm` no fuso do navegador (uso eventual).
  * `''` quando o texto não é um instante parseável.
  */

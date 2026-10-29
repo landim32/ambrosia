@@ -32,6 +32,57 @@ public class Customer
     public ICollection<Order> Orders { get; set; } = [];
 
     /// <summary>
+    /// Foto do álbum de onde saiu a foto de perfil (feature 009, FR-014). <c>null</c> = sem perfil,
+    /// e o avatar continua mostrando as iniciais (FR-016, cenário US3-5).
+    /// </summary>
+    public long? ProfilePhotoId { get; set; }
+
+    /// <summary>
+    /// Recorte quadrado de até 512 × 512 <b>gerado no navegador</b> da vendedora (research R4).
+    /// <c>null</c> quando o perfil foi definido por um canal sem navegador — conversa ou API sem
+    /// recorte — e o círculo passa a usar o arquivo da própria foto (FR-013).
+    /// </summary>
+    public long? ProfileImageId { get; set; }
+
+    public CustomerPhoto? ProfilePhoto { get; set; }
+
+    public StoredImage? ProfileImage { get; set; }
+
+    /// <summary>
+    /// Define a foto de perfil (FR-011): no máximo uma por cliente, e escolher outra substitui a
+    /// anterior — por isso o recorte velho é devolvido ao chamador, que decide se ele ficou órfão.
+    /// </summary>
+    /// <param name="photoId">Foto do álbum; a pertinência à cliente é conferida no serviço.</param>
+    /// <param name="profileImageId">Recorte do navegador, ou <c>null</c> para usar o arquivo da foto.</param>
+    /// <param name="now">Instante UTC de <see cref="Interfaces.IClock"/>.</param>
+    /// <returns>Id do recorte que estava no perfil antes, se havia (candidato a órfão).</returns>
+    public long? SetProfilePhoto(long photoId, long? profileImageId, DateTime now)
+    {
+        var previousImageId = ProfileImageId;
+
+        ProfilePhotoId = photoId;
+        ProfileImageId = profileImageId;
+        UpdatedAt = now;
+
+        return previousImageId;
+    }
+
+    /// <summary>
+    /// Remove o perfil sem tocar no álbum (FR-015). Devolve o recorte para a mesma checagem de órfão
+    /// de <see cref="SetProfilePhoto"/>.
+    /// </summary>
+    public long? ClearProfilePhoto(DateTime now)
+    {
+        var previousImageId = ProfileImageId;
+
+        ProfilePhotoId = null;
+        ProfileImageId = null;
+        UpdatedAt = now;
+
+        return previousImageId;
+    }
+
+    /// <summary>
     /// Muda apenas o nome (FR-009): as três colunas de CPF ficam intocadas, porque o documento é
     /// imutável nesta entrega — revalidá-lo exigiria recalcular a unicidade.
     /// </summary>

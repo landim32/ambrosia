@@ -1,0 +1,51 @@
+meta {
+  name: Definir Foto de Perfil
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/customers/{{customerId}}/profile-photo
+  body: json
+  auth: inherit
+}
+
+vars:pre-request {
+  customerId: 32
+  photoId: 1204
+  cropImageId: 5740
+}
+
+body:json {
+  {
+    "photoId": {{photoId}},
+    "imageId": {{cropImageId}}
+  }
+}
+
+docs {
+  FR-011 a FR-014: escolhe a foto de perfil entre as do álbum. No máximo uma; escolher outra
+  substitui.
+
+  `imageId` é **opcional** e é o recorte quadrado de até 512 × 512 gerado **no navegador**
+  (`react-easy-crop` + canvas) e já gravado por `POST /images` (research R4). Omitido, o círculo usa
+  o arquivo da própria foto — que é o caso da conversa no ChatGPT, onde não há navegador. Para o
+  teste, `cropImageId` pode ser qualquer imagem `available` sua: a rota não sabe nem precisa saber
+  como o arquivo foi produzido.
+
+  O recorte anterior do perfil vira candidato a órfão e é apagado se ninguém mais o usa.
+  Foto de outra cliente responde 404 (`profile_photo_id` é FK; a pertinência é regra do serviço).
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("os dois links do perfil", function () {
+    expect(res.body.photoId).to.be.a('number');
+    expect(res.body.imageId).to.be.a('number');
+    expect(res.body.originalImageId).to.be.a('number');
+    expect(res.body.url).to.be.a('string');
+  });
+}

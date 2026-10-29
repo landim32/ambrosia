@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using Ambrosio.ApiTests.Fixtures;
 using Ambrosio.DTO.Customers;
 using Ambrosio.DTO.Enums;
+using Ambrosio.DTO.Images;
 using Ambrosio.DTO.Imports;
 using Ambrosio.DTO.Orders;
 using FluentAssertions;
@@ -452,6 +453,167 @@ internal static class TestDataHelper
         response.StatusCode.Should().Be(200);
 
         return response.As<Ambrosio.DTO.Common.PagedResult<Ambrosio.DTO.Customers.CustomerInfo>>().TotalCount;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Fotos da cliente (feature 009, T018)
+    //
+    // Nada aqui gera imagem em tempo de execução: os binários são os fixtures versionados em
+    // `Fixtures/Images`, e `UniquePhotoBytes` acrescenta um sufixo GUID para o SHA-256 não colidir com
+    // outra execução — a deduplicação da 004 é por (usuário, hash) e a suíte inteira roda na mesma
+    // conta. Sem isso, o segundo teste que anexasse "small.jpg" receberia a foto do primeiro e passaria
+    // pelo motivo errado (o mesmo cuidado de ImagesControllerTests.UniqueBytes).
+    //
+    // Não há teste de conteúdo disfarçado nem de dimensão: o Ambrosio não decodifica foto nenhuma, e a
+    // validação de tipo da 004 é a declarada (research R2). A recusa testada aqui é de tipo declarado
+    // fora da lista, que é o que a API realmente recusa.
+    // ---------------------------------------------------------------------------
+
+    /// <summary>Caminho do álbum de uma cliente (<c>GET</c>/<c>POST photos</c>).</summary>
+    public static string PhotosPath(long customerId) => $"/customers/{customerId}/photos";
+
+    /// <summary>Caminho de uma foto avulsa do álbum.</summary>
+    public static string PhotoPath(long customerId, long photoId) => $"/customers/{customerId}/photos/{photoId}";
+
+    /// <summary>Caminho da foto de perfil de uma cliente.</summary>
+    public static string ProfilePhotoPath(long customerId) => $"/customers/{customerId}/profile-photo";
+
+    /// <summary>Bytes de um fixture com sufixo único (ver o bloco acima).</summary>
+    public static byte[] UniquePhotoBytes(string fileName = "small.jpg")
+    {
+        var bytes = File.ReadAllBytes(StorageHttp.FixturePath(fileName));
+        var suffix = Guid.NewGuid().ToByteArray();
+        var unique = new byte[bytes.Length + suffix.Length];
+
+        Array.Copy(bytes, unique, bytes.Length);
+        Array.Copy(suffix, 0, unique, bytes.Length, suffix.Length);
+
+        return unique;
+    }
+
+    /// <summary>
+    /// Sobe um arquivo pelo caminho que a feature 004 já publica (<c>POST /images</c>) e devolve a
+    /// imagem disponível — é o passo 1 do envio de uma foto de cliente (research R7). Os testes de foto
+    /// não repetem essa mecânica.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Quando a API não respondeu 201/200 — com corpo.</exception>
+    public static async Task<Ambrosio.DTO.Images.ImageInfo> UploadImageAsync(
+        this ApiTestFixture fixture,
+        string token,
+        string fileName = "small.jpg",
+        string contentType = "image/jpeg")
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        var response = await fixture.PostFileAsync(
+            "/images", token, UniquePhotoBytes(fileName), contentType, fileName);
+
+        if (response.StatusCode is not (200 or 201))
+        {
+            throw new InvalidOperationException(
+                $"POST /images respondeu {response.StatusCode} (esperado 200/201): {response.Body}");
+        }
+
+        return response.As<Ambrosio.DTO.Images.ImageInfo>();
+    }
+
+    /// <summary>
+    /// Declara um envio (<c>POST /images/uploads</c>) e <b>não</b> confirma, deixando a imagem em
+    /// <c>pending</c>. É o estado que a anexação de foto tem de recusar com 400: o arquivo ainda não
+    /// está no storage, então não há o que mostrar na grade (contracts/api.md §10).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Quando a API não respondeu 201 — com corpo.</exception>
+    public static async Task<long> DeclarePendingImageAsync(
+        this ApiTestFixture fixture,
+        string token,
+        string fileName = "small.jpg",
+        string contentType = "image/jpeg")
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        var content = UniquePhotoBytes(fileName);
+
+        var response = await fixture.PostAsync("/images/uploads", token, new ImageUploadInsertInfo
+        {
+            MimeType = contentType,
+            SizeBytes = content.Length,
+            Sha256 = StorageHttp.Sha256Hex(content)
+        });
+
+        if (response.StatusCode != 201)
+        {
+            throw new InvalidOperationException(
+                $"POST /images/uploads respondeu {response.StatusCode} (esperado 201): {response.Body}");
+        }
+
+        return response.As<ImageUploadResult>().ImageId;
+    }
+
+    /// <summary>Anexa uma imagem já gravada ao álbum de uma cliente, com a resposta bruta.</summary>
+    public static async Task<HttpCallResult> AttachPhotoRawAsync(
+        this ApiTestFixture fixture,
+        string token,
+        long customerId,
+        long imageId,
+        string? description = null,
+        string? source = null)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        var payload = new Dictionary<string, object?> { ["imageId"] = imageId };
+
+        if (description is not null)
+        {
+            payload["description"] = description;
+        }
+
+        if (source is not null)
+        {
+            payload["source"] = source;
+        }
+
+        return await fixture.PostAsync(PhotosPath(customerId), token, payload);
+    }
+
+    /// <summary>Cliente inédito da vendedora (setup de todo teste de foto).</summary>
+    /// <exception cref="InvalidOperationException">Quando a API não respondeu 201 — com corpo.</exception>
+    public static async Task<CustomerInfo> CreateCustomerAsync(this ApiTestFixture fixture, string token)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        var response = await fixture.PostAsync("/customers", token, NewCustomer());
+
+        if (response.StatusCode != 201)
+        {
+            throw new InvalidOperationException(
+                $"POST /customers respondeu {response.StatusCode} (esperado 201): {response.Body}");
+        }
+
+        return response.As<CustomerInfo>();
+    }
+
+    /// <summary>
+    /// Upload + anexação, o caminho completo de "entrou uma foto no álbum" (research R7). Usado pelos
+    /// testes que só precisam de fotos existindo; quem testa a anexação chama os dois passos separados.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Quando qualquer um dos dois passos falha — com corpo.</exception>
+    public static async Task<Ambrosio.DTO.CustomerPhotos.CustomerPhotoInsertResult> AttachPhotoAsync(
+        this ApiTestFixture fixture,
+        string token,
+        long customerId,
+        string fileName = "small.jpg",
+        string? description = null)
+    {
+        var image = await fixture.UploadImageAsync(token, fileName);
+        var response = await fixture.AttachPhotoRawAsync(token, customerId, image.ImageId, description);
+
+        if (response.StatusCode is not (200 or 201))
+        {
+            throw new InvalidOperationException(
+                $"POST {PhotosPath(customerId)} respondeu {response.StatusCode} (esperado 201/200): {response.Body}");
+        }
+
+        return response.As<Ambrosio.DTO.CustomerPhotos.CustomerPhotoInsertResult>();
     }
 
     private static int ComputeFirstCheckDigit(int[] digits)

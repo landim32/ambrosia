@@ -346,6 +346,96 @@ export const ptBR = {
      */
     needsUpdateHelp: 'O +Vendas recusou a senha cadastrada. Digite a senha atual para continuar importando.',
   },
+  /**
+   * Álbum de fotos da cliente (feature 009, contracts/ui.md). Todas as frases
+   * visíveis da grade, da área de inclusão, do visualizador, do editor de
+   * recorte e dos avisos de envio (constituição §IV, FR-024).
+   */
+  customerPhotos: {
+    /** Abas do perfil (FR-017). Fotos é a padrão. */
+    tabPhotos: 'Fotos',
+    tabOrders: 'Pedidos',
+    tabsAriaLabel: 'Seções do perfil',
+    /** Cabeçalho (contracts/ui.md §1, FR-014/FR-016). */
+    adjustProfile: 'Ajustar foto de perfil',
+    viewOriginal: 'Ver foto original de {{name}}',
+    /** Área de inclusão (FR-020). No toque, `dropTap` (contracts/ui.md §3). */
+    dropHere: 'Arraste para incluir uma foto',
+    dropTap: 'Toque para incluir uma foto',
+    /** Filtro da grade (FR-010, US4-6). */
+    filterAll: 'Todas',
+    filterFavorites: 'Favoritas',
+    filterAriaLabel: 'Filtrar fotos',
+    favoriteBadge: 'Favorita',
+    /** Marca na célula de que esta foto é a origem do perfil (FR-014). */
+    profileBadge: 'Perfil',
+    /** `alt` da célula: a descrição da vendedora, ou o nome com a data (FR-018). */
+    photoAlt: 'Foto de {{name}} de {{date}}',
+    /** Vazia (US1-6). */
+    empty: 'Ainda não há fotos de {{name}}.',
+    loading: 'Carregando fotos',
+    loadingMore: 'Carregando mais fotos',
+    /** Estado da fila (FR-021): os dois passos da pesquisa R7. */
+    stateUploading: 'enviando',
+    stateAttaching: 'registrando',
+    stateError: 'Não foi possível incluir',
+    dismiss: 'Descartar',
+    /** Avisos de recusa local, antes de qualquer requisição (contracts/ui.md §3). */
+    rejectedType: '{{name}}: formato não aceito',
+    rejectedSize: '{{name}}: acima do limite de {{max}} MB',
+    alreadyInAlbum: 'Essa foto já estava no álbum.',
+    /** Visualizador (contracts/ui.md §4, FR-019). */
+    viewerTitle: 'Foto de {{name}}',
+    close: 'Fechar',
+    previous: 'Foto anterior',
+    next: 'Próxima foto',
+    sourceWeb: 'enviada pela tela',
+    sourceApi: 'enviada pela API',
+    sourceChatGpt: 'enviada pelo ChatGPT',
+    favoriteOff: 'Marcar como favorita',
+    favoriteOn: 'Desmarcar como favorita',
+    favoriteError: 'Não foi possível salvar a favorita.',
+    /** Descrição (FR-007, US4-3 a US4-5). */
+    descriptionAdd: 'Adicionar descrição',
+    descriptionEdit: 'Editar',
+    descriptionLabel: 'Descrição',
+    descriptionSave: 'Salvar',
+    descriptionCancel: 'Cancelar',
+    descriptionCount: '{{current}}/{{max}}',
+    descriptionTooLong: 'A descrição deve ter no máximo {{max}} caracteres.',
+    descriptionError: 'Não foi possível salvar a descrição.',
+    /** Perfil a partir da foto (FR-011/FR-012, US3-1). */
+    useAsProfile: 'Usar como foto de perfil',
+    adjustFrame: 'Ajustar enquadramento',
+    /** US3-9: perfil definido por um canal sem navegador. */
+    profileWithoutFrame: 'Sem enquadramento dedicado: o círculo usa a própria foto.',
+    /** Editor de recorte (contracts/ui.md §5). */
+    cropperTitle: 'Enquadramento da foto de perfil',
+    zoom: 'Zoom',
+    cropSave: 'Salvar',
+    cropSaving: 'Salvando…',
+    cropCancel: 'Cancelar',
+    removeProfile: 'Remover foto de perfil',
+    removingProfile: 'Removendo…',
+    profileSaved: 'Foto de perfil atualizada.',
+    profileRemoved: 'Foto de perfil removida.',
+    /** Motivos do recorte feito no navegador (research R4) — nada é processado no servidor. */
+    cropErrorNoCanvas: 'Este navegador não consegue desenhar a foto.',
+    cropErrorNoToBlob: 'Este navegador não consegue gerar o arquivo do recorte.',
+    cropErrorNotLoaded: 'A foto ainda não terminou de carregar.',
+    cropErrorBadArea: 'O recorte escolhido não tem tamanho suficiente.',
+    cropErrorEmpty: 'Não foi possível gerar o recorte.',
+    cropErrorSecurity: 'O armazenamento não liberou a leitura da foto para recortar (CORS).',
+    /** R4: o quadrado é gerado no navegador e enviado como arquivo — nada é recortado no servidor. */
+    cropperHint: 'O quadrado vira um arquivo de até {{size}} × {{size}}, gerado aqui no navegador.',
+    /** Exclusão (FR-009/FR-015, US3-6). */
+    delete: 'Excluir',
+    deleteTitle: 'Excluir esta foto? Essa ação não pode ser desfeita.',
+    deleteProfileExtra: '{{name}} vai voltar a aparecer com as iniciais.',
+    deleteConfirm: 'Excluir',
+    deleteCancel: 'Cancelar',
+    deleting: 'Excluindo…',
+  },
   errors: {
     network: 'Não foi possível conectar',
     notFoundPage: 'Página não encontrada',

@@ -1,0 +1,13 @@
+meta {
+  name: Fotos
+  seq: 5
+}
+
+docs {
+  Álbum de fotos da cliente (feature 009). Oito operações sobre metadado: **nenhuma delas recebe
+  arquivo**. Os bytes entram por `Images/Gravar pelo Servidor` (multipart, a rota da 004) ou pelo
+  fluxo pré-assinado, e aqui só se anexa o `imageId` resultante ao álbum da cliente.
+
+  Preencha `customerId` com uma cliente da vendedora do `token`, e `imageId` com uma imagem já
+  `available` do mesmo usuário — os testes abaixo usam `vars:pre-request` com valores de exemplo.
+}

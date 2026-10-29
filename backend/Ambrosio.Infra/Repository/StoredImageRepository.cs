@@ -42,6 +42,23 @@ public class StoredImageRepository : IStoredImageRepository<StoredImage>
     }
 
     /// <inheritdoc />
+    public async Task<List<StoredImage>> GetByIdsAsync(long userId, IReadOnlyCollection<long> imageIds)
+    {
+        if (imageIds.Count == 0)
+        {
+            return [];
+        }
+
+        // `user_id` primeiro, como em toda leitura da casa (§VI): imagem de outra conta não aparece,
+        // e quem chama trata a ausência como "não existe".
+        return await _context.StoredImages
+            .AsNoTracking()
+            .Where(i => i.UserId == userId)
+            .Where(i => imageIds.Contains(i.Id))
+            .ToListAsync();
+    }
+
+    /// <inheritdoc />
     public async Task<StoredImage?> GetActiveByHashAsync(long userId, string sha256)
     {
         // Status 3 (failed) fica fora do filtro: é o que permite redeclarar o mesmo conteúdo depois
@@ -121,6 +138,39 @@ public class StoredImageRepository : IStoredImageRepository<StoredImage>
         await _context.StoredImages
             .Where(i => i.UserId == userId)
             .ExecuteDeleteAsync();
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> IsImageReferencedAsync(long imageId, long userId)
+    {
+        // Três leitores possíveis, todos filtrados pelo dono como primeira cláusula (§VI): outra foto
+        // do álbum (de qualquer cliente da conta), o recorte de perfil de alguma cliente, e item de
+        // pedido importado. O último passa pela navegação porque `order_items` não carrega user_id —
+        // o dono é do pedido.
+        var inAlbum = await _context.CustomerPhotos
+            .Where(p => p.UserId == userId)
+            .Where(p => p.ImageId == imageId)
+            .AnyAsync();
+
+        if (inAlbum)
+        {
+            return true;
+        }
+
+        var inProfile = await _context.Customers
+            .Where(c => c.UserId == userId)
+            .Where(c => c.ProfileImageId == imageId)
+            .AnyAsync();
+
+        if (inProfile)
+        {
+            return true;
+        }
+
+        return await _context.OrderItems
+            .Where(i => i.Order!.UserId == userId)
+            .Where(i => i.ImageId == imageId)
+            .AnyAsync();
     }
 
     private static bool IsUniqueViolation(DbUpdateException ex) =>

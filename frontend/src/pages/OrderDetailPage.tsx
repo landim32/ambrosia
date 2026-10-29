@@ -101,7 +101,10 @@ export const OrderDetailSections = ({ order }: OrderDetailSectionsProps) => {
             to={`/clientes/${String(order.customerId)}`}
             className="flex min-h-11 min-w-0 items-center gap-3 rounded-2xl px-4 py-3 transition-colors hover:bg-secondary/50 focus-visible:outline-none active:bg-secondary"
           >
-            <CustomerAvatar name={order.customer.name} photoUrl={order.customer.photoUrl} />
+            <CustomerAvatar
+              name={order.customer.name}
+              photoUrl={order.customer.profilePhoto?.url}
+            />
             <span className="min-w-0 grow">
               <span className="block truncate text-[0.9375rem] font-medium text-foreground">
                 {order.customer.name}

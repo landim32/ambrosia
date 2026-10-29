@@ -58,7 +58,19 @@ public class UnauthorizedAccessTests
         { "GET", "/imports/mais-vendas/runs/current" },
         { "GET", "/imports/mais-vendas/runs/1" },
         { "GET", "/imports/mais-vendas/runs" },
-        { "POST", "/imports/mais-vendas/runs/1/cancel" }
+        { "POST", "/imports/mais-vendas/runs/1/cancel" },
+
+        // Feature 009 (T019): as oito operações do álbum de fotos. Nenhuma delas pode revelar que a
+        // cliente ou a foto existe — o 401 é a mesma resposta em todas, sem corpo (SC-006 começa aqui,
+        // antes do isolamento entre duas vendedoras).
+        { "GET", "/customers/1/photos" },
+        { "POST", "/customers/1/photos" },
+        { "PUT", "/customers/1/photos/1/description" },
+        { "PUT", "/customers/1/photos/1/favorite" },
+        { "DELETE", "/customers/1/photos/1/favorite" },
+        { "DELETE", "/customers/1/photos/1" },
+        { "PUT", "/customers/1/profile-photo" },
+        { "DELETE", "/customers/1/profile-photo" }
     };
 
     private readonly ApiTestFixture _fixture;

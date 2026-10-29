@@ -41,11 +41,19 @@ public class ImageService : IImageService
     private readonly IClock _clock;
     private readonly ILogger<ImageService> _logger;
 
+    /// <summary>
+    /// Usado <b>só</b> em <see cref="DeleteAllForUserAsync"/>: as fotos das clientes apontam para estas
+    /// imagens por FK sem cascata (feature 009, research R13), então precisam sair da frente antes dos
+    /// metadados de imagem. Nenhuma outra operação desta classe o toca.
+    /// </summary>
+    private readonly ICustomerPhotoRepository<CustomerPhoto> _photoRepo;
+
     public ImageService(
         IStoredImageRepository<StoredImage> images,
         IObjectStorageAppService storage,
         IOptions<ObjectStorageSettings> settings,
         IValidator<ImageUploadInsertInfo> uploadValidator,
+        ICustomerPhotoRepository<CustomerPhoto> photoRepo,
         IClock clock,
         ILogger<ImageService> logger)
     {
@@ -53,6 +61,7 @@ public class ImageService : IImageService
         _storage = storage;
         _settings = settings.Value;
         _uploadValidator = uploadValidator;
+        _photoRepo = photoRepo;
         _clock = clock;
         _logger = logger;
     }
@@ -278,6 +287,14 @@ public class ImageService : IImageService
     {
         // FR-017: primeiro os objetos sob o prefixo da conta, depois os metadados. Sem endpoint — o
         // único chamador é o futuro fluxo de exclusão de conta.
+        //
+        // Antes de tudo isso, o álbum de fotos (feature 009, research R13): `customer_photos.image_id`
+        // e `customers.profile_image_id` apontam para estas linhas, e as FKs são ClientSetNull — sem
+        // cascata no banco. Um ExecuteDelete em stored_images com foto viva por cima daria violação de
+        // FK, e o ExecuteDelete não passa pelo change tracker do EF para anular a referência.
+        await _photoRepo.ClearProfilesForUserAsync(userId, _clock.UtcNow);
+        await _photoRepo.DeleteAllForUserAsync(userId);
+
         await _storage.DeletePrefixAsync(StoredImage.BuildUserPrefix(userId));
         await _images.DeleteAllByUserAsync(userId);
 

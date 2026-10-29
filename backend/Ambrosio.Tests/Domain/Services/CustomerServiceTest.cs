@@ -4,6 +4,7 @@ using Ambrosio.Domain.Models;
 using Ambrosio.Domain.Services;
 using Ambrosio.Domain.Validators;
 using Ambrosio.DTO.Common;
+using Ambrosio.DTO.CustomerPhotos;
 using Ambrosio.DTO.Customers;
 using Ambrosio.Infra.Interfaces.AppServices;
 using Ambrosio.Infra.Interfaces.Repository;
@@ -31,6 +32,7 @@ public class CustomerServiceTest
 
     private readonly Mock<ICustomerRepository<Customer>> _repository = new();
     private readonly Mock<ICpfProtectionAppService> _cpfProtection = new();
+    private readonly Mock<ICustomerPhotoService> _photos = new();
     private readonly FakeClock _clock = new(NOW);
     private readonly CustomerService _sut;
 
@@ -47,11 +49,16 @@ public class CustomerServiceTest
         _repository.Setup(r => r.GetSummaryAsync(It.IsAny<long>(), It.IsAny<long>(), It.IsAny<DateOnly>()))
             .ReturnsAsync(new CustomerSummaryInfo());
 
+        // Fotos (009): nenhuma cliente destes testes tem perfil nem álbum.
+        _photos.Setup(p => p.GetProfilesAsync(It.IsAny<long>(), It.IsAny<IReadOnlyCollection<long>>(), It.IsAny<bool>()))
+            .ReturnsAsync(new Dictionary<long, CustomerProfilePhotoInfo>());
+
         // Validators reais: as regras de formato são da própria história e o serviço é testado de
         // ponta a ponta (T054). Os mocks ficam nas fronteiras (repositório, AppService, relógio).
         _sut = new CustomerService(
             _repository.Object,
             _cpfProtection.Object,
+            _photos.Object,
             new CustomerInsertInfoValidator(),
             new CustomerUpdateInfoValidator(),
             new CustomerListQueryValidator(),

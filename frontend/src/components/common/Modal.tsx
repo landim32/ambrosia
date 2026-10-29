@@ -2,6 +2,8 @@ import { useEffect, useRef } from 'react'
 
 import { X } from 'lucide-react'
 
+import { cn } from '@/lib/utils'
+
 import type { ReactNode } from 'react'
 
 export interface ModalProps {
@@ -19,6 +21,13 @@ export interface ModalProps {
    * arquivo de i18n (constituição §IV, FR-024).
    */
   closeLabel: string
+  /**
+   * Largura do painel (feature 009): o visualizador de foto e o editor de recorte
+   * precisam de mais espaço que os `max-w-md` de um diálogo de confirmação. `cn`
+   * resolve o conflito pelo `tailwind-merge`, então OMITIR deixa o diálogo
+   * exatamente como era — nenhuma tela anterior passa por aqui.
+   */
+  className?: string
 }
 
 /**
@@ -41,7 +50,7 @@ export interface ModalProps {
  * O diálogo só é montado quando `open` (não existe no DOM fechado), então o
  * `aria-hidden` do resto da tela não é necessário: o overlay cobre e captura.
  */
-export const Modal = ({ open, onOpenChange, title, children, footer, closeLabel }: ModalProps) => {
+export const Modal = ({ open, onOpenChange, title, children, footer, closeLabel, className }: ModalProps) => {
   /**
    * O elemento que tinha foco antes de abrir, em `ref` e não em `useState`: como o
    * efeito de abertura é o que grava o valor, estado aqui re-renderizaria o diálogo
@@ -91,7 +100,10 @@ export const Modal = ({ open, onOpenChange, title, children, footer, closeLabel 
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="relative w-full max-w-md rounded-2xl border border-border bg-popover p-4 shadow-xl"
+        className={cn(
+          'relative w-full max-w-md rounded-2xl border border-border bg-popover p-4 shadow-xl',
+          className,
+        )}
         data-testid="modal-panel"
       >
         <div className="flex items-start justify-between gap-3">

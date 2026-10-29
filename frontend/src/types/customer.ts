@@ -1,5 +1,7 @@
 /** Customer Types — cliente da vendedora (data-model §1) */
 
+import type { CustomerProfilePhotoInfo } from '@/types/customerPhoto'
+
 /** Cliente em listagens: CPF sempre mascarado. */
 export interface CustomerInfo {
   id: number
@@ -8,8 +10,12 @@ export interface CustomerInfo {
   cpfMasked: string
   createdAt: string
   updatedAt: string
-  /** Reservado para a HU 010; a API da 001 ainda não devolve. */
-  photoUrl?: string | null
+  /**
+   * Foto de perfil (feature 009, FR-016): o recorte quadrado gerado no
+   * navegador, exibido em círculo. `null`/ausente = a cliente aparece com as
+   * iniciais. Na listagem vem sem `originalUrl` (uma URL assinada por linha).
+   */
+  profilePhoto?: CustomerProfilePhotoInfo | null
 }
 
 /** Resumo de compras exibido no perfil. */
@@ -25,6 +31,8 @@ export interface CustomerSummaryInfo {
 export interface CustomerDetailInfo extends CustomerInfo {
   cpf: string
   summary: CustomerSummaryInfo
+  /** Fotos do álbum (feature 009, data-model §6); contagem por `COUNT`, sem coluna. */
+  photoCount: number
 }
 
 /** Parâmetros de `GET /customers`. */

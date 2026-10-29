@@ -1,0 +1,39 @@
+meta {
+  name: Editar Descrição
+  type: http
+  seq: 3
+}
+
+put {
+  url: {{baseUrl}}/customers/{{customerId}}/photos/{{photoId}}/description
+  body: json
+  auth: inherit
+}
+
+vars:pre-request {
+  customerId: 32
+  photoId: 1204
+}
+
+body:json {
+  {
+    "description": "saia verde, provou e aprovou"
+  }
+}
+
+docs {
+  FR-007: a descrição é criada, trocada e apagada a qualquer momento. Limite de 500 caracteres.
+
+  `null`, `""` ou só espaços gravam **ausência** (`description: null`) — não existe valor "sem
+  mudança". Acima de 500 caracteres vem 400 com `erros[0].campo = "description"`.
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("descrição aplicada", function () {
+    expect(res.body.description).to.equal("saia verde, provou e aprovou");
+  });
+}

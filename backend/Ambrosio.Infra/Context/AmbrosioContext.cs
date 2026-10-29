@@ -24,6 +24,9 @@ public class AmbrosioContext : DbContext
 
     public DbSet<Customer> Customers { get; set; }
 
+    /// <summary>Álbum de fotos de cada cliente (feature 009).</summary>
+    public DbSet<CustomerPhoto> CustomerPhotos { get; set; }
+
     public DbSet<Order> Orders { get; set; }
 
     public DbSet<OrderItem> OrderItems { get; set; }
@@ -57,6 +60,7 @@ public class AmbrosioContext : DbContext
 
         ConfigureUser(modelBuilder);
         ConfigureCustomer(modelBuilder);
+        ConfigureCustomerPhoto(modelBuilder);
         ConfigureOrder(modelBuilder);
         ConfigureOrderItem(modelBuilder);
         ConfigureStoredImage(modelBuilder);
@@ -186,6 +190,133 @@ public class AmbrosioContext : DbContext
 
             entity.HasIndex(e => new { e.UserId, e.Name })
                 .HasDatabaseName("ix_customers_user_name");
+
+            // Foto de perfil (feature 009). As duas colunas são nulas juntas ou descrevem o perfil:
+            // a regra é do serviço (data-model §2), não do banco — não há check constraint aqui
+            // porque profile_image_id depende de uma linha de OUTRA tabela.
+            entity.Property(e => e.ProfilePhotoId)
+                .HasColumnName("profile_photo_id");
+
+            entity.Property(e => e.ProfileImageId)
+                .HasColumnName("profile_image_id");
+
+            // São dois FKs diferentes de `customers` para `customer_photos`: este é o da foto de onde
+            // o perfil saiu; `CustomerPhoto.Customer` é o do álbum. Sem HasForeignKey explícito o EF
+            // criaria uma coluna sombra para um dos dois.
+            entity.HasOne(e => e.ProfilePhoto)
+                .WithMany()
+                .HasForeignKey(e => e.ProfilePhotoId)
+                .HasConstraintName("fk_customer_photo_customer")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(e => e.ProfileImage)
+                .WithMany()
+                .HasForeignKey(e => e.ProfileImageId)
+                .HasConstraintName("fk_profile_image_customer")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            // Índices das FKs em snake_case, e o de baixo serve à checagem de órfão do recorte (R6).
+            entity.HasIndex(e => e.ProfilePhotoId)
+                .HasDatabaseName("ix_customers_profile_photo");
+
+            entity.HasIndex(e => e.ProfileImageId)
+                .HasDatabaseName("ix_customers_profile_image");
+        });
+    }
+
+    private static void ConfigureCustomerPhoto(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CustomerPhoto>(entity =>
+        {
+            entity.ToTable("customer_photos");
+
+            entity.HasKey(e => e.Id).HasName("customer_photos_pkey");
+
+            entity.Property(e => e.Id)
+                .HasColumnName("customer_photo_id")
+                .UseIdentityAlwaysColumn();
+
+            entity.Property(e => e.UserId)
+                .HasColumnName("user_id")
+                .IsRequired();
+
+            entity.Property(e => e.CustomerId)
+                .HasColumnName("customer_id")
+                .IsRequired();
+
+            entity.Property(e => e.ImageId)
+                .HasColumnName("image_id")
+                .IsRequired();
+
+            entity.Property(e => e.Description)
+                .HasColumnName("description")
+                .HasMaxLength(500);
+
+            entity.Property(e => e.IsFavorite)
+                .HasColumnName("is_favorite")
+                .HasDefaultValue(false)
+                .IsRequired();
+
+            entity.Property(e => e.Source)
+                .HasColumnName("source")
+                .HasConversion<int>()
+                .IsRequired();
+
+            entity.Property(e => e.CreatedAt)
+                .HasColumnName("created_at")
+                .HasColumnType("timestamp without time zone")
+                .IsRequired();
+
+            entity.Property(e => e.UpdatedAt)
+                .HasColumnName("updated_at")
+                .HasColumnType("timestamp without time zone")
+                .IsRequired();
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.CustomerPhotos)
+                .HasForeignKey(e => e.UserId)
+                .HasConstraintName("fk_user_customer_photo")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(e => e.Customer)
+                .WithMany()
+                .HasForeignKey(e => e.CustomerId)
+                .HasConstraintName("fk_customer_customer_photo")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(e => e.StoredImage)
+                .WithMany()
+                .HasForeignKey(e => e.ImageId)
+                .HasConstraintName("fk_stored_image_customer_photo")
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            // FKs em snake_case (a convenção do EF geraria "IX_customer_photos_customer_id").
+            entity.HasIndex(e => e.UserId)
+                .HasDatabaseName("ix_customer_photos_user");
+
+            entity.HasIndex(e => e.CustomerId)
+                .HasDatabaseName("ix_customer_photos_customer");
+
+            entity.HasIndex(e => e.ImageId)
+                .HasDatabaseName("ix_customer_photos_image");
+
+            // FR-006: a mesma imagem não entra duas vezes no álbum da mesma cliente. É índice e não
+            // checagem só no serviço porque duas requisições paralelas do mesmo arquivo chegam juntas
+            // (research R6) — o serviço trata a DuplicateException resultante relendo a existente.
+            entity.HasIndex(e => new { e.CustomerId, e.ImageId })
+                .IsUnique()
+                .HasDatabaseName("ux_customer_photos_customer_image");
+
+            // Ordem da grade: mais recente primeiro, com o id desempatando o instante (cursor, R8).
+            entity.HasIndex(e => new { e.UserId, e.CustomerId, e.CreatedAt, e.Id })
+                .IsDescending(false, false, true, true)
+                .HasDatabaseName("ix_customer_photos_feed");
+
+            // Filtro "só favoritas" (FR-010): índice parcial, porque a maioria das fotos não é.
+            entity.HasIndex(e => new { e.UserId, e.CustomerId, e.CreatedAt, e.Id })
+                .IsDescending(false, false, true, true)
+                .HasFilter("is_favorite")
+                .HasDatabaseName("ix_customer_photos_favorites");
         });
     }
 

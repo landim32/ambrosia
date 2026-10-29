@@ -27,6 +27,13 @@ public class OrderService : IOrderService
 
     private readonly IOrderRepository<Order> _orders;
     private readonly ICustomerRepository<Customer> _customers;
+
+    /// <summary>
+    /// Avatar da cliente na tela do pedido (feature 009, FR-016: "todos os lugares onde hoje aparecem
+    /// as iniciais"). Só o detalhe do pedido pede a foto — a listagem de pedidos não mostra avatar.
+    /// </summary>
+    private readonly ICustomerPhotoService _photos;
+
     private readonly IValidator<OrderInsertInfo> _insertValidator;
     private readonly IValidator<OrderUpdateInfo> _updateValidator;
     private readonly IValidator<OrderListQuery> _listValidator;
@@ -35,6 +42,7 @@ public class OrderService : IOrderService
     public OrderService(
         IOrderRepository<Order> orders,
         ICustomerRepository<Customer> customers,
+        ICustomerPhotoService photos,
         IValidator<OrderInsertInfo> insertValidator,
         IValidator<OrderUpdateInfo> updateValidator,
         IValidator<OrderListQuery> listValidator,
@@ -42,6 +50,7 @@ public class OrderService : IOrderService
     {
         _orders = orders;
         _customers = customers;
+        _photos = photos;
         _insertValidator = insertValidator;
         _updateValidator = updateValidator;
         _listValidator = listValidator;
@@ -69,7 +78,20 @@ public class OrderService : IOrderService
     {
         var order = await GetOwnedOrThrowAsync(orderId, userId);
 
-        return MapToDetail(order);
+        var detail = MapToDetail(order);
+
+        // FR-016: onde hoje há iniciais, passa a haver o círculo da cliente — inclusive na tela de
+        // pedido. Sem perfil, `profilePhoto` continua null e o avatar cai nas iniciais (US3-5). O
+        // original não é assinado aqui: abrir a foto inteira é comportamento do perfil, não do pedido.
+        if (detail.Customer.Id != 0)
+        {
+            var profiles = await _photos.GetProfilesAsync(
+                userId, [detail.Customer.Id], includeOriginalUrl: false);
+
+            detail.Customer.ProfilePhoto = profiles.GetValueOrDefault(detail.Customer.Id);
+        }
+
+        return detail;
     }
 
     /// <inheritdoc />

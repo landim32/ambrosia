@@ -15,8 +15,8 @@ public class AuthSettings
     /// <summary>Destinatário validado/emitido (<c>aud</c>).</summary>
     public string Audience { get; set; } = "ambrosio";
 
-    /// <summary>Duração da sessão em minutos (padrão 480 = 8h, research §3).</summary>
-    public int ExpirationMinutes { get; set; } = 480;
+    /// <summary>Duração da sessão em minutos (padrão 129600 = 90 dias).</summary>
+    public int ExpirationMinutes { get; set; } = 129600;
 
     /// <summary>Client ID do Google usado como audiência na validação do ID token.</summary>
     public string GoogleClientId { get; set; } = string.Empty;

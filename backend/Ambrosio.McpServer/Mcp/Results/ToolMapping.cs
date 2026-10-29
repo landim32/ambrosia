@@ -18,7 +18,10 @@ public static class ToolMapping
     {
         id = customer.Id,
         nome = customer.Name,
-        cpfMasked = customer.CpfMasked
+        cpfMasked = customer.CpfMasked,
+        // A cliente tem foto de perfil ou não: basta o booleano. Nenhuma URL assinada sai aqui — o
+        // arquivo quem abre é a vendedora, na tela (feature 009, T059).
+        temFotoPerfil = customer.ProfilePhoto is not null
     };
 
     public static object CustomerDetail(CustomerDetailInfo customer) => new
@@ -26,6 +29,10 @@ public static class ToolMapping
         id = customer.Id,
         nome = customer.Name,
         cpfMasked = customer.CpfMasked,
+        temFotoPerfil = customer.ProfilePhoto is not null,
+        // Contado no serviço no mesmo caminho da tela: o modelo usa para dizer "são 12 fotos" e para
+        // decidir se vale a pena chamar listar_fotos_cliente (feature 009, T059).
+        totalFotos = customer.PhotoCount,
         resumo = Summary(customer.Summary)
     };
 
