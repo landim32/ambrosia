@@ -46,6 +46,8 @@ public class CustomerPhotoToolsTests(ApiTestFixture fixture)
             new
             {
                 download_url = await PublicFileUrlAsync("small.jpg"),
+                // O objeto completo, como o ChatGPT manda: file_id sempre vem junto (openai/fileParams).
+                file_id = "file-IMG0143",
                 mime_type = "image/jpeg",
                 file_name = "IMG_0143.jpg"
             }
@@ -263,8 +265,17 @@ public class CustomerPhotoToolsTests(ApiTestFixture fixture)
 
         // O nome declarado tem de existir no schema: sem o argumento correspondente, o modelo mandaria o
         // arquivo para um campo que a ferramenta não lê (AmbrosioFileParamsAttribute).
-        anexar.GetProperty("inputSchema").GetProperty("properties").GetProperty("fotos")
-            .GetProperty("type").GetString().Should().Be("array");
+        var fotos = anexar.GetProperty("inputSchema").GetProperty("properties").GetProperty("fotos");
+        fotos.GetProperty("type").GetString().Should().Be("array");
+
+        // Formato que o ChatGPT exige para entregar o anexo (Apps SDK, openai/fileParams): fora dele o
+        // modelo fica sem link de download e desiste — foi o que aconteceu em produção.
+        AssertOpenAiFileObject(fotos.GetProperty("items"));
+
+        var enviar = tools["enviar_imagem"];
+        enviar.GetProperty("_meta").GetProperty("openai/fileParams").EnumerateArray()
+            .Select(v => v.GetString()).Should().Equal("arquivo");
+        AssertOpenAiFileObject(enviar.GetProperty("inputSchema").GetProperty("properties").GetProperty("arquivo"));
 
         anexar.GetProperty("annotations").GetProperty("openWorldHint").GetBoolean().Should().BeTrue(
             "baixar o arquivo da conversa é abrir o mundo");
@@ -281,6 +292,26 @@ public class CustomerPhotoToolsTests(ApiTestFixture fixture)
             .GetBoolean().Should().BeTrue("apagar a foto é a única operação destrutiva do álbum (FR-027)");
         tools["definir_foto_perfil"].GetProperty("securitySchemes")[0].GetProperty("scopes")
             .EnumerateArray().Select(s => s.GetString()).Should().Equal("images:write");
+    }
+
+    /// <summary>
+    /// Objeto de arquivo do <c>openai/fileParams</c>: <c>download_url</c> e <c>file_id</c> obrigatórios,
+    /// <c>mime_type</c> e <c>file_name</c> declarados e opcionais, nenhuma outra obrigatória.
+    /// </summary>
+    private static void AssertOpenAiFileObject(JsonElement schema)
+    {
+        schema.GetProperty("type").GetString().Should().Be("object");
+
+        schema.GetProperty("properties").EnumerateObject().Select(p => p.Name)
+            .Should().Contain(["download_url", "file_id", "mime_type", "file_name"]);
+
+        foreach (var property in schema.GetProperty("properties").EnumerateObject())
+        {
+            property.Value.GetProperty("type").GetString().Should().Be("string", property.Name);
+        }
+
+        schema.GetProperty("required").EnumerateArray().Select(v => v.GetString())
+            .Should().BeEquivalentTo(["download_url", "file_id"]);
     }
 
     // ---------------------------------------------------------------------
