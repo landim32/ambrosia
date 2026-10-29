@@ -1,0 +1,41 @@
+meta {
+  name: Registrar Cliente (DCR)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{mcpBaseUrl}}/auth/connect/register
+  body: json
+  auth: none
+}
+
+body:json {
+  {
+    "redirect_uris": ["{{mcpRedirectUri}}"],
+    "client_name": "Bruno",
+    "token_endpoint_auth_method": "none",
+    "grant_types": ["authorization_code", "refresh_token"],
+    "response_types": ["code"]
+  }
+}
+
+script:post-response {
+  if (res.status === 201) {
+    bru.setEnvVar("mcpClientId", res.body.client_id);
+  }
+}
+
+tests {
+  test("201 com cliente público", function () {
+    expect(res.status).to.equal(201);
+    expect(res.body.token_endpoint_auth_method).to.equal("none");
+    expect(res.body).to.not.have.property("client_secret");
+  });
+}
+
+docs {
+  Registro dinâmico (RFC 7591). A redirect URI precisa estar em `Auth:AllowedRedirectUris`: em homolog,
+  `mcpRedirectUri` é a URI de teste da suíte (`https://chatgpt.com/connector/oauth/apitest`), que o
+  navegador nunca chega a abrir — o código é lido do `Location`.
+}

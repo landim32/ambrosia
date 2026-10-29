@@ -6,6 +6,7 @@ import App, { siteBasename } from '@/App'
 import { AuthProvider } from '@/Contexts/AuthContext'
 import { CustomerProvider } from '@/Contexts/CustomerContext'
 import { ImportProvider } from '@/Contexts/ImportContext'
+import { MaisVendasSettingsProvider } from '@/Contexts/MaisVendasSettingsContext'
 import { OrderProvider } from '@/Contexts/OrderContext'
 import { Toaster } from '@/components/ui/sonner'
 
@@ -24,6 +25,8 @@ if (!container) {
  *
  *   BrowserRouter → AuthProvider (US1) → CustomerProvider (US2) → OrderProvider (US3)
  *     → ImportProvider (feature 006; não carrega nada sozinho — a `ImportPage` busca)
+ *     → MaisVendasSettingsProvider (feature 008; idem: é a tela de configuração que
+ *        lê as credenciais, e a senha nunca passa por aqui)
  *
  * O roteador mora AQUI (e não em `App.tsx`) porque o `AuthContext` precisa de
  * `useNavigate`/`useLocation` para encerrar a sessão em expiração e 401 (T039);
@@ -38,7 +41,9 @@ createRoot(container).render(
         <CustomerProvider>
           <OrderProvider>
             <ImportProvider>
-              <App />
+              <MaisVendasSettingsProvider>
+                <App />
+              </MaisVendasSettingsProvider>
             </ImportProvider>
           </OrderProvider>
         </CustomerProvider>

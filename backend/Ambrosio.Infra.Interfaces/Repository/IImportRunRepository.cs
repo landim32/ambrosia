@@ -19,6 +19,14 @@ namespace Ambrosio.Infra.Interfaces.Repository;
 /// só pelo <c>ImportRunWorker.StartAsync</c>, nunca por um endpoint (T111 confere isso).
 /// </para>
 /// <para>
+/// A segunda exceção é <see cref="ClaimNextQueuedRunAsync"/> (feature 008, R9): a fila de execuções é a
+/// própria tabela, e nenhuma varredura de fila pode saber de antemano o dono da próxima linha. Ela
+/// materializa a execução <c>queued</c> mais antiga e a marca como <c>running</c> — devolvendo a
+/// execução, que é rastro operacional (datas, contagens, mensagem), nunca dado de cliente ou credencial.
+/// É chamada só pelo worker, nunca por um endpoint, e quem executa relê a execução pelo dono antes de
+/// escrever qualquer coisa.
+/// </para>
+/// <para>
 /// <c>userId</c> não usa <c>long</c> do DTO: os parâmetros são o mínimo necessário, e nenhuma assinatura
 /// aceita credencial — a senha não tem caminho para chegar aqui (FR-006).
 /// </para>
@@ -102,6 +110,21 @@ public interface IImportRunRepository<TRun, TBlock, TChange>
     /// </summary>
     /// <returns>Total de linhas alteradas (execuções + blocos), para o log.</returns>
     Task<int> MarkInterruptedAsync(DateTime now);
+
+    /// <summary>
+    /// Reivindica a execução <c>queued</c> mais antiga e a marca como <c>running</c> (feature 008, R9):
+    /// a tabela <c>import_runs</c> é a fila, então o que o worker faz ao pegar um trabalho é uma
+    /// transição <c>queued → running</c> <b>condicional</b> — <c>UPDATE ... WHERE status = queued</c> —,
+    /// e quem perde a corrida recebe <c>null</c> em vez de executar a mesma execução duas vezes.
+    /// <para>
+    /// Não existe "reivindicar por usuário": o worker não sabe quem pediu, e é por isso que este método
+    /// fica fora da regra de filtro da constituição §VI (ver o cabeçalho da interface). Carrega só a
+    /// linha da execução, com <c>AsNoTracking</c>: blocos, rastro e dados de cliente não vêm aqui, e o
+    /// que ela devolve é relido pelo dono (<c>GetByIdAsync(id, userId)</c>) antes de qualquer escrita.
+    /// </para>
+    /// </summary>
+    /// <returns>A execução reivindicada, ou <c>null</c> quando a fila está vazia ou a linha já foi pega.</returns>
+    Task<TRun?> ClaimNextQueuedRunAsync(DateTime now);
 
     /// <summary>
     /// Grava <b>um</b> pedido importado na sua própria transação (research §7): cliente sob demanda por

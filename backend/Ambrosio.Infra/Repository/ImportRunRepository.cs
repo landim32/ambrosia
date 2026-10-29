@@ -331,6 +331,49 @@ public class ImportRunRepository : IImportRunRepository<ImportRun, ImportRunBloc
         return blocks + runs;
     }
 
+    /// <inheritdoc />
+    public async Task<ImportRun?> ClaimNextQueuedRunAsync(DateTime now)
+    {
+        // 1) A fila é a tabela: a execução `queued` mais antiga. Projeção em vez de entidade porque o
+        //    worker não precisa de nada dela além da chave, e carregar a execução inteira colocaria no
+        //    tracker uma linha que o ExecuteUpdate abaixo nem vê.
+        var candidate = await _context.ImportRuns
+            .AsNoTracking()
+            .Where(r => r.Status == ImportRunStatus.Queued)
+            .OrderBy(r => r.RequestedAt)
+            .ThenBy(r => r.Id)
+            .Select(r => new { r.Id, r.UserId })
+            .FirstOrDefaultAsync();
+
+        if (candidate is null)
+        {
+            return null;
+        }
+
+        // 2) Reivindicação atômica: o `WHERE status = queued` é a tranca. Duas varreduras (a desta
+        //    réplica no tick seguinte, ou outra réplica algum dia) nunca executam a mesma linha: a
+        //    perdedora recebe 0 e tenta a próxima no próximo tick (R9 da 008). A transição já grava
+        //    `started_at`, que é o que o relatório usa para o tempo de execução (FR-047).
+        var claimed = await _context.ImportRuns
+            .Where(r => r.Id == candidate.Id && r.UserId == candidate.UserId)
+            .Where(r => r.Status == ImportRunStatus.Queued)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(r => r.Status, ImportRunStatus.Running)
+                .SetProperty(r => r.StartedAt, now));
+
+        if (claimed != 1)
+        {
+            return null;
+        }
+
+        // 3) Devolve a linha reivindicada, relida pelo par (id, dono) que a candidate mostrou — sem
+        //    blocos nem rastro: o executor relê tudo com o filtro de usuário antes de escrever.
+        return await _context.ImportRuns
+            .AsNoTracking()
+            .Where(r => r.Id == candidate.Id && r.UserId == candidate.UserId)
+            .FirstOrDefaultAsync();
+    }
+
     // ------------------------------------------------------- pedido importado (upsert)
 
     /// <inheritdoc />

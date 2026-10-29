@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   countLabelKey,
   isImportFormValid,
+  maxEndDateForStart,
   parseUtcInstant,
   periodFromParams,
   rangeDays,
@@ -13,15 +14,19 @@ import {
 } from '@/lib/importForm'
 
 /**
- * Regras do formulário de importação (T038/T071, FR-003/FR-004/FR-026). "Hoje" é
- * injetado: o teste não depende do relógio da máquina nem do fuso do runner.
+ * Regras do formulário de importação (T038/T071 da 006; T021 da 008,
+ * FR-003/FR-004/FR-010/FR-011/FR-026). "Hoje" é injetado: o teste não depende do
+ * relógio da máquina nem do fuso do runner.
+ *
+ * O limite deixou de ser em dias (`maxRangeDays: 366`) e passou a em MESES
+ * corridos, com a MESMA conta do `ImportRunStartInfoValidator`
+ * (`endDate <= startDate.AddMonths(maxRangeMonths).AddDays(-1)`) — o que este
+ * arquivo prova é que as duas pontas recusam o mesmo período (SC-005).
  */
 const TODAY = '2026-10-27'
-const LIMIT = { maxRangeDays: 366 }
+const LIMIT = { maxRangeMonths: 3 }
 
 const valid = (overrides: Partial<ImportFormValues> = {}): ImportFormValues => ({
-  login: 's482+ok',
-  password: 'v1',
   startDate: '2026-09-26',
   endDate: '2026-10-25',
   dryRun: false,
@@ -47,6 +52,16 @@ describe('validateImportForm', () => {
     )
   })
 
+  it('não conhece mais nenhum campo de credencial (FR-009)', () => {
+    // `login`/`password` saíram do formulário e do corpo do `POST`: não existe erro
+    // de credencial a devolver — a recusa é do servidor e vira mensagem de tela.
+    const errors = validateImportForm(valid(), LIMIT, TODAY)
+
+    expect(Object.keys(errors)).toEqual([])
+    expect('login' in errors).toBe(false)
+    expect('password' in errors).toBe(false)
+  })
+
   it('bloqueia data inicial depois da final', () => {
     const errors = validateImportForm(valid({ startDate: '2026-10-26', endDate: '2026-10-25' }), LIMIT, TODAY)
 
@@ -61,25 +76,67 @@ describe('validateImportForm', () => {
     expect(validateImportForm(valid({ endDate: TODAY }), LIMIT, TODAY).endDate).toBeUndefined()
   })
 
-  it('bloqueia período acima do limite, citando o campo final', () => {
-    // 2025-10-26..2026-10-27 = 367 dias inclusivos.
-    const errors = validateImportForm(valid({ startDate: '2025-10-26', endDate: TODAY }), LIMIT, TODAY)
+  it('recusa o período de 3 meses mais um dia (spec, Edge Cases)', () => {
+    // 26/07 a 26/10 = 3 meses + 1 dia.
+    const errors = validateImportForm(valid({ startDate: '2026-07-26', endDate: '2026-10-26' }), LIMIT, TODAY)
 
     expect(errors.endDate).toBe('validation.importRangeTooLong')
   })
 
-  it('aceita exatamente o limite', () => {
-    // 2025-10-27..2026-10-27 = 366 dias inclusivos.
-    const errors = validateImportForm(valid({ startDate: '2025-10-27', endDate: TODAY }), LIMIT, TODAY)
+  it('aceita o período de exatamente 3 meses', () => {
+    // 26/07 a 25/10 é o último dia permitido por `AddMonths(3).AddDays(-1)`.
+    const errors = validateImportForm(valid({ startDate: '2026-07-26', endDate: '2026-10-25' }), LIMIT, TODAY)
 
     expect(errors.endDate).toBeUndefined()
   })
 
-  it('bloqueia login e senha vazios', () => {
-    const errors = validateImportForm(valid({ login: '   ', password: '' }), LIMIT, TODAY)
+  it('usa o número de meses dos defaults, não um valor fixo', () => {
+    const twoMonths = { maxRangeMonths: 2 }
 
-    expect(errors.login).toBe('validation.importLoginRequired')
-    expect(errors.password).toBe('validation.importPasswordRequired')
+    // 26/07 + 2 meses - 1 dia = 25/09: 26/09 já passa, 25/09 não.
+    expect(
+      validateImportForm(valid({ startDate: '2026-07-26', endDate: '2026-09-25' }), twoMonths, TODAY).endDate,
+    ).toBeUndefined()
+    expect(
+      validateImportForm(valid({ startDate: '2026-07-26', endDate: '2026-09-26' }), twoMonths, TODAY).endDate,
+    ).toBe('validation.importRangeTooLong')
+  })
+
+  it('recusa um período que passa de 3 meses em dias, mas é menor que 92 dias', () => {
+    // A conta é por mês: 01/01 a 31/03 são 90 dias e está DENTRO de 3 meses;
+    // 31/01 a 30/04 são 90 dias e está FORA (o teto de 31/01 é 29/04).
+    expect(
+      validateImportForm(valid({ startDate: '2026-01-01', endDate: '2026-03-31' }), LIMIT, TODAY).endDate,
+    ).toBeUndefined()
+    expect(
+      validateImportForm(valid({ startDate: '2026-01-31', endDate: '2026-04-30' }), LIMIT, TODAY).endDate,
+    ).toBe('validation.importRangeTooLong')
+  })
+})
+
+describe('maxEndDateForStart (a conta do servidor em JS)', () => {
+  it('devolve o dia anterior à mesma data do terceiro mês seguinte', () => {
+    expect(maxEndDateForStart('2026-07-26', 3)).toBe('2026-10-25')
+    expect(maxEndDateForStart('2026-10-01', 3)).toBe('2026-12-31')
+  })
+
+  it('não deixa o dia estourar o mês, como DateOnly.AddMonths', () => {
+    // 31/01 + 3 meses = 30/04 (abril não tem 31) → teto 29/04. Com `setMonth`
+    // puro a conta rola para 01/05 e a tela aceitaria 30/04.
+    expect(maxEndDateForStart('2026-01-31', 3)).toBe('2026-04-29')
+    // Ano bissexto: fevereiro de 2028 tem 29 dias, então 31/01 + 1 mês é 29/02.
+    expect(maxEndDateForStart('2028-01-31', 1)).toBe('2028-02-28')
+    // 31/01 + 2 meses = 31/03 (março tem 31) → teto 30/03.
+    expect(maxEndDateForStart('2028-01-31', 2)).toBe('2028-03-30')
+  })
+
+  it('cruza o ano', () => {
+    expect(maxEndDateForStart('2026-11-15', 3)).toBe('2027-02-14')
+  })
+
+  it('devolve null em data ilegível (a regra de "informe a data" vem antes)', () => {
+    expect(maxEndDateForStart('2026-13-40', 3)).toBeNull()
+    expect(maxEndDateForStart('', 3)).toBeNull()
   })
 })
 

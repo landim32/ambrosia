@@ -4,12 +4,19 @@ import type {
   ImportRunBlock,
   ImportRunCounts,
   ImportRunDetail,
+  ImportUpdateBaseDefaults,
+  MaisVendasCredentials,
 } from '@/types/import'
 
 /**
- * Fixtures da tela de importação (feature 006). Valores do cenário bom do coletor
- * Fake (26/09–25/10/2026, cinco blocos de 7 dias). Nenhuma credencial aqui: os
- * testes que precisam de login/senha digitam placeholders na própria tela.
+ * Fixtures da tela de importação (feature 006) e da configuração do +Vendas
+ * (feature 008). Valores do cenário bom do coletor Fake (26/09–25/10/2026, cinco
+ * blocos de 7 dias).
+ *
+ * Nenhuma credencial aqui, em nenhum sentido: os DTOs de saída não têm campo de
+ * senha (FR-003), então nem haveria valor para inventar — os testes de cadastro
+ * digitam placeholders na própria tela e provam que o valor não fica em lugar
+ * nenhum.
  */
 
 /** Todo o conteúdo de um `Storage` como texto, para provar que a senha não foi parar lá (FR-007). */
@@ -42,14 +49,42 @@ export const counts = (overrides: Partial<ImportRunCounts> = {}): ImportRunCount
   ...overrides,
 })
 
+/** Fatia `updateBase` disponível (FR-013): 26/09 → hoje 25/10, três semanas de base. */
+export const updateBaseAvailableFixture: ImportUpdateBaseDefaults = {
+  available: true,
+  startDate: '2026-09-26',
+  endDate: '2026-10-25',
+  reason: null,
+}
+
 export const defaultsFixture = (overrides: Partial<ImportDefaults> = {}): ImportDefaults => ({
   suggestedStartDate: '2026-09-26',
   suggestedEndDate: '2026-10-25',
   blockDays: 7,
-  maxRangeDays: 366,
+  /** Feature 008: saiu `maxRangeDays`; o teto é em meses corridos, como no servidor (FR-010). */
+  maxRangeMonths: 3,
   lockedUntil: null,
+  /** Com credenciais por padrão: o formulário é o que se testa; T021 cobre o caso contrário. */
+  hasCredentials: true,
+  credentialsStatus: 'valid',
+  updateBase: updateBaseAvailableFixture,
   ...overrides,
 })
+
+/** Defaults sem credenciais cadastradas: a tela de importação mostra o aviso (FR-009). */
+export const defaultsWithoutCredentialsFixture = (
+  overrides: Partial<ImportDefaults> = {},
+): ImportDefaults =>
+  defaultsFixture({
+    hasCredentials: false,
+    credentialsStatus: 'none',
+    updateBase: { available: false, startDate: null, endDate: null, reason: null },
+    ...overrides,
+  })
+
+/** Defaults com credenciais recusadas pelo +Vendas: aviso, mas o iniciar segue (FR-007). */
+export const defaultsNeedingUpdateFixture = (overrides: Partial<ImportDefaults> = {}): ImportDefaults =>
+  defaultsFixture({ credentialsStatus: 'needsUpdate', ...overrides })
 
 const BLOCK_PERIODS: [string, string][] = [
   ['2026-09-26', '2026-10-02'],
@@ -79,6 +114,9 @@ export const runFixture = (overrides: Partial<ImportRun> = {}): ImportRun => ({
   id: 42,
   mode: 'apply',
   status: 'succeeded',
+  /** Feature 008 (research R8): o padrão é o que a tela faz — período escolhido, pela tela. */
+  startedVia: 'screen',
+  kind: 'period',
   startDate: '2026-09-26',
   endDate: '2026-10-25',
   blockDays: 7,
@@ -94,6 +132,40 @@ export const runFixture = (overrides: Partial<ImportRun> = {}): ImportRun => ({
   errorMessage: null,
   ...overrides,
 })
+
+/** Execução iniciada pelo plugin do ChatGPT (SC-002): é `startedVia` que a distingue. */
+export const runFromPluginFixture = (overrides: Partial<ImportRun> = {}): ImportRun =>
+  runFixture({ startedVia: 'mcp', ...overrides })
+
+/**
+ * Resposta de `GET /imports/mais-vendas/credentials` sem cadastro (contracts/api.md:
+ * `{ login: null, hasPassword: false, status: 'none' }`). **Não há campo de senha
+ * para preencher aqui** — nem null, nem mascarado (FR-003).
+ */
+export const noCredentialsFixture = (overrides: Partial<MaisVendasCredentials> = {}): MaisVendasCredentials => ({
+  login: null,
+  hasPassword: false,
+  savedAt: null,
+  passwordChangedAt: null,
+  status: 'none',
+  ...overrides,
+})
+
+/** Credenciais válidas: o login volta (FR-004) e a senha não existe na resposta (FR-003). */
+export const credentialsFixture = (overrides: Partial<MaisVendasCredentials> = {}): MaisVendasCredentials =>
+  noCredentialsFixture({
+    login: 's482+ok',
+    hasPassword: true,
+    savedAt: '2026-10-27T15:00:00',
+    passwordChangedAt: '2026-10-27T15:00:00',
+    status: 'valid',
+    ...overrides,
+  })
+
+/** `needsUpdate`: o +Vendas recusou a senha guardada (FR-007). */
+export const credentialsNeedingUpdateFixture = (
+  overrides: Partial<MaisVendasCredentials> = {},
+): MaisVendasCredentials => credentialsFixture({ status: 'needsUpdate', ...overrides })
 
 export const detailFixture = (overrides: Partial<ImportRunDetail> = {}): ImportRunDetail => ({
   ...runFixture(),

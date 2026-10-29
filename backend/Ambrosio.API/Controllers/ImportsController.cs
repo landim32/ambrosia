@@ -2,6 +2,7 @@ using Ambrosio.API.Extensions;
 using Ambrosio.Domain.Exceptions;
 using Ambrosio.Domain.Interfaces;
 using Ambrosio.DTO.Common;
+using Ambrosio.DTO.Enums;
 using Ambrosio.DTO.Imports;
 using FluentValidation;
 using Microsoft.AspNetCore.Authorization;
@@ -10,17 +11,21 @@ using Microsoft.AspNetCore.Mvc;
 namespace Ambrosio.API.Controllers;
 
 /// <summary>
-/// Importação dos pedidos do +Vendas (feature 006). Seis rotas, todas autenticadas: a vendedora informa
-/// login e senha <b>a cada execução</b>, acompanha o progresso e consulta o histórico.
+/// Importação dos pedidos do +Vendas (feature 006) e as credenciais guardadas da vendedora
+/// (feature 008). Rotas autenticadas: a vendedora cadastra login e senha <b>uma vez</b> na tela de
+/// configuração e passa a importar sem redigitá-los.
 /// <para>
-/// <b>Credenciais (FR-005/FR-006, SC-004)</b>: <c>POST /runs</c> é o único ponto do sistema que as
-/// recebe, e nada aqui as devolve, grava ou loga. O corpo da requisição não é registrado nem em erro —
-/// um <c>400</c> devolve apenas campo e mensagem, e as mensagens do validator não ecoam valor.
+/// <b>Credenciais (FR-003/SC-003)</b>: <c>PUT /credentials</c> é o único ponto do sistema que recebe a
+/// senha do +Vendas em claro, e <c>POST /runs</c> não recebe mais nada — não tem campo de credencial no
+/// corpo. Nenhuma rota devolve a senha, nem mascarada; o <c>GET</c> devolve o login (a vendedora
+/// precisa dele para editar o próprio cadastro) e <c>hasPassword</c>. O corpo da requisição não é
+/// registrado nem em erro — um <c>400</c> devolve apenas campo e mensagem, e as mensagens do validator
+/// não ecoam valor.
 /// </para>
 /// <para>
-/// O <c>userId</c> vem exclusivamente do claim <c>sub</c> (constituição §VI); o DTO de entrada carrega
-/// as credenciais <b>do +Vendas</b>, nunca um dono. Execução de outra vendedora responde 404 igual a
-/// inexistente (FR-053).
+/// O <c>userId</c> vem exclusivamente do claim <c>sub</c> (constituição §VI); nenhum DTO de entrada
+/// transporta um dono. Execução de outra vendedora responde 404 igual a inexistente (FR-053 da 006), e
+/// as credenciais de outra vendedora não existem para ninguém: a rota só conhece o <c>sub</c>.
 /// </para>
 /// </summary>
 [Route("imports/mais-vendas")]
@@ -28,10 +33,91 @@ namespace Ambrosio.API.Controllers;
 public class ImportsController : ApiControllerBase
 {
     private readonly IImportRunService _imports;
+    private readonly IMaisVendasCredentialService _credentials;
 
-    public ImportsController(IImportRunService imports)
+    public ImportsController(IImportRunService imports, IMaisVendasCredentialService credentials)
     {
         _imports = imports;
+        _credentials = credentials;
+    }
+
+    /// <summary>
+    /// Credenciais do +Vendas da vendedora (feature 008, FR-001): login guardado em claro,
+    /// <c>hasPassword</c>, datas de cadastro/troca e a situação (<c>none</c> | <c>valid</c> |
+    /// <c>needsUpdate</c>). <b>A senha não sai daqui</b>, nem mascarada — é a leitura que a tela de
+    /// configuração faz para poder editar o cadastro sem perguntar a senha de novo.
+    /// </summary>
+    /// <response code="200">Estado das credenciais (sem senha).</response>
+    /// <response code="401">Token ausente, inválido ou expirado.</response>
+    /// <response code="500">Erro interno (mensagem da exceção).</response>
+    [HttpGet("credentials")]
+    [ProducesResponseType(typeof(MaisVendasCredentialsInfo), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCredentials()
+    {
+        try
+        {
+            return Ok(await _credentials.GetAsync(User.GetUserId()));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Cadastra ou troca as credenciais (feature 008, FR-002): o login e a senha são cifrados nesta
+    /// transação e o valor em claro morre aqui — nada disso é gravado, logado ou devolvido.
+    /// <para>
+    /// <c>null</c> num campo significa "não mexi nele": com cadastro feito, manda-se só a senha para
+    /// trocá-la; sem cadastro, login e senha vêm juntos (a recusa diz isso no campo que faltou).
+    /// </para>
+    /// </summary>
+    /// <param name="info">Login e/ou senha; ambos opcionais no binding.</param>
+    /// <response code="200">Estado novo (sem senha), <c>status: valid</c>.</response>
+    /// <response code="400">Combinação ou formato recusado; as mensagens não repetem o valor enviado.</response>
+    /// <response code="401">Token ausente, inválido ou expirado.</response>
+    /// <response code="500">Erro interno (mensagem da exceção).</response>
+    [HttpPut("credentials")]
+    [ProducesResponseType(typeof(MaisVendasCredentialsInfo), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> SaveCredentials([FromBody] MaisVendasCredentialsUpdateInfo info)
+    {
+        try
+        {
+            return Ok(await _credentials.SaveAsync(User.GetUserId(), info));
+        }
+        catch (ValidationException ex)
+        {
+            // Sem log do corpo (FR-003): um LogError com `info` levaria a senha para o stderr.
+            return ValidationError(ex);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Remove as credenciais guardadas (feature 008, FR-006): zera as cinco colunas do cadastro.
+    /// <c>account_hash</c> e o bloqueio por recusas não mudam — quem já foi bloqueado por recusas
+    /// continua bloqueado, agora sem credenciais salvas. Idempotente: remover sem cadastro responde
+    /// <c>200</c> com <c>hasPassword: false</c>.
+    /// </summary>
+    /// <response code="200">Estado vazio (<c>status: none</c>).</response>
+    /// <response code="401">Token ausente, inválido ou expirado.</response>
+    /// <response code="500">Erro interno (mensagem da exceção).</response>
+    [HttpDelete("credentials")]
+    [ProducesResponseType(typeof(MaisVendasCredentialsInfo), StatusCodes.Status200OK)]
+    public async Task<IActionResult> RemoveCredentials()
+    {
+        try
+        {
+            return Ok(await _credentials.DeleteAsync(User.GetUserId()));
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+        }
     }
 
     /// <summary>
@@ -57,18 +143,20 @@ public class ImportsController : ApiControllerBase
     }
 
     /// <summary>
-    /// Inicia uma importação (FR-001/FR-016). Valida o período, grava a execução como
-    /// <c>queued</c> <b>sem credencial no banco</b>, enfileira o trabalho e responde <c>202</c> com o
-    /// resumo — a coleta roda no worker, e é por isso que a resposta é imediata (SC-006, ≤ 3 s).
+    /// Inicia uma importação no período escolhido (feature 006, FR-001/FR-016; <b>feature 008</b>,
+    /// FR-001/FR-002/FR-009). Valida o período, exige credenciais cadastradas, grava a execução como
+    /// <c>queued</c> e responde <c>202</c> com o resumo — a coleta roda no worker da API, que pega a
+    /// linha na fila do banco.
     /// <para>
-    /// O corpo é <see cref="ImportRunStartInfo"/>: <c>login</c> e <c>password</c> do +Vendas
-    /// (documentados no Swagger como <c>format: password</c>), <c>startDate</c>/<c>endDate</c> e
-    /// <c>dryRun</c>. Ele nunca é registrado no log.
+    /// O corpo é <see cref="ImportRunStartInfo"/>: <c>startDate</c>, <c>endDate</c> e <c>dryRun</c>.
+    /// <b>Não tem campo de credencial</b>: o que uma cliente antiga ainda enviar por login e senha é
+    /// descartado no binding, e a execução não acontece sem cadastro na tela de configuração (a recusa
+    /// vem no campo <c>login</c>, com a mesma frase do plugin).
     /// </para>
     /// </summary>
-    /// <param name="info">Credenciais desta execução e período.</param>
-    /// <response code="202">Execução criada e enfileirada (<c>status: queued</c>).</response>
-    /// <response code="400">Período ou credenciais inválidos; as mensagens não repetem o valor enviado.</response>
+    /// <param name="info">Período e modo.</param>
+    /// <response code="202">Execução criada e na fila (<c>status: queued</c>, <c>startedVia: screen</c>).</response>
+    /// <response code="400">Período inválido ou credenciais não cadastradas; as mensagens não repetem valor algum.</response>
     /// <response code="401">Token ausente, inválido ou expirado.</response>
     /// <response code="409">Já existe importação em andamento.</response>
     /// <response code="429">Bloqueio por recusas seguidas de credencial; ver <c>Retry-After</c>.</response>
@@ -87,13 +175,64 @@ public class ImportsController : ApiControllerBase
                 return badRequest;
             }
 
-            var created = await _imports.StartAsync(User.GetUserId(), info);
+            var created = await _imports.StartAsync(User.GetUserId(), info, ImportRunStartedVia.Screen);
 
             return AcceptedAtAction(nameof(GetRun), new { runId = created.Id }, created);
         }
         catch (ValidationException ex)
         {
-            // Sem log do corpo (FR-006): um LogError com `info` levaria a senha para o stderr.
+            // Sem log do corpo (FR-003): um LogError com `info` levaria o período inteiro para o stderr
+            // e, se alguém reintroduzir um campo de credencial, a senha junto.
+            return ValidationError(ex);
+        }
+        catch (ImportLockedException ex)
+        {
+            return ImportLockedError(ex);
+        }
+        catch (DuplicateException ex)
+        {
+            return ConflictError(ex);
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(StatusCodes.Status500InternalServerError, ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// "Atualizar base" (feature 008, FR-011 a FR-013): continua de onde a última importação parou —
+    /// do último pedido importado, inclusive, até hoje. <b>As datas não vêm do corpo</b>: o único campo
+    /// é <c>dryRun</c>, e o período é calculado no servidor, o que impede a tela de mandar um intervalo
+    /// que a vendedora não escolheu de verdade.
+    /// <para>
+    /// Quando a base não pode ser atualizada de uma vez (sem pedidos importados, ou mais de
+    /// <c>maxRangeMonths</c> para trás), responde <c>400</c> com o mesmo motivo que <c>defaults</c> já
+    /// tinha mostrado em <c>updateBase.reason</c> (FR-015).
+    /// </para>
+    /// </summary>
+    /// <param name="info">Só o modo: simulação ou gravação.</param>
+    /// <response code="202">Execução criada e na fila (<c>kind: updateBase</c>).</response>
+    /// <response code="400">Base indisponível, período acima do limite ou credenciais não cadastradas.</response>
+    /// <response code="401">Token ausente, inválido ou expirado.</response>
+    /// <response code="409">Já existe importação em andamento.</response>
+    /// <response code="429">Bloqueio por recusas seguidas de credencial; ver <c>Retry-After</c>.</response>
+    /// <response code="500">Erro interno (mensagem da exceção).</response>
+    [HttpPost("runs/update-base")]
+    [ProducesResponseType(typeof(ImportRunInfo), StatusCodes.Status202Accepted)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ErrorResult), StatusCodes.Status429TooManyRequests)]
+    public async Task<IActionResult> UpdateBase([FromBody] ImportUpdateBaseInfo? info)
+    {
+        try
+        {
+            var created = await _imports.UpdateBaseAsync(
+                User.GetUserId(), info?.DryRun ?? false, ImportRunStartedVia.Screen);
+
+            return AcceptedAtAction(nameof(GetRun), new { runId = created.Id }, created);
+        }
+        catch (ValidationException ex)
+        {
             return ValidationError(ex);
         }
         catch (ImportLockedException ex)

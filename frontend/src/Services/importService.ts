@@ -7,16 +7,27 @@ import type {
   ImportRunDetail,
   ImportRunListQuery,
   ImportRunStartRequest,
+  ImportUpdateBaseRequest,
+  MaisVendasCredentials,
+  MaisVendasCredentialsRequest,
 } from '@/types/import'
 
+/** As três rotas de credenciais (`GET`/`PUT`/`DELETE`) dividem este caminho (contracts/api.md). */
+const CREDENTIALS_PATH = '/imports/mais-vendas/credentials'
+
 /**
- * Import Service — importação do +Vendas (feature 006, skill `react-architecture`:
- * classe singleton sobre `apiRequest`).
+ * Import Service — importação do +Vendas e credenciais guardadas (feature 006 e
+ * 008, skill `react-architecture`: classe singleton sobre `apiRequest`).
  *
- * Seis métodos, um por rota do contrato `contracts/imports-api.md`. Nada aqui
- * guarda credencial: `startRun` recebe o corpo, envia e esquece — o objeto
- * `ImportRun`/`ImportRunDetail` devolvido pela API não tem `login` nem `password`
- * (FR-006), e o serviço não devolve o que enviou.
+ * Um serviço por área de API, como `customerService` cobre `/customers/{id}`: as
+ * credenciais moram em `/imports/mais-vendas/credentials` — mesma área, mesmo
+ * consumidor — e separá-las num serviço próprio só dividiria o mock dos testes
+ * (research R4: "mantém tudo sob o recurso de importação, que é o único
+ * consumidor").
+ *
+ * Nada aqui GUARDA credencial: `saveCredentials` recebe o corpo, envia e esquece,
+ * e devolve apenas o `MaisVendasCredentialsInfo` do servidor, que não tem campo de
+ * senha (FR-003). O serviço também não devolve o que recebeu.
  *
  * O 429 de bloqueio (FR-008a) é tratado como erro de negócio com a mensagem do
  * servidor: `apiRequest` já monta `ApiError(status, mensagem, erros)`, e a tela
@@ -24,18 +35,62 @@ import type {
  * servidor sabe calcular no fuso certo.
  */
 class ImportService {
-  /** `GET /imports/mais-vendas/defaults` (FR-002/FR-008a). */
+  /** `GET /imports/mais-vendas/defaults` (FR-002/FR-008a + 008 R5). */
   async getDefaults(): Promise<ImportDefaults> {
     return apiRequest<ImportDefaults>('GET', '/imports/mais-vendas/defaults')
   }
 
   /**
-   * `POST /imports/mais-vendas/runs` → `202` com a execução `queued` (FR-001).
-   * O corpo é o único lugar do frontend que transporta a senha, e ele não é
-   * retido: quem chama passa o objeto e o descarta (T068: a página zera o campo).
+   * `POST /imports/mais-vendas/runs` → `202` com a execução `queued` (FR-001,
+   * feature 008: corpo só com datas e modo — login e senha saíram do contrato e
+   * um campo extra é recusado com 400, então nada aqui os transporta).
    */
   async startRun(request: ImportRunStartRequest): Promise<ImportRun> {
     return apiRequest<ImportRun>('POST', '/imports/mais-vendas/runs', { body: request })
+  }
+
+  /**
+   * `POST /imports/mais-vendas/runs/update-base` → `202` com a execução
+   * `kind: "updateBase"` (FR-013). O período é calculado pelo SERVIDOR — a tela só
+   * repete o que veio nos defaults na confirmação —, então um 400 aqui traz a
+   * recusa da qual a tela não tem cópia local (sem credenciais, sem pedido
+   * importado, intervalo acima do limite): `apiRequest` transforma em `ApiError`
+   * e a mensagem do servidor é a que aparece.
+   */
+  async startUpdateBase(request: ImportUpdateBaseRequest): Promise<ImportRun> {
+    return apiRequest<ImportRun>('POST', '/imports/mais-vendas/runs/update-base', { body: request })
+  }
+
+  /**
+   * `GET /imports/mais-vendas/credentials` (FR-001/FR-004): o login cadastrado e
+   * se há senha, nunca qual senha (FR-003).
+   */
+  async getCredentials(): Promise<MaisVendasCredentials> {
+    return apiRequest<MaisVendasCredentials>('GET', CREDENTIALS_PATH)
+  }
+
+  /**
+   * `PUT /imports/mais-vendas/credentials` → a mesma forma do `GET` (contracts/api.md).
+   * `password: null` significa "mantém a senha guardada" — a troca de login exige
+   * senha, e é o servidor quem diz isso com a mensagem dele. A senha em claro
+   * atravessa esta chamada e morre aqui: não volta no retorno, não vai para estado
+   * nem para storage (FR-003, SC-003).
+   */
+  async saveCredentials(request: MaisVendasCredentialsRequest): Promise<MaisVendasCredentials> {
+    return apiRequest<MaisVendasCredentials>('PUT', CREDENTIALS_PATH, { body: request })
+  }
+
+  /**
+   * `DELETE /imports/mais-vendas/credentials` (FR-006): idempotente, nunca 404. O
+   * servidor devolve a forma do `GET` já zerada (`hasPassword: false`,
+   * `status: 'none'`); o `204` histórico do contrato devolve `undefined`, e o
+   * chamador trata `null` como "sem credenciais" — as duas respostas saem da tela
+   * com o mesmo estado (T013 "remover credenciais").
+   */
+  async removeCredentials(): Promise<MaisVendasCredentials | null> {
+    const result = await apiRequest<MaisVendasCredentials | undefined>('DELETE', CREDENTIALS_PATH)
+
+    return result ?? null
   }
 
   /**

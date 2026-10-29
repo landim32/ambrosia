@@ -1,0 +1,47 @@
+meta {
+  name: Tools List
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{mcpBaseUrl}}/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{mcpToken}}
+}
+
+headers {
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/list"
+  }
+}
+
+tests {
+  // Resposta do /mcp em SSE ("event: message" / "data: {...}"): o JSON-RPC é o último "data:".
+  function rpc(body) {
+    const text = typeof body === "string" ? body : JSON.stringify(body);
+    const lines = text.split("\n").filter(l => l.startsWith("data:"));
+    return JSON.parse(lines.length ? lines[lines.length - 1].slice(5).trim() : text);
+  }
+
+  test("200 com as 28 tools e securitySchemes", function () {
+    expect(res.status).to.equal(200);
+    const tools = rpc(res.body).result.tools;
+    expect(tools.length).to.equal(28);
+    tools.forEach(t => expect(t.securitySchemes[0].type).to.equal("oauth2"));
+  });
+}
+
+docs {
+  Lista das 28 tools com `securitySchemes`, anotações e `_meta["ambrosio/endpoint"]`.
+}

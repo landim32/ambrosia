@@ -1,7 +1,12 @@
 import { useTranslation } from 'react-i18next'
 
 import { Badge } from '@/components/ui/badge'
-import { IMPORT_BLOCK_STATUS_KEYS, IMPORT_STATUS_KEYS } from '@/types/import'
+import {
+  IMPORT_BLOCK_STATUS_KEYS,
+  IMPORT_RUN_KIND_KEYS,
+  IMPORT_STARTED_VIA_KEYS,
+  IMPORT_STATUS_KEYS,
+} from '@/types/import'
 
 import type { ImportRun, ImportRunBlock } from '@/types/import'
 
@@ -43,6 +48,38 @@ export const ImportBlockStatusBadge = ({ status }: BlockStatusBadgeProps) => {
     >
       {t(IMPORT_BLOCK_STATUS_KEYS[status])}
     </Badge>
+  )
+}
+
+/**
+ * Etiqueta de origem/o quê de uma execução (feature 008, research R8, T027).
+ *
+ * Só desenha o que NÃO é o padrão: `startedVia: 'screen'` e `kind: 'period'` são o
+ * que a vendedora acabou de fazer na tela, e repetir isso em toda linha do
+ * histórico seria ruído. O que merece rótulo é a execução que APARECEU sozinha no
+ * polling — iniciada pelo plugin do ChatGPT (SC-002) — e o "Atualizar base", cujo
+ * período vem calculado do servidor e se distingue da importação por datas
+ * (FR-013). Sem o rótulo, um progresso que ela não iniciou parece um bug.
+ */
+export const ImportRunOriginBadges = ({ run }: { run: ImportRun }) => {
+  const { t } = useTranslation()
+
+  if (run.startedVia === 'screen' && run.kind === 'period') return null
+
+  return (
+    <>
+      {run.startedVia === 'mcp' ? (
+        <Badge variant="outline" data-testid="import-via-plugin">
+          {t(IMPORT_STARTED_VIA_KEYS.mcp)}
+        </Badge>
+      ) : null}
+
+      {run.kind === 'updateBase' ? (
+        <Badge variant="secondary" data-testid="import-kind-update-base">
+          {t(IMPORT_RUN_KIND_KEYS.updateBase)}
+        </Badge>
+      ) : null}
+    </>
   )
 }
 

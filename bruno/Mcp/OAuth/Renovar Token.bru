@@ -1,0 +1,35 @@
+meta {
+  name: Renovar Token
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{mcpBaseUrl}}/auth/connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: refresh_token
+  refresh_token: {{mcpRefreshToken}}
+  client_id: {{mcpClientId}}
+  resource: {{mcpBaseUrl}}/mcp
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setEnvVar("mcpToken", res.body.access_token);
+    bru.setEnvVar("mcpRefreshToken", res.body.refresh_token);
+  }
+}
+
+tests {
+  test("200 com refresh novo (rotação)", function () {
+    expect(res.status).to.equal(200);
+  });
+}
+
+docs {
+  O refresh gira a cada uso: o anterior, reutilizado, derruba a família inteira (`invalid_grant`).
+}

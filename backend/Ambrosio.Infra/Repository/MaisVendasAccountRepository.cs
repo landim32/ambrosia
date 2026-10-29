@@ -1,5 +1,6 @@
 using Ambrosio.Domain.Exceptions;
 using Ambrosio.Domain.Models;
+using Ambrosio.DTO.Enums;
 using Ambrosio.Infra.Context;
 using Ambrosio.Infra.Interfaces.Repository;
 using Microsoft.EntityFrameworkCore;
@@ -75,6 +76,26 @@ public class MaisVendasAccountRepository : IMaisVendasAccountRepository<MaisVend
         await _context.SaveChangesAsync();
 
         return existing;
+    }
+
+    /// <inheritdoc />
+    public async Task<DateTime?> GetLastImportedBySellerSinceAsync(long userId, DateTime since)
+    {
+        // Primeira cláusula sempre o dono (constituição §VI). Só gravação: simulação não atualiza base
+        // nenhuma (FR-011). Só succeeded/partial: uma execução que falhou no meio não autoriza o
+        // "Atualizar base" (data-model §4 — o estado é um atributo, não um contador).
+        //
+        // Devolve o instante em vez da entidade porque a camada de interfaces não conhece os modelos do
+        // Domain, e nada além da data é perguntado aqui.
+        return await _context.ImportRuns
+            .AsNoTracking()
+            .Where(r => r.UserId == userId)
+            .Where(r => r.Mode == ImportRunMode.Apply)
+            .Where(r => r.Status == ImportRunStatus.Succeeded || r.Status == ImportRunStatus.Partial)
+            .Where(r => r.FinishedAt != null && r.FinishedAt > since)
+            .OrderByDescending(r => r.FinishedAt)
+            .Select(r => r.FinishedAt)
+            .FirstOrDefaultAsync();
     }
 
     private static bool IsUniqueViolation(Exception ex) =>

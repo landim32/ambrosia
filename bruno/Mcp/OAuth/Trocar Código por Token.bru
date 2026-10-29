@@ -1,0 +1,39 @@
+meta {
+  name: Trocar Código por Token
+  type: http
+  seq: 8
+}
+
+post {
+  url: {{mcpBaseUrl}}/auth/connect/token
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  grant_type: authorization_code
+  code: {{mcpCode}}
+  code_verifier: {{mcpCodeVerifier}}
+  redirect_uri: {{mcpRedirectUri}}
+  client_id: {{mcpClientId}}
+  resource: {{mcpBaseUrl}}/mcp
+}
+
+script:post-response {
+  if (res.status === 200) {
+    bru.setEnvVar("mcpToken", res.body.access_token);
+    if (res.body.refresh_token) bru.setEnvVar("mcpRefreshToken", res.body.refresh_token);
+  }
+}
+
+tests {
+  test("200 com access e refresh token", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.token_type).to.equal("Bearer");
+    expect(res.body.refresh_token).to.be.a("string");
+  });
+}
+
+docs {
+  PKCE conferido, código de uso único. O access token (JWT RS256, `aud` = URL do MCP) vale 30 minutos.
+}

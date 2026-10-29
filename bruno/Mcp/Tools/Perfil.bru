@@ -1,0 +1,51 @@
+meta {
+  name: Perfil
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{mcpBaseUrl}}/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{mcpToken}}
+}
+
+headers {
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "perfil_ambrosio",
+      "arguments": {}
+    }
+  }
+}
+
+tests {
+  // Resposta do /mcp em SSE ("event: message" / "data: {...}"): o JSON-RPC é o último "data:".
+  function rpc(body) {
+    const text = typeof body === "string" ? body : JSON.stringify(body);
+    const lines = text.split("\n").filter(l => l.startsWith("data:"));
+    return JSON.parse(lines.length ? lines[lines.length - 1].slice(5).trim() : text);
+  }
+
+  test("200 sem erro de tool", function () {
+    expect(res.status).to.equal(200);
+    const result = rpc(res.body).result;
+    expect(result.isError || false).to.equal(false);
+    expect(result.structuredContent.id).to.be.a("string");
+  });
+}
+
+docs {
+  Tool de perfil (`openai/profile`): id, nome e e-mail da conta conectada.
+}

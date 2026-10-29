@@ -36,6 +36,7 @@ Sobrescrevem `appsettings*.json` (separador `__`). Em Development, `appsettings.
 | `Auth__ExpirationMinutes` | Duração do token (padrão 480) |
 | `CpfProtection__Pepper` | Pepper do HMAC do CPF (obrigatório) |
 | `CpfProtection__EncryptionKey` | Chave AES: base64 de exatamente 32 bytes |
+| `MaisVendas__CredentialsKey` | Chave da cifra das credenciais do +Vendas: base64 de exatamente 32 bytes, **dedicada** (não é a do CPF). Obrigatória — API e host do MCP recusam o startup sem ela (feature 008, constituição §VI emenda 3.4.1). Localmente ela já vem nos `appsettings.Development.json`; nos containers vem de `AMBROSIO_MAIS_VENDAS_CREDENTIALS_KEY` no `.env` |
 | `ObjectStorage__AccessKey` / `ObjectStorage__SecretKey` | Par de chaves do storage de imagens (obrigatório em **todos** os ambientes, inclusive Development — é credencial de conta, nunca valor de appsettings) |
 | `ObjectStorage__ServiceUrl`, `ObjectStorage__Region`, `ObjectStorage__Bucket`, `ObjectStorage__ForcePathStyle` | Onde ficam as imagens; os valores não-secretos estão no `appsettings.<Ambiente>.json` e estas variáveis só servem para apontar para outro storage |
 | `ObjectStorage__PresignedReadMinutes` (1-60), `ObjectStorage__PresignedUploadMinutes` (1-15) | Validade das URLs pré-assinadas |
@@ -67,13 +68,24 @@ O `AWSSDK.S3` e o `SixLabors.ImageSharp` ficam restritos ao `Ambrosio.Infra`, at
 licença da Six Labors no build **Release** (em `Debug` é só aviso): veja a seção de licença em
 [`deploy/README.md`](../deploy/README.md).
 
-### Importação do +Vendas (feature 006)
+### Importação do +Vendas (feature 006, credenciais guardadas na 008)
 
-Rotas `/imports/mais-vendas/*` (defaults, iniciar, execução atual, relatório, histórico, cancelar). A
-vendedora informa login e senha do +Vendas **a cada execução**; `POST /runs` grava a execução sem
-credencial, enfileira o trabalho numa fila em memória e responde `202`, e o `ImportRunWorker`
-(`BackgroundService`) coleta bloco a bloco, valida contadores e totais da origem **antes** de gravar e
-grava pedido a pedido de forma idempotente (chave natural + `source_hash`).
+Rotas `/imports/mais-vendas/*`: `credentials` (consultar, salvar, remover), `defaults`, `runs`,
+`runs/update-base`, `runs/current`, `runs/{id}`, `runs/{id}/cancel`.
+
+A vendedora cadastra login e senha do +Vendas **uma vez**, na tela de configuração
+(`/configuracoes/mais-vendas`), e o `POST /runs` leva só o período. As credenciais são gravadas
+cifradas em `mais_vendas_accounts` (AES-256-GCM, formato `v1:` + base64) e decifradas pelo worker no
+instante do login na origem — nenhuma resposta, log, auditoria ou tool do MCP devolve a senha, nem
+mascarada (FR-003 da 008). `POST /runs` sem credenciais cadastradas é recusado com
+`400` ("Cadastre as credenciais do +Vendas na configuração.").
+
+O `POST` grava a execução como `queued` e responde `202`; a fila é a própria tabela
+`import_runs` (research R9 da 008), e o `ImportRunWorker` da API — único processo com navegador —
+reivindica a linha mais antiga numa transição `queued → running` atômica. É o que permite ao host do
+MCP iniciar uma importação sem coletar nada. O worker coleta bloco a bloco, valida contadores e totais
+da origem **antes** de gravar e grava pedido a pedido de forma idempotente (chave natural +
+`source_hash`).
 
 Seção `MaisVendas` do appsettings (variáveis `MaisVendas__*`):
 
@@ -82,7 +94,8 @@ Seção `MaisVendas` do appsettings (variáveis `MaisVendas__*`):
 | `Collector` | `Playwright` | `Playwright` ou `Fake` (Fake recusado em Production) |
 | `BaseUrl` | `https://maisvendas.somalabs.com.br` | URL https absoluta |
 | `BlockDays` | `7` | 1–31 |
-| `MaxRangeDays` | `366` | 1–3660 |
+| `MaxRangeMonths` | `3` | 1–12 — limite do período em meses corridos (substitui `MaxRangeDays` da 006) |
+| `CredentialsKey` | — | **obrigatória**: base64 de exatamente 32 bytes, chave dedicada à cifra das credenciais (não é a do CPF). API e host do MCP recusam o startup sem ela |
 | `MaxConcurrentRuns` | `2` | 1–10 |
 | `MaxFailedLogins` / `LockoutMinutes` | `3` / `15` | recusas seguidas antes do bloqueio (FR-008a) |
 | `MinDelayMs` / `MaxDelayMs` | `300` / `900` | pausa aleatória entre ações na origem |

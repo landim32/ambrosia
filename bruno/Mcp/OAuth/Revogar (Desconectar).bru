@@ -1,0 +1,28 @@
+meta {
+  name: Revogar (Desconectar)
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{mcpBaseUrl}}/auth/connect/revoke
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  token: {{mcpRefreshToken}}
+  token_type_hint: refresh_token
+  client_id: {{mcpClientId}}
+}
+
+tests {
+  test("200", function () {
+    expect(res.status).to.equal(200);
+  });
+}
+
+docs {
+  Revoga o refresh token e a autorização ligada a ele (desconectar). Depois disso, **Renovar Token**
+  responde `invalid_grant` e o próximo authorize volta a pedir consentimento.
+}

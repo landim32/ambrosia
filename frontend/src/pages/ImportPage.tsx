@@ -13,16 +13,27 @@ import { periodFromParams, type ImportFormValues } from '@/lib/importForm'
 import { isImportRunActive } from '@/types/import'
 
 /**
- * Tela `/importacao` (feature 006, US1/US2/US3/US4/US7).
+ * Tela `/importacao` (feature 006, US1/US2/US3/US4/US7; feature 008, US2/US3).
  *
- * Fluxo: ao montar, busca os defaults (datas sugeridas e bloqueio) e retoma a
- * execução ativa, se houver — fechar e reabrir a aba volta ao progresso (US7-1),
- * porque a execução vive no servidor. Com execução ativa a tela mostra o
- * progresso no lugar do formulário (um segundo início seria 409, FR-016); ao
- * terminar, mostra o relatório e atualiza o histórico.
+ * Fluxo: ao montar, busca os defaults (datas sugeridas, limite em meses, situação
+ * das credenciais e o período do "Atualizar base") e retoma a execução ativa, se
+ * houver — fechar e reabrir a aba volta ao progresso (US7-1), porque a execução
+ * vive no servidor. Com execução ativa a tela mostra o progresso no lugar do
+ * formulário (um segundo início seria 409, FR-016); ao terminar, mostra o relatório
+ * e atualiza o histórico.
+ *
+ * **Nenhum campo de credencial aqui** (FR-009): sem cadastro, o formulário dá lugar
+ * ao aviso com o link da configuração, dentro do `ImportForm`. O corpo do `POST`
+ * leva só as datas e o modo, então não existe senha a descartar nesta página — a
+ * garantia que a feature 006 fazia limpar o campo passou a ser do contrato.
  *
  * `?inicio=AAAA-MM-DD&fim=AAAA-MM-DD` é o destino de "Repetir este bloco"
- * (FR-026): pré-preenche o período. Login e senha nunca vêm por URL (FR-007).
+ * (FR-026): pré-preenche o período. Nada de credencial vem por URL (FR-007 da 006,
+ * FR-003 da 008).
+ *
+ * A execução iniciada pelo PLUGIN do ChatGPT (FR-016, SC-002) aparece aqui pelo
+ * mesmo polling de `runs/current` — `startedVia: 'mcp'` é o que a distingue, e o
+ * rótulo "Pelo plugin" vai no progresso e no histórico (T027).
  */
 export const ImportPage = () => {
   const { t } = useTranslation()
@@ -37,6 +48,7 @@ export const ImportPage = () => {
     error,
     loadDefaults,
     startRun,
+    startUpdateBase,
     loadRun,
     loadHistory,
     cancelRun,
@@ -71,24 +83,37 @@ export const ImportPage = () => {
     void loadHistory()
   }, [finishedRun, loadHistory])
 
+  /** Sucesso dos dois inícios: o toast, o histórico na primeira página. */
+  const onStarted = useCallback((): void => {
+    toast.success(t('import.startedToast'))
+    void loadHistory({ page: 1 })
+  }, [loadHistory, t])
+
   const handleSubmit = useCallback(
     (values: ImportFormValues): void => {
-      // O objeto com a senha é montado aqui, entregue ao serviço e descartado: não
-      // vai para estado global, storage ou log (FR-005/FR-007).
       void startRun({
-        login: values.login.trim(),
-        password: values.password,
         startDate: values.startDate,
         endDate: values.endDate,
         dryRun: values.dryRun,
       }).then((created) => {
-        if (created !== null) {
-          toast.success(t('import.startedToast'))
-          void loadHistory({ page: 1 })
-        }
+        if (created !== null) onStarted()
       })
     },
-    [loadHistory, startRun, t],
+    [onStarted, startRun],
+  )
+
+  /**
+   * "Atualizar base" (FR-013): o período NÃO sai daqui — o corpo é só o modo, e o
+   * servidor recusa sem credenciais, sem pedido importado ou com intervalo acima do
+   * limite (400), com a mensagem dele na tela.
+   */
+  const handleUpdateBase = useCallback(
+    (dryRun: boolean): void => {
+      void startUpdateBase({ dryRun }).then((created) => {
+        if (created !== null) onStarted()
+      })
+    },
+    [onStarted, startUpdateBase],
   )
 
   const handleCancel = useCallback((): void => {
@@ -137,6 +162,7 @@ export const ImportPage = () => {
           hasActiveRun={false}
           serverError={error}
           onSubmit={handleSubmit}
+          onUpdateBase={handleUpdateBase}
         />
       )}
 

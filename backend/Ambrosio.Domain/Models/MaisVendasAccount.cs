@@ -1,13 +1,23 @@
+using Ambrosio.DTO.Enums;
+
 namespace Ambrosio.Domain.Models;
 
 /// <summary>
-/// Vínculo da vendedora com a conta do +Vendas e o bloqueio por recusas (feature 006, tabela
-/// <c>mais_vendas_accounts</c>, research §8). Uma linha por vendedora
-/// (<c>ux_mais_vendas_accounts_user</c>).
+/// Vínculo da vendedora com a conta do +Vendas, o bloqueio por recusas (feature 006, tabela
+/// <c>mais_vendas_accounts</c>, research §8) e as <b>credenciais cifradas</b> da feature 008
+/// (research R1/R7, data-model §1). Uma linha por vendedora (<c>ux_mais_vendas_accounts_user</c>).
 /// <para>
-/// <b>Não existe coluna de login nem de senha</b> em lugar nenhum (FR-006): o que se guarda é o
-/// HMAC-SHA256 com pepper do identificador da conta, suficiente para perceber que a vendedora tentou
-/// importar com outra conta e parar antes de escrever (FR-008b).
+/// <b>Credenciais (feature 008)</b>: <see cref="LoginEncrypted"/> e <see cref="PasswordEncrypted"/>
+/// guardam o texto cifrado (<c>v1:</c> + AES-256-GCM) — nunca o valor em claro, que é criado e lido
+/// pela cifra da Infra com a chave dedicada. As duas colunas são nulas juntas ou preenchidas juntas:
+/// <see cref="SetCredentials"/> e <see cref="ClearCredentials"/> são os únicos caminhos que as tocam,
+/// e é por isso que a tela consegue afirmar "há senha" sem ler a senha (<c>hasPassword</c>).
+/// </para>
+/// <para>
+/// O que continua de 006: o HMAC-SHA256 com pepper do identificador da conta (<see cref="AccountHash"/>)
+/// percebe que a vendedora tentou importar com outra conta (FR-008b), e o bloqueio por recusas
+/// (<see cref="LockedUntil"/>) não mudou — a cifra só acrescentou o rastro de que a senha guardada
+/// precisa ser atualizada (<see cref="CredentialsStatus"/>, FR-007).
 /// </para>
 /// </summary>
 public class MaisVendasAccount
@@ -28,6 +38,21 @@ public class MaisVendasAccount
 
     /// <summary>Até quando novos inícios estão bloqueados; <c>null</c> quando livre.</summary>
     public DateTime? LockedUntil { get; set; }
+
+    /// <summary>Login do +Vendas cifrado (<c>v1:</c> + AES-256-GCM); <c>null</c> sem credenciais.</summary>
+    public string? LoginEncrypted { get; set; }
+
+    /// <summary>Senha do +Vendas cifrada; <c>null</c> sem credenciais. NUNCA sai daqui em claro.</summary>
+    public string? PasswordEncrypted { get; set; }
+
+    /// <summary>Última gravação de login ou senha (UTC).</summary>
+    public DateTime? CredentialsSavedAt { get; set; }
+
+    /// <summary>Última troca de senha (UTC) — é a data que a tela mostra ("Senha cadastrada em ...").</summary>
+    public DateTime? PasswordChangedAt { get; set; }
+
+    /// <summary>Situação das credenciais para a tela e para o plugin (FR-004/FR-007).</summary>
+    public MaisVendasCredentialsStatus CredentialsStatus { get; set; } = MaisVendasCredentialsStatus.None;
 
     public DateTime CreatedAt { get; set; }
 
@@ -74,12 +99,23 @@ public class MaisVendasAccount
     /// recusa <b>seguida</b>, abre o bloqueio de <paramref name="lockoutMinutes"/>. A contagem continua
     /// subindo depois disso (o bloqueio é renovado a cada tentativa recusada), porque o que importa é
     /// o horário de liberação.
-    /// </summary>
+    /// <para>
+    /// Com credenciais guardadas (feature 008, FR-007), a recusa também marca
+    /// <see cref="CredentialsStatus"/> como <see cref="MaisVendasCredentialsStatus.NeedsUpdate"/>: é
+    /// o que faz a tela e o plugin orientarem a vendedora a conferir a senha, sem expor nada. Sem
+    /// credenciais (importação com credencial digitada na hora, como até a 006) o status fica
+    /// <see cref="MaisVendasCredentialsStatus.None"/>.
+    /// </para>
     /// <returns><c>true</c> quando esta recusa abriu um bloqueio.</returns>
     public bool RegisterRefusedLogin(DateTime now, int maxFailedLogins, int lockoutMinutes)
     {
         FailedLoginCount++;
         UpdatedAt = now;
+
+        if (HasCredentials)
+        {
+            CredentialsStatus = MaisVendasCredentialsStatus.NeedsUpdate;
+        }
 
         if (FailedLoginCount >= maxFailedLogins)
         {
@@ -91,11 +127,89 @@ public class MaisVendasAccount
         return false;
     }
 
-    /// <summary>Login aceito: a sequência de recusas acaba aqui (FR-008a).</summary>
+    /// <summary>
+    /// Login aceito: a sequência de recusas acaba aqui (FR-008a) e as credenciais guardadas voltam a
+    /// <see cref="MaisVendasCredentialsStatus.Valid"/> (data-model §1 — o +Vendas acaba de provar que
+    /// servem).
+    /// </summary>
     public void RegisterAcceptedLogin(DateTime now)
     {
         FailedLoginCount = 0;
         LockedUntil = null;
         UpdatedAt = now;
+
+        if (HasCredentials)
+        {
+            CredentialsStatus = MaisVendasCredentialsStatus.Valid;
+        }
+    }
+
+    // ------------------------------------------------------------------ credenciais (feature 008)
+
+    /// <summary>
+    /// Há as duas credenciais cifradas? É o que o <c>GET</c> devolve como <c>hasPassword</c> sem ler a
+    /// senha, e o que o início da importação exige (FR-004/FR-009).
+    /// </summary>
+    public bool HasCredentials =>
+        LoginEncrypted is { Length: > 0 } && PasswordEncrypted is { Length: > 0 };
+
+    /// <summary>
+    /// Guarda login e senha cifrados, partindo do zero ou trocando os dois (data-model §1: 0 → 1 e
+    /// 2 → 1). Como o +Vendas exige a senha em claro no login, quem troca o login troca a senha junto
+    /// (contrato: "Informe a senha para trocar o login."), e a data exibida na tela é esta.
+    /// </summary>
+    public void SetCredentials(string loginEncrypted, string passwordEncrypted, DateTime now)
+    {
+        RequireCipher(loginEncrypted, nameof(loginEncrypted));
+        RequireCipher(passwordEncrypted, nameof(passwordEncrypted));
+
+        LoginEncrypted = loginEncrypted;
+        PasswordEncrypted = passwordEncrypted;
+        CredentialsSavedAt = now;
+        PasswordChangedAt = now;
+        CredentialsStatus = MaisVendasCredentialsStatus.Valid;
+        UpdatedAt = now;
+    }
+
+    /// <summary>
+    /// Troca só o login cifrado, reaproveitando a senha que já está guardada (data-model §1: 1 ou 2
+    /// → 1). A senha não é reescrita e <see cref="PasswordChangedAt"/> não muda — ela não foi trocada.
+    /// </summary>
+    public void ChangeLogin(string loginEncrypted, DateTime now)
+    {
+        RequireCipher(loginEncrypted, nameof(loginEncrypted));
+
+        if (!HasCredentials)
+        {
+            throw new InvalidOperationException("Não há credenciais do +Vendas para trocar o login.");
+        }
+
+        LoginEncrypted = loginEncrypted;
+        CredentialsSavedAt = now;
+        CredentialsStatus = MaisVendasCredentialsStatus.Valid;
+        UpdatedAt = now;
+    }
+
+    /// <summary>
+    /// Remove as credenciais (1 ou 2 → 0): zera as cinco colunas. O vínculo da conta
+    /// (<see cref="AccountHash"/>) e o bloqueio por recusas não mudam — são outra regra (FR-006 da
+    /// 008, edge case "remover as credenciais").
+    /// </summary>
+    public void ClearCredentials(DateTime now)
+    {
+        LoginEncrypted = null;
+        PasswordEncrypted = null;
+        CredentialsSavedAt = null;
+        PasswordChangedAt = null;
+        CredentialsStatus = MaisVendasCredentialsStatus.None;
+        UpdatedAt = now;
+    }
+
+    private static void RequireCipher(string value, string paramName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException("A credencial cifrada do +Vendas é obrigatória.", paramName);
+        }
     }
 }

@@ -1,0 +1,51 @@
+meta {
+  name: Clientes Inativos
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{mcpBaseUrl}}/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{mcpToken}}
+}
+
+headers {
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "clientes_inativos",
+      "arguments": { "dias": 90 }
+    }
+  }
+}
+
+tests {
+  // Resposta do /mcp em SSE ("event: message" / "data: {...}"): o JSON-RPC é o último "data:".
+  function rpc(body) {
+    const text = typeof body === "string" ? body : JSON.stringify(body);
+    const lines = text.split("\n").filter(l => l.startsWith("data:"));
+    return JSON.parse(lines.length ? lines[lines.length - 1].slice(5).trim() : text);
+  }
+
+  test("200 sem erro de tool", function () {
+    expect(res.status).to.equal(200);
+    const result = rpc(res.body).result;
+    expect(result.isError || false).to.equal(false);
+    expect(result.structuredContent).to.have.property("tem_mais");
+  });
+}
+
+docs {
+  Clientes sem comprar há 90 dias ou mais (até 200, com `total` e `tem_mais`).
+}

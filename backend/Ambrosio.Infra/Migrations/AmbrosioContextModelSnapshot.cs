@@ -161,6 +161,12 @@ namespace Ambrosio.Infra.Migrations
                         .HasDefaultValue(0)
                         .HasColumnName("inserted_count");
 
+                    b.Property<int>("Kind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("kind");
+
                     b.Property<int>("MissingCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
@@ -182,6 +188,12 @@ namespace Ambrosio.Infra.Migrations
                     b.Property<DateTime?>("StartedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("started_at");
+
+                    b.Property<int>("StartedVia")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(1)
+                        .HasColumnName("started_via");
 
                     b.Property<int>("Status")
                         .ValueGeneratedOnAdd()
@@ -430,6 +442,16 @@ namespace Ambrosio.Infra.Migrations
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<DateTime?>("CredentialsSavedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("credentials_saved_at");
+
+                    b.Property<int>("CredentialsStatus")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("credentials_status");
+
                     b.Property<int>("FailedLoginCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
@@ -443,6 +465,18 @@ namespace Ambrosio.Infra.Migrations
                     b.Property<DateTime?>("LockedUntil")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("locked_until");
+
+                    b.Property<string>("LoginEncrypted")
+                        .HasColumnType("text")
+                        .HasColumnName("login_encrypted");
+
+                    b.Property<DateTime?>("PasswordChangedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("password_changed_at");
+
+                    b.Property<string>("PasswordEncrypted")
+                        .HasColumnType("text")
+                        .HasColumnName("password_encrypted");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")

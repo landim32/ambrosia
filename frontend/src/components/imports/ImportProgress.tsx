@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
-import { ImportBlockStatusBadge, ImportStatusBadge } from '@/components/imports/ImportStatusBadge'
+import { ImportBlockStatusBadge, ImportRunOriginBadges, ImportStatusBadge } from '@/components/imports/ImportStatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { COUNT_KEYS, countLabelKey, formatImportDate, ordersWrittenOf } from '@/lib/importForm'
@@ -36,6 +36,9 @@ export const ImportProgress = ({ run, busy = false, onCancel, onRefresh }: Props
   const isDryRun = run.mode === 'dryRun'
   const finished = run.blocksTotal > 0 && run.blocksFinished >= run.blocksTotal
 
+  /** Rótulo de origem só quando não é a tela: `screen` + `period` é o padrão (R8). */
+  const showsOrigin = run.startedVia !== 'screen' || run.kind !== 'period'
+
   const counts = COUNT_KEYS.map((key): [keyof ImportRunCounts, number] => [key, run.counts[key]])
 
   return (
@@ -55,7 +58,21 @@ export const ImportProgress = ({ run, busy = false, onCancel, onRefresh }: Props
           })}
           {' · '}
           {t('import.modeLabel')}: {t(isDryRun ? 'import.mode.dryRun' : 'import.mode.apply')}
+          {/* Origem e tipo, quando diferentes do padrão da tela (feature 008, R8). */}
+          {showsOrigin ? ' · ' : null}
+          {showsOrigin ? <ImportRunOriginBadges run={run} /> : null}
         </p>
+
+        {/*
+          * Execução que a vendedora NÃO iniciou: apareceu aqui pelo polling de
+          * `runs/current` (SC-002, FR-016). Dizer isso por extenso é o que separa
+          * "o plugin está trabalhando" de "a tela abriu sozinha" (T027).
+         */}
+        {run.startedVia === 'mcp' ? (
+          <p className="text-sm text-muted-foreground" data-testid="import-started-externally">
+            {t('import.startedByPluginHelp')}
+          </p>
+        ) : null}
 
         {run.status === 'queued' ? (
           <p className="text-sm text-muted-foreground" data-testid="import-queued">

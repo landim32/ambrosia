@@ -7,9 +7,10 @@ namespace Ambrosio.Domain.Models;
 /// Uma execução de importação do +Vendas (feature 006, tabela <c>import_runs</c>): o período pedido, o
 /// modo, o progresso bloco a bloco, as nove contagens e o motivo do fim.
 /// <para>
-/// <b>Nada aqui guarda credencial.</b> Login e senha vivem só no <see cref="ImportJob"/> em memória e
-/// não têm coluna (FR-005/FR-006, SC-004). O que fica é o rastro operacional: datas, status, blocos,
-/// contagens e a mensagem final.
+/// <b>Nada aqui guarda credencial</b> (FR-003 da 008): desde a feature 008 o login e a senha vivem só
+/// cifrados em <see cref="MaisVendasAccount"/> e o <c>ImportJob</c> não os carrega — o executor os
+/// decifra no instante do login no +Vendas (research R3). O que fica é o rastro operacional: datas,
+/// origem, tipo, status, blocos, contagens e a mensagem final.
 /// </para>
 /// <para>
 /// Uma execução ativa por vendedora é garantida pelo índice único parcial
@@ -28,6 +29,18 @@ public class ImportRun
     public long UserId { get; set; }
 
     public ImportRunMode Mode { get; set; }
+
+    /// <summary>
+    /// De onde veio o pedido: tela ou plugin do ChatGPT (feature 008, research R8). Quem chama o
+    /// <c>IImportRunService</c> informa — o <c>sub</c> nunca vem do corpo, e a origem também não.
+    /// </summary>
+    public ImportRunStartedVia StartedVia { get; set; } = ImportRunStartedVia.Screen;
+
+    /// <summary>
+    /// O que foi pedido: período escolhido ou "Atualizar base" (feature 008, research R5/R8). No
+    /// "Atualizar base" as datas são calculadas no servidor, não enviadas por quem pediu.
+    /// </summary>
+    public ImportRunKind Kind { get; set; } = ImportRunKind.Period;
 
     public ImportRunStatus Status { get; set; } = ImportRunStatus.Queued;
 
@@ -84,6 +97,8 @@ public class ImportRun
     /// </summary>
     /// <param name="collectorVersion">Versão do coletor escolhido pela configuração.</param>
     /// <param name="now">Instante UTC de <see cref="Interfaces.IClock"/>.</param>
+    /// <param name="startedVia">Tela ou plugin (feature 008, research R8).</param>
+    /// <param name="kind">Período escolhido ou "Atualizar base" (feature 008, research R5).</param>
     public static ImportRun Create(
         long userId,
         ImportRunMode mode,
@@ -91,7 +106,9 @@ public class ImportRun
         DateOnly endDate,
         int blockDays,
         string collectorVersion,
-        DateTime now)
+        DateTime now,
+        ImportRunStartedVia startedVia = ImportRunStartedVia.Screen,
+        ImportRunKind kind = ImportRunKind.Period)
     {
         var plan = ImportBlockPlanner.Split(startDate, endDate, blockDays);
 
@@ -99,6 +116,8 @@ public class ImportRun
         {
             UserId = userId,
             Mode = mode,
+            StartedVia = startedVia,
+            Kind = kind,
             Status = ImportRunStatus.Queued,
             StartDate = startDate,
             EndDate = endDate,

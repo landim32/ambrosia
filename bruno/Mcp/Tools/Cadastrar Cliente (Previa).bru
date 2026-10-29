@@ -1,0 +1,51 @@
+meta {
+  name: Cadastrar Cliente (Previa)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{mcpBaseUrl}}/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{mcpToken}}
+}
+
+headers {
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "cadastrar_cliente",
+      "arguments": { "nome": "Cliente Bruno", "cpf": "529.982.247-25", "confirmar": false }
+    }
+  }
+}
+
+tests {
+  // Resposta do /mcp em SSE ("event: message" / "data: {...}"): o JSON-RPC é o último "data:".
+  function rpc(body) {
+    const text = typeof body === "string" ? body : JSON.stringify(body);
+    const lines = text.split("\n").filter(l => l.startsWith("data:"));
+    return JSON.parse(lines.length ? lines[lines.length - 1].slice(5).trim() : text);
+  }
+
+  test("200 sem erro de tool", function () {
+    expect(res.status).to.equal(200);
+    const result = rpc(res.body).result;
+    expect(result.isError || false).to.equal(false);
+    expect(result.structuredContent.gravado).to.equal(false);
+  });
+}
+
+docs {
+  Prévia: com `confirmar: false` nada é gravado. Troque para `true` para gravar (fica na auditoria).
+}

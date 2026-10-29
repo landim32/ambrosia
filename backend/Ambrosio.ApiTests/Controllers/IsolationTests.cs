@@ -1,8 +1,11 @@
 ﻿using System.Text.Json;
 using Ambrosio.ApiTests.Fixtures;
 using Ambrosio.ApiTests.Helpers;
+using Ambrosio.ApiTests.McpServer;
 using Ambrosio.DTO.Common;
 using Ambrosio.DTO.Customers;
+using Ambrosio.DTO.Enums;
+using Ambrosio.DTO.Imports;
 using Ambrosio.DTO.Orders;
 using Ambrosio.DTO.Users;
 using FluentAssertions;
@@ -244,7 +247,8 @@ public class IsolationTests
     [Fact]
     public async Task ImportRun_OfSellerA_IsInvisibleToSellerB()
     {
-        // Arrange: A inicia uma simulação (não grava nada e termina rápido).
+        // Arrange: A cadastra as credenciais do cenário e inicia uma simulação (não grava nada e termina
+        // rápido). O início não leva credencial nenhuma — o cadastro é o do PUT (feature 008, FR-001).
         var (tokenA, _) = await _fixture.NewSellerAsync("Ana Importa");
         var (tokenB, _) = await _fixture.NewSellerAsync("Bia Isola");
 
@@ -275,5 +279,127 @@ public class IsolationTests
         // A continua dona: a execução termina normalmente para ela.
         var finished = await _fixture.WaitUntilFinishedAsync(run.Id, tokenA);
         finished.Status.Should().Be(Ambrosio.DTO.Enums.ImportRunStatus.Succeeded);
+
+        // E o que A importou não aparece para B (o vínculo da conta do +Vendas é por usuário, FR-008b).
+        (await _fixture.CountOrdersAsync(tokenB)).Should().Be(0);
+    }
+
+    /// <summary>
+    /// T036 (feature 008, FR-003/FR-004, constituição §VI): as credenciais de A não existem para B — B
+    /// não as lê, não as usa para importar e não as apaga. A leitura é sempre pelo <c>sub</c> do token, e
+    /// a única forma de B importar é cadastrar as próprias credenciais.
+    /// </summary>
+    [Fact]
+    public async Task Credentials_OfSellerA_AreInvisibleAndUnusableBySellerB()
+    {
+        // Arrange: A cadastra login e senha; B não cadastra nada.
+        var (tokenA, _) = await _fixture.NewSellerAsync("Ana Credenciais");
+        var (tokenB, _) = await _fixture.NewSellerAsync("Bia Credenciais");
+        var loginA = TestDataHelper.FakeLogin(TestDataHelper.SCENARIO_OK);
+
+        await _fixture.SaveCredentialsAsync(tokenA, loginA, TestDataHelper.TRACEABLE_PASSWORD);
+
+        // Assert 1 — B não vê: a própria leitura vem vazia, e nenhum corpo seu traz dado de A.
+        var asB = await _fixture.GetCredentialsAsync(tokenB);
+
+        asB.Login.Should().BeEmpty();
+        asB.HasPassword.Should().BeFalse();
+        asB.Status.Should().Be(MaisVendasCredentialsStatus.None);
+        asB.SavedAt.Should().BeNull();
+
+        var (bodyB, defaultsB) = await ReadCredentialSurfacesAsync(tokenB);
+
+        bodyB.Should().NotContain(loginA);
+        defaultsB.Should().NotContain(loginA);
+        defaultsB.Should().NotContain(TestDataHelper.TRACEABLE_PASSWORD, "a senha de A não existe para B (FR-003)");
+
+        (await _fixture.GetAsync("/imports/mais-vendas/defaults", tokenB))
+            .As<ImportDefaultsInfo>().HasCredentials.Should().BeFalse();
+
+        // Assert 2 — B não usa: sem cadastro próprio o início é recusado com a frase da tela, e nenhuma
+        // execução nasce emprestada da conta de A.
+        var refused = await _fixture.StartImportRawAsync(
+            tokenB, login: null, password: null, TestDataHelper.ImportEnd, TestDataHelper.ImportEnd);
+
+        refused.StatusCode.Should().Be(400, refused.ToString());
+        refused.As<ErrorResult>().Erros.Should().ContainSingle(e =>
+            e.Campo == "login"
+            && e.Mensagem == "Cadastre as credenciais do +Vendas na configuração.");
+
+        (await _fixture.GetAsync("/imports/mais-vendas/runs?page=1&pageSize=10", tokenB))
+            .As<PagedResult<Ambrosio.DTO.Imports.ImportRunInfo>>().TotalCount.Should().Be(0);
+
+        // Assert 3 — B não altera nem remove o cadastro de A: cada uma escreve só na própria linha.
+        await _fixture.SaveCredentialsAsync(tokenB, "s777+ok", "senha-da-B");
+        (await _fixture.DeleteCredentialsAsync(tokenB)).StatusCode.Should().Be(200);
+
+        var asA = await _fixture.GetCredentialsAsync(tokenA);
+
+        asA.Login.Should().Be(loginA);
+        asA.HasPassword.Should().BeTrue();
+        asA.Status.Should().Be(MaisVendasCredentialsStatus.Valid);
+        asA.PasswordChangedAt.Should().NotBeNull("o cadastro de A continua no lugar depois de B mexer no dela");
+    }
+
+    /// <summary>
+    /// T036 (feature 008, FR-016/R8): a execução iniciada pela conversa de A é da vendedora A — para B
+    /// ela é o mesmo que uma execução que nunca existiu (404 com o corpo idêntico), inclusive quando foi
+    /// criada por outro caminho que não a tela dela.
+    /// </summary>
+    [Fact]
+    public async Task ImportRunStartedViaMcp_OfSellerA_IsInvisibleToSellerB()
+    {
+        // Arrange: A tem token da API e do plugin; B é uma vendedora comum, sem nada.
+        var ana = await McpSeller.CreateAsync(_fixture, "Ana Mcp Isola", ImportToolsTests.ImportScopes);
+        var (tokenB, _) = await _fixture.NewSellerAsync("Bia Isola Mcp");
+
+        await _fixture.SaveCredentialsAsync(
+            ana.User.ApiToken, TestDataHelper.FakeLogin(TestDataHelper.SCENARIO_OK), "v1");
+
+        var started = await ana.CallAsync("iniciar_importacao", new
+        {
+            inicio = TestDataHelper.ImportEnd.ToString("yyyy-MM-dd"),
+            fim = TestDataHelper.ImportEnd.ToString("yyyy-MM-dd"),
+            simular = true,
+            confirmar = true
+        });
+
+        var structured = WriteToolsTests.Structured(started);
+        var runId = structured.GetProperty("registro").GetProperty("importacao_id").GetInt64();
+
+        // Act: B tenta ler, cancelar e listar.
+        var report = await _fixture.GetAsync($"/imports/mais-vendas/runs/{runId}", tokenB);
+        var missing = await _fixture.GetAsync("/imports/mais-vendas/runs/999999999", tokenB);
+        var cancel = await _fixture.PostAsync($"/imports/mais-vendas/runs/{runId}/cancel", tokenB, new { });
+
+        // Assert: invisível nos três caminhos, e o histórico dela começa vazio.
+        report.StatusCode.Should().Be(404);
+        report.Body.Should().Be(missing.Body);
+        cancel.StatusCode.Should().Be(404);
+        (await _fixture.GetAsync("/imports/mais-vendas/runs?page=1&pageSize=50", tokenB))
+            .As<PagedResult<Ambrosio.DTO.Imports.ImportRunInfo>>().Items.Should().BeEmpty();
+        (await _fixture.GetAsync("/imports/mais-vendas/runs/current", tokenB)).StatusCode.Should().Be(204);
+
+        // E a própria dona enxerga a execução da conversa, marcada como vinda do plugin (FR-016).
+        var asOwner = await _fixture.GetAsync($"/imports/mais-vendas/runs/{runId}", ana.User.ApiToken);
+
+        asOwner.StatusCode.Should().Be(200, asOwner.ToString());
+
+        var detail = asOwner.As<Ambrosio.DTO.Imports.ImportRunDetailInfo>();
+
+        detail.Id.Should().Be(runId);
+        detail.StartedVia.Should().Be(Ambrosio.DTO.Enums.ImportRunStartedVia.Mcp);
+        detail.Kind.Should().Be(Ambrosio.DTO.Enums.ImportRunKind.Period);
+
+        await _fixture.WaitUntilFinishedAsync(runId, ana.User.ApiToken);
+    }
+
+    /// <summary>Lê o corpo do <c>GET /credentials</c> e do <c>GET /defaults</c> da vendedora.</summary>
+    private async Task<(string CredentialsBody, string DefaultsBody)> ReadCredentialSurfacesAsync(string token)
+    {
+        var credentials = await _fixture.GetAsync("/imports/mais-vendas/credentials", token);
+        var defaults = await _fixture.GetAsync("/imports/mais-vendas/defaults", token);
+
+        return (credentials.Body, defaults.Body);
     }
 }

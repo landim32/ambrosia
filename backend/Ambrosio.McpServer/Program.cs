@@ -78,7 +78,8 @@ builder.Services.ConfigureServices(opt =>
     opt.MaisVendas.Collector = settings.MaisVendas.Collector;
     opt.MaisVendas.BaseUrl = settings.MaisVendas.BaseUrl;
     opt.MaisVendas.BlockDays = settings.MaisVendas.BlockDays;
-    opt.MaisVendas.MaxRangeDays = settings.MaisVendas.MaxRangeDays;
+    opt.MaisVendas.MaxRangeMonths = settings.MaisVendas.MaxRangeMonths;
+    opt.MaisVendas.CredentialsKey = settings.MaisVendas.CredentialsKey;
     opt.MaisVendas.MaxConcurrentRuns = settings.MaisVendas.MaxConcurrentRuns;
     opt.MaisVendas.MaxFailedLogins = settings.MaisVendas.MaxFailedLogins;
     opt.MaisVendas.LockoutMinutes = settings.MaisVendas.LockoutMinutes;
@@ -88,11 +89,13 @@ builder.Services.ConfigureServices(opt =>
 });
 
 // O `ConfigureServices` compartilhado da camada Application registra dois IHostedService que só
-// podem rodar num processo (a API): o `ImportRunWorker`, que consome a fila de importações, e o
-// `PendingImageCleanupService`, que apaga pendentes. Deixar os dois ativos aqui faria a homologação
-// ter DOIS consumidores para a mesma fila de importação — o mesmo run coletado duas vezes — e duas
-// varreduras de limpeza disputando os mesmos objetos. Este host só lê e cancela importações pelo
-// `IImportRunService`, então remove os dois descritores antes de qualquer resolve.
+// podem rodar num processo (a API): o `ImportRunWorker`, que reivindica a fila de importações, e o
+// `PendingImageCleanupService`, que apaga pendentes. Desde a feature 008 este host também CRIA
+// importações (`iniciar_importacao`, `atualizar_base`), mas continua sem executar nenhuma: a imagem
+// `mcp` não carrega o Chromium, e dois coletando a mesma linha dobrariam o tráfego na origem e
+// escreveriam cada pedido duas vezes. O que a tool faz é gravar a execução como `queued` — a fila é o
+// banco (research R9 da 008), e o worker da API é o único que a pega. A limpeza de pendentes tem o
+// mesmo motivo: um varredor só.
 foreach (var descriptor in builder.Services
              .Where(d => d.ServiceType == typeof(IHostedService))
              .Where(d => d.ImplementationType == typeof(ImportRunWorker)
@@ -273,6 +276,15 @@ static void ValidateSettings(
         || TryBase64Length(settings.CpfProtection.EncryptionKey) != 32)
     {
         errors.Add("CpfProtection__EncryptionKey deve ser base64 de exatamente 32 bytes.");
+    }
+
+    // Credenciais do +Vendas (feature 008, research R2; constituição §VI emenda 3.4.1): as tools de
+    // importação usam a cifra para ler as credenciais guardadas, então este host exige a mesma chave
+    // dedicada da API — sem ela o startup é recusado aqui também, e não uma falha no meio de uma
+    // conversa. A mensagem nomeia a VARIÁVEL e nunca ecoa o valor.
+    if (TryBase64Length(settings.MaisVendas.CredentialsKey) != 32)
+    {
+        errors.Add("MaisVendas__CredentialsKey deve ser base64 de exatamente 32 bytes.");
     }
 
     // As tools de imagem gravam no mesmo storage da API; faltar endpoint/par de chaves/bucket se

@@ -11,12 +11,16 @@ using FluentAssertions;
 namespace Ambrosio.ApiTests.Controllers;
 
 /// <summary>
-/// Importação do +Vendas (feature 006, T036/T061/T069/T078/T083/T087/T091) contra a homologação com
-/// <c>MaisVendas:Collector=Fake</c> (research §3/§16). Cada teste cria a <b>própria vendedora</b>: a
-/// idempotência faria um teste herdar os pedidos do outro, e nenhuma contagem seria conferível.
+/// Importação do +Vendas (feature 006, T036/T061/T069/T078/T083/T087/T091; adaptada à feature 008 em
+/// T020) contra a homologação com <c>MaisVendas:Collector=Fake</c> (research §3/§16). Cada teste cria a
+/// <b>própria vendedora</b>: a idempotência faria um teste herdar os pedidos do outro, e nenhuma
+/// contagem seria conferível.
 /// <para>
-/// Logins do fake: <c>conta+cenario</c>; senha = versão do conteúdo (<c>v1</c>/<c>v2</c>/<c>v3</c>) ou
-/// <c>recusada</c>. Nenhum valor real de login/senha do +Vendas aparece aqui.
+/// Credenciais (FR-001/FR-002 da 008): o <c>POST /runs</c> não leva login nem senha — o cenário do Fake
+/// é escolhido pelo <b>cadastro gravado pelo <c>PUT /credentials</c></b> (login <c>conta+cenario</c>;
+/// senha = versão do conteúdo, <c>v1</c>/<c>v2</c>/<c>v3</c>, ou <c>recusada</c>), que o worker decifra
+/// na execução. <see cref="TestDataHelper.StartImportAsync"/> faz os dois passos. Nenhum valor real de
+/// login/senha do +Vendas aparece aqui.
 /// </para>
 /// </summary>
 [Collection(ApiTestCollection.API_TESTS)]
@@ -24,6 +28,19 @@ public class ImportsControllerTests
 {
     private const string RUNS = "/imports/mais-vendas/runs";
     private const string DEFAULTS = "/imports/mais-vendas/defaults";
+
+    /// <summary>
+    /// Frase única de "sem credenciais cadastradas" (contrato da API, FR-002/FR-004 da 008). O plugin
+    /// tem a mesma frase com o link da tela; aqui a vendedora já está na tela, então não há link.
+    /// </summary>
+    private const string NO_CREDENTIALS_MESSAGE =
+        "Cadastre as credenciais do +Vendas na configuração.";
+
+    /// <summary>Motivo de "Atualizar base" indisponível sem nenhum pedido importado (FR-015).</summary>
+    private const string NO_IMPORTED_ORDERS_REASON = "Ainda não há pedidos importados para atualizar.";
+
+    /// <summary>Início do período de 3 meses exatos do quickstart (26/07 → 25/10 entra; 26/10 não).</summary>
+    private static readonly DateOnly MonthPeriodStart = new(2026, 7, 26);
 
     private static readonly DateOnly Start = TestDataHelper.ImportStart;
     private static readonly DateOnly End = TestDataHelper.ImportEnd;
@@ -46,7 +63,11 @@ public class ImportsControllerTests
     private static string Login(string scenario, string? account = null) =>
         TestDataHelper.FakeLogin(scenario, account);
 
-    /// <summary>Inicia e espera o fim; devolve o relatório final.</summary>
+    /// <summary>
+    /// Inicia e espera o fim; devolve o relatório final. Os dois passos do caminho real (feature 008):
+    /// o helper cadastra o login/senha do cenário pelo <c>PUT</c> e só então POSTA o período — é o que
+    /// escolhe o cenário que o Fake vai responder, porque o worker lê a credencial da linha (R3).
+    /// </summary>
     private async Task<ImportRunDetailInfo> RunAsync(
         string token,
         string scenario,
@@ -101,8 +122,44 @@ public class ImportsControllerTests
         defaults.SuggestedStartDate.Should().BeNull();
         defaults.SuggestedEndDate.Should().BeOnOrAfter(End);
         defaults.BlockDays.Should().Be(_fixture.MaisVendasBlockDays);
-        defaults.MaxRangeDays.Should().Be(_fixture.MaisVendasMaxRangeDays);
+
+        // T020: saiu `maxRangeDays`, entrou `maxRangeMonths` (research R6) — e a suíte só asserir o
+        // número que o ambiente configura, para a tela, o servidor e o plugin repetirem a mesma conta.
+        defaults.MaxRangeMonths.Should().Be(_fixture.MaisVendasMaxRangeMonths);
         defaults.LockedUntil.Should().BeNull();
+
+        // FR-004/FR-009 da 008: vendedora nova não tem cadastro, e é isso que desliga o botão da tela.
+        defaults.HasCredentials.Should().BeFalse();
+        defaults.CredentialsStatus.Should().Be(MaisVendasCredentialsStatus.None);
+
+        // FR-011/FR-015: sem pedidos importados não há base a atualizar, com o motivo na frase única.
+        defaults.UpdateBase.Available.Should().BeFalse();
+        defaults.UpdateBase.StartDate.Should().BeNull();
+        defaults.UpdateBase.EndDate.Should().BeNull();
+        defaults.UpdateBase.Reason.Should().Be(NO_IMPORTED_ORDERS_REASON);
+
+        response.Body.Should().NotContain("maxRangeDays", "o limite passou a ser em meses (T005/T023)");
+    }
+
+    [Fact]
+    public async Task Defaults_WithSavedCredentials_SaysSoWithoutLeakingTheLogin()
+    {
+        var (token, _) = await _fixture.NewSellerAsync();
+
+        await _fixture.SaveCredentialsAsync(token, Login(TestDataHelper.SCENARIO_OK), TestDataHelper.TRACEABLE_PASSWORD);
+
+        var defaults = (await _fixture.GetAsync(DEFAULTS, token)).As<ImportDefaultsInfo>();
+
+        // FR-004: `hasCredentials` é um booleano e `credentialsStatus` é o estado — nem o login nem a
+        // senha passam por aqui (FR-003), mesmo com a senha traçável gravada.
+        defaults.HasCredentials.Should().BeTrue();
+        defaults.CredentialsStatus.Should().Be(MaisVendasCredentialsStatus.Valid);
+        defaults.LockedUntil.Should().BeNull();
+
+        var body = (await _fixture.GetAsync(DEFAULTS, token)).Body;
+
+        body.Should().NotContain(TestDataHelper.TRACEABLE_PASSWORD);
+        body.Should().NotContain("s482", "defaults devolve estado, não credencial");
     }
 
     [Fact]
@@ -115,19 +172,29 @@ public class ImportsControllerTests
         var defaults = (await _fixture.GetAsync(DEFAULTS, token)).As<ImportDefaultsInfo>();
 
         defaults.SuggestedStartDate.Should().Be(Block3End);
+
+        // FR-011/FR-013: o "Atualizar base" sai calculado a partir do último pedido importado (inclusive)
+        // até hoje, e disponível porque a importação recente é de gravação e terminou dentro do corte.
+        defaults.HasCredentials.Should().BeTrue();
+        defaults.CredentialsStatus.Should().Be(MaisVendasCredentialsStatus.Valid);
+        defaults.UpdateBase.Available.Should().BeTrue(defaults.UpdateBase.Reason);
+        defaults.UpdateBase.StartDate.Should().Be(Block3End);
+        defaults.UpdateBase.EndDate.Should().Be(defaults.SuggestedEndDate);
+        defaults.UpdateBase.Reason.Should().BeNull();
     }
 
     [Theory]
-    [InlineData("2026-10-10", "2026-10-09", "s482+ok", "v1", "startDate", "A data inicial deve ser anterior ou igual à data final.")]
-    [InlineData("2026-10-10", "2099-01-01", "s482+ok", "v1", "endDate", "A data final não pode estar no futuro.")]
-    [InlineData("2026-10-10", "2026-10-16", "", "v1", "login", "Informe o login do +Vendas.")]
-    [InlineData("2026-10-10", "2026-10-16", "s482+ok", "", "password", "Informe a senha do +Vendas.")]
-    public async Task Start_Invalid_Returns400(
-        string startDate, string endDate, string login, string password, string field, string message)
+    [InlineData("2026-10-10", "2026-10-09", "startDate", "A data inicial deve ser anterior ou igual à data final.")]
+    [InlineData("2026-10-10", "2099-01-01", "endDate", "A data final não pode estar no futuro.")]
+    public async Task Start_InvalidPeriod_Returns400(string startDate, string endDate, string field, string message)
     {
         var (token, _) = await _fixture.NewSellerAsync();
 
-        var response = await _fixture.PostAsync(RUNS, token, new { login, password, startDate, endDate, dryRun = false });
+        // O corpo é só período (T022): as antigas linhas de "login vazio" e "senha vazia" saíram daqui
+        // com o DTO e foram para o `PUT /credentials` (T012), onde esses campos passam a existir. A
+        // validação de data vem antes da checagem de credenciais (ImportRunService.StartAsync), então a
+        // recusa é a regra do período mesmo sem cadastro — nada de campo de credencial no meio.
+        var response = await _fixture.PostAsync(RUNS, token, new { startDate, endDate, dryRun = false });
 
         response.StatusCode.Should().Be(400, response.ToString());
 
@@ -136,25 +203,113 @@ public class ImportsControllerTests
         error.Erros.Should().Contain(e => e.Campo == field && e.Mensagem == message);
 
         // FR-006: nenhuma mensagem ecoa o valor enviado.
-        if (login.Length > 0)
+        response.Body.Should().NotContain(startDate);
+        response.Body.Should().NotContain(endDate);
+    }
+
+    [Fact]
+    public async Task Start_WithoutSavedCredentials_Returns400OnLoginField()
+    {
+        // US2 cenário 1 / FR-002 da 008: sem cadastro na tela de configuração não há o que coletar, e a
+        // recusa é uma frase só no campo `login` — nenhuma execução nasce para falhar depois no worker.
+        var (token, _) = await _fixture.NewSellerAsync();
+
+        var response = await _fixture.StartImportRawAsync(token, login: null, password: null, Start, End);
+
+        response.StatusCode.Should().Be(400, response.ToString());
+
+        var error = response.As<ErrorResult>();
+
+        error.Mensagem.Should().Be("Dados inválidos.");
+        error.Erros.Should().ContainSingle(e => e.Campo == "login" && e.Mensagem == NO_CREDENTIALS_MESSAGE);
+
+        // Nada foi criado: o histórico continua vazio e os defaults dizem o mesmo (é o que a tela lê
+        // para desabilitar o botão, FR-009).
+        var history = (await _fixture.GetAsync($"{RUNS}?page=1&pageSize=10", token)).As<PagedResult<ImportRunInfo>>();
+        history.TotalCount.Should().Be(0);
+
+        var defaults = (await _fixture.GetAsync(DEFAULTS, token)).As<ImportDefaultsInfo>();
+        defaults.HasCredentials.Should().BeFalse();
+        defaults.CredentialsStatus.Should().Be(MaisVendasCredentialsStatus.None);
+    }
+
+    [Fact]
+    public async Task Start_LegacyCredentialFields_AreIgnoredAndNeverStored()
+    {
+        // O contrato novo não recusa "campo desconhecido": ImportRunStartInfo não tem login nem senha,
+        // então o binder descarta o que uma cliente antiga ainda manda (T022). Provar isso pede três
+        // coisas: a requisição entra, a execução usa a credencial GUARDADA (não a enviada) e nada do que
+        // veio no corpo fica gravado ou é ecoado.
+        var (token, _) = await _fixture.NewSellerAsync();
+
+        await RunAsync(token, TestDataHelper.SCENARIO_OK, start: End, end: End);
+        var sentLogin = Login(TestDataHelper.SCENARIO_OK, account: "s999");
+
+        var response = await _fixture.StartImportWithLegacyBodyRawAsync(
+            token, sentLogin, TestDataHelper.TRACEABLE_PASSWORD, End, End, dryRun: true);
+
+        response.StatusCode.Should().Be(202, response.ToString());
+
+        var finished = await _fixture.WaitUntilFinishedAsync(response.As<ImportRunInfo>().Id, token);
+
+        // Se o corpo tivesse valido, o Fake autenticaria a conta `s999` e a execução fecharia em
+        // "Conta do +Vendas diferente da vinculada." (FR-008b da 006). Concluída = usou a guardada.
+        finished.Status.Should().Be(ImportRunStatus.Succeeded, finished.ErrorMessage);
+
+        var stored = await _fixture.GetCredentialsAsync(token);
+
+        stored.Login.Should().Be(Login(TestDataHelper.SCENARIO_OK), "o login enviado no corpo não substituiu o cadastro");
+        stored.Status.Should().Be(MaisVendasCredentialsStatus.Valid);
+
+        foreach (var body in new[] { response.Body, (await _fixture.GetAsync($"{RUNS}/{finished.Id}", token)).Body })
         {
-            response.Body.Should().NotContain(login);
+            body.Should().NotContain(TestDataHelper.TRACEABLE_PASSWORD);
+            body.Should().NotContain(sentLogin);
         }
     }
 
     [Fact]
-    public async Task Start_RangeAboveLimit_Returns400WithLimit()
+    public async Task Start_RangeAboveLimit_Returns400WithMonthsMessage()
     {
         var (token, _) = await _fixture.NewSellerAsync();
-        var end = End;
-        var start = end.AddDays(-_fixture.MaisVendasMaxRangeDays); // limite + 1 dia, inclusivo
+
+        // research R6: o limite é em MESES corridos (saiu `maxRangeDays`). A regra é
+        // `endDate <= startDate.AddMonths(3).AddDays(-1)`, então 26/07→26/10 é o primeiro dia recusado e
+        // 25/10 é o último aceito — os dois exemplos do contrato, calculados a partir do valor
+        // configurado, como a mensagem.
+        var start = MonthPeriodStart;
+        var end = start.AddMonths(_fixture.MaisVendasMaxRangeMonths);
 
         var response = await _fixture.StartImportRawAsync(token, Login("ok"), "v1", start, end);
 
         response.StatusCode.Should().Be(400, response.ToString());
         response.As<ErrorResult>().Erros.Should().Contain(e =>
             e.Campo == "endDate"
-            && e.Mensagem == $"O período não pode ultrapassar {_fixture.MaisVendasMaxRangeDays} dias.");
+            && e.Mensagem == $"O período não pode passar de {_fixture.MaisVendasMaxRangeMonths} meses.");
+
+        response.Body.Should().NotContain(start.ToString("yyyy-MM-dd"), "FR-006: a recusa não ecoa a data");
+    }
+
+    [Fact]
+    public async Task Start_ExactlyMaxRangeMonths_Returns202()
+    {
+        var (token, _) = await _fixture.NewSellerAsync();
+
+        // O outro lado da fronteira (T020/US2-3): 26/07 a 25/10 são 3 meses justos, aceitos.
+        var start = MonthPeriodStart;
+        var end = start.AddMonths(_fixture.MaisVendasMaxRangeMonths).AddDays(-1);
+
+        var response = await _fixture.StartImportRawAsync(token, Login("ok"), "v1", start, end, dryRun: true);
+
+        response.StatusCode.Should().Be(202, response.ToString());
+
+        var run = response.As<ImportRunInfo>();
+
+        run.StartDate.Should().Be(start);
+        run.EndDate.Should().Be(end);
+        run.Kind.Should().Be(ImportRunKind.Period);
+
+        await _fixture.WaitUntilFinishedAsync(run.Id, token);
     }
 
     [Fact]
@@ -173,6 +328,11 @@ public class ImportsControllerTests
         run.BlocksTotal.Should().Be(5);
         run.BlockDays.Should().Be(_fixture.MaisVendasBlockDays);
 
+        // R8/FR-016 da 008: o resumo do 202 já traz a origem e o tipo do pedido. Pela tela é
+        // `screen`/`period`; o plugin grava `mcp` (T032) e o "Atualizar base" grava `updateBase` (T026).
+        run.StartedVia.Should().Be(ImportRunStartedVia.Screen);
+        run.Kind.Should().Be(ImportRunKind.Period);
+
         await _fixture.WaitUntilFinishedAsync(run.Id, token);
     }
 
@@ -184,6 +344,12 @@ public class ImportsControllerTests
         var report = await RunAsync(token, TestDataHelper.SCENARIO_OK);
 
         report.Status.Should().Be(ImportRunStatus.Succeeded, report.ErrorMessage);
+
+        // T020: o relatório (e não só o 202) carrega a origem e o tipo — a vendedora precisa saber, pelo
+        // histórico, se aquilo saiu da tela ou da conversa (FR-016/R8 da 008).
+        report.StartedVia.Should().Be(ImportRunStartedVia.Screen);
+        report.Kind.Should().Be(ImportRunKind.Period);
+
         report.Blocks.Should().HaveCount(5).And.OnlyContain(b => b.Status == ImportBlockStatus.Succeeded);
         report.Counts.Inserted.Should().Be(TestDataHelper.IMPORT_ORDER_COUNT);
         report.Counts.Failed.Should().Be(0);
@@ -246,7 +412,7 @@ public class ImportsControllerTests
     }
 
     // =====================================================================================
-    // US2 — credenciais nunca guardadas
+    // US2 — credenciais guardadas na tela, nunca expostas (feature 008)
     // =====================================================================================
 
     [Fact]
@@ -258,14 +424,18 @@ public class ImportsControllerTests
 
         var bodies = new List<string>();
 
+        // Cadastra (PUT) e inicia só com as datas: a senha traçável fica gravada na linha e é ela que o
+        // worker vai decifrar — nenhuma superfície abaixo pode mostrá-la (FR-003/SC-004).
         var start = await _fixture.StartImportRawAsync(token, login, password, End, End);
         bodies.Add(start.Body);
 
         // 409 com a execução ainda ativa (ou 202 se o fake já terminou — o corpo é conferido igual).
-        bodies.Add((await _fixture.StartImportRawAsync(token, login, password, End, End)).Body);
+        // Sem login/senha no argumento: o helper não re-cadastra, só inicia com o que está guardado.
+        bodies.Add((await _fixture.StartImportRawAsync(token, null, null, End, End)).Body);
 
-        // 400: período invertido, com as credenciais no corpo enviado.
-        bodies.Add((await _fixture.StartImportRawAsync(token, login, password, End, Start)).Body);
+        // 400: período invertido, com as credenciais no corpo enviado no formato antigo — a recusa não
+        // pode ecoar nada do que veio (FR-006 da 006, mantido pela 008).
+        bodies.Add((await _fixture.StartImportWithLegacyBodyRawAsync(token, login, password, End, Start)).Body);
 
         var runId = start.As<ImportRunInfo>().Id;
         await _fixture.WaitUntilFinishedAsync(runId, token);
@@ -285,6 +455,32 @@ public class ImportsControllerTests
     }
 
     [Fact]
+    public async Task DeleteCredentials_NextStartIsRefusedAgain()
+    {
+        // T026 / FR-006 da 008: remover o cadastro fecha a porta de novo — o histórico e os pedidos
+        // ficam, mas ninguém consegue iniciar sem credencial.
+        var (token, _) = await _fixture.NewSellerAsync();
+
+        await RunAsync(token, TestDataHelper.SCENARIO_OK, start: End, end: End, dryRun: true);
+
+        var removed = await _fixture.DeleteCredentialsAsync(token);
+
+        removed.StatusCode.Should().Be(200, removed.ToString());
+        removed.As<MaisVendasCredentialsInfo>().Status.Should().Be(MaisVendasCredentialsStatus.None);
+
+        var refused = await _fixture.StartImportRawAsync(token, null, null, End, End, dryRun: true);
+
+        refused.StatusCode.Should().Be(400, refused.ToString());
+        refused.As<ErrorResult>().Erros.Should().ContainSingle(e =>
+            e.Campo == "login" && e.Mensagem == NO_CREDENTIALS_MESSAGE);
+
+        var defaults = (await _fixture.GetAsync(DEFAULTS, token)).As<ImportDefaultsInfo>();
+
+        defaults.HasCredentials.Should().BeFalse();
+        defaults.CredentialsStatus.Should().Be(MaisVendasCredentialsStatus.None);
+    }
+
+    [Fact]
     public async Task Run_RefusedPassword_FailsWithMessageAndWritesNothing()
     {
         var (token, _) = await _fixture.NewSellerAsync();
@@ -295,6 +491,96 @@ public class ImportsControllerTests
         report.ErrorMessage.Should().Be("Credenciais recusadas pelo +Vendas.");
         report.Blocks.Should().OnlyContain(b => b.Status == ImportBlockStatus.NotExecuted);
         (await _fixture.CountOrdersAsync(token)).Should().Be(0);
+
+        // FR-007 da 008: a recusa marca as credenciais como "precisam ser atualizadas" — é um aviso para
+        // a tela e para o plugin, nunca um bloqueio, e o cadastro continua no lugar (login legível).
+        var credentials = await _fixture.GetCredentialsAsync(token);
+
+        credentials.Status.Should().Be(MaisVendasCredentialsStatus.NeedsUpdate);
+        credentials.Login.Should().Be(Login(TestDataHelper.SCENARIO_OK));
+        credentials.HasPassword.Should().BeTrue();
+
+        var defaults = (await _fixture.GetAsync(DEFAULTS, token)).As<ImportDefaultsInfo>();
+
+        defaults.HasCredentials.Should().BeTrue();
+        defaults.CredentialsStatus.Should().Be(MaisVendasCredentialsStatus.NeedsUpdate);
+    }
+
+    [Fact]
+    public async Task NeedsUpdate_StillAllowsTheNextStart()
+    {
+        // FR-007 da 008 (e a regra do plugin em contracts/mcp-tools.md): `needsUpdate` orienta, não
+        // impede — a senha pode voltar a ser aceita na tentativa seguinte, e travar a vendedora seria
+        // mais rígido que o próprio +Vendas. Uma recusa só, para não chegar ao bloqueio (FR-008a).
+        var (token, _) = await _fixture.NewSellerAsync();
+
+        await RunAsync(token, TestDataHelper.SCENARIO_OK, password: "recusada", start: End, end: End);
+
+        (await _fixture.GetCredentialsAsync(token)).Status.Should().Be(MaisVendasCredentialsStatus.NeedsUpdate);
+
+        var again = await _fixture.StartImportRawAsync(token, null, null, End, End, dryRun: true);
+
+        again.StatusCode.Should().Be(202, again.ToString());
+        await _fixture.WaitUntilFinishedAsync(again.As<ImportRunInfo>().Id, token);
+    }
+
+    [Fact]
+    public async Task Run_AfterRefusal_NewPasswordKeepsLoginAndReturnsCredentialsToValid()
+    {
+        // T026: `PUT` só de senha mantém o login, e o estado volta a `valid`. Com o Fake a recusa é
+        // decidida pela senha gravada, então a volta ao aceite passa pelas duas transições do data-model
+        // §1, na ordem em que a vendedora as vive: senha nova → Valid (SetCredentials) e, depois, login
+        // aceito na execução → continua Valid (RegisterAcceptedLogin).
+        var (token, _) = await _fixture.NewSellerAsync();
+
+        await RunAsync(token, TestDataHelper.SCENARIO_OK, password: "recusada", start: End, end: End);
+
+        var before = await _fixture.GetCredentialsAsync(token);
+
+        before.Status.Should().Be(MaisVendasCredentialsStatus.NeedsUpdate);
+        before.PasswordChangedAt.Should().NotBeNull();
+
+        var saved = await _fixture.SaveCredentialsAsync(token, null, "v1");
+
+        saved.StatusCode.Should().Be(200, saved.ToString());
+
+        var after = saved.As<MaisVendasCredentialsInfo>();
+
+        after.Login.Should().Be(Login(TestDataHelper.SCENARIO_OK), "senha nova sem login não troca o cadastro");
+        after.Status.Should().Be(MaisVendasCredentialsStatus.Valid);
+        after.PasswordChangedAt.Should().BeOnOrAfter(before.PasswordChangedAt!.Value);
+
+        // A execução seguinte não re-cadastra nada: usa o que está guardado, e conclui — a senha nova era
+        // a `v1` do Fake, e não a recusada da tentativa anterior.
+        var accepted = await _fixture.StartImportAsync(token, null, null, End, End, dryRun: true);
+        var finished = await _fixture.WaitUntilFinishedAsync(accepted.Id, token);
+
+        finished.Status.Should().Be(ImportRunStatus.Succeeded, finished.ErrorMessage);
+        (await _fixture.GetCredentialsAsync(token)).Status.Should().Be(MaisVendasCredentialsStatus.Valid);
+    }
+
+    [Fact]
+    public async Task Put_ChangingLoginWithoutPassword_KeepsSavedLoginForTheNextStart()
+    {
+        // T026: trocar de login sem senha é recusado (o +Vendas só autentica o par), e a recusa não pode
+        // deixar metade do cadastro trocada — a execução seguinte continua pela conta guardada.
+        var (token, _) = await _fixture.NewSellerAsync();
+
+        await _fixture.SaveCredentialsAsync(token, Login(TestDataHelper.SCENARIO_OK), "v1");
+
+        var response = await _fixture.SaveCredentialsRawAsync(token, Login(TestDataHelper.SCENARIO_OK, "s999"), null);
+
+        response.StatusCode.Should().Be(400, response.ToString());
+        response.As<ErrorResult>().Erros.Should().ContainSingle(e =>
+            e.Campo == "password" && e.Mensagem == "Informe a senha para trocar o login.");
+
+        var report = await RunAsync(token, TestDataHelper.SCENARIO_OK, start: End, end: End);
+
+        // O RunAsync re-cadastra o mesmo par (idempotente), então o que prova a permanência é o cadastro
+        // atual + o aceite pela conta `s482`: com `s999` gravada, a execução falharia em "Conta do +Vendas
+        // diferente da vinculada."
+        report.Status.Should().Be(ImportRunStatus.Succeeded, report.ErrorMessage);
+        (await _fixture.GetCredentialsAsync(token)).Login.Should().Be(Login(TestDataHelper.SCENARIO_OK));
     }
 
     [Fact]
@@ -858,7 +1144,14 @@ public class ImportsControllerTests
 
         if (current.StatusCode == 200)
         {
-            current.As<ImportRunDetailInfo>().Id.Should().Be(run.Id);
+            var detail = current.As<ImportRunDetailInfo>();
+
+            detail.Id.Should().Be(run.Id);
+
+            // A tela retoma a execução com a origem e o tipo dela (R8 da 008) — é o que permite mostrar
+            // "iniciada pelo plugin" depois de fechar a aba.
+            detail.StartedVia.Should().Be(ImportRunStartedVia.Screen);
+            detail.Kind.Should().Be(ImportRunKind.Period);
         }
 
         await _fixture.WaitUntilFinishedAsync(run.Id, token);
@@ -918,6 +1211,9 @@ public class ImportsControllerTests
 
         page.TotalCount.Should().Be(2);
         page.Items.Should().ContainSingle().Which.Id.Should().Be(second.Id);
+
+        // O histórico mostra como cada execução nasceu (FR-016 da 008): as duas saíram da tela.
+        page.Items.Should().OnlyContain(r => r.StartedVia == ImportRunStartedVia.Screen && r.Kind == ImportRunKind.Period);
 
         var page2 = (await _fixture.GetAsync($"{RUNS}?page=2&pageSize=1", token)).As<PagedResult<ImportRunInfo>>();
         page2.Items.Should().ContainSingle().Which.Id.Should().Be(first.Id);

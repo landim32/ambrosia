@@ -1,0 +1,29 @@
+meta {
+  name: Tela de Login
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{mcpLoginUrl}}
+  body: none
+  auth: none
+}
+
+script:post-response {
+  // Campos ocultos do formulário: antiforgery e ReturnUrl.
+  const html = typeof res.body === "string" ? res.body : "";
+  const field = (name) => {
+    const m = html.match(new RegExp('name="' + name + '"[^>]*value="([^"]*)"')) || html.match(new RegExp('value="([^"]*)"[^>]*name="' + name + '"'));
+    return m ? m[1].replace(/&amp;/g, "&") : "";
+  };
+  bru.setEnvVar("mcpAntiforgery", field("__RequestVerificationToken"));
+  bru.setEnvVar("mcpReturnUrl", field("ReturnUrl"));
+}
+
+tests {
+  test("200 com o formulário", function () {
+    expect(res.status).to.equal(200);
+    expect(bru.getEnvVar("mcpAntiforgery")).to.not.equal("");
+  });
+}

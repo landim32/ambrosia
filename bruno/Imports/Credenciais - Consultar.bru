@@ -1,0 +1,33 @@
+meta {
+  name: Credenciais - Consultar
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/imports/mais-vendas/credentials
+  body: none
+  auth: inherit
+}
+
+docs {
+  Estado das credenciais da vendedora (feature 008, FR-001), para a tela de configuração.
+
+  `login` vem em claro (é dado da própria vendedora sobre um serviço de terceiro, e ela
+  precisa dele para editar o cadastro); `hasPassword` diz que há senha guardada; a senha em
+  si não existe nesta resposta — nem mascarada, nem em campo nulo (`password` não é chave do
+  JSON). `status`: `none` | `valid` | `needsUpdate` (esta última quando o +Vendas recusou o
+  login na última execução — FR-007, que orienta sem bloquear).
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("sem campo de senha", function () {
+    const body = JSON.stringify(res.body);
+    expect(body.toLowerCase()).to.not.include('"password"');
+    expect(res.body).to.have.property('hasPassword');
+  });
+}
