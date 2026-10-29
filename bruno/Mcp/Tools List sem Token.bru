@@ -1,5 +1,5 @@
 meta {
-  name: Tools List
+  name: Tools List sem Token
   type: http
   seq: 3
 }
@@ -26,9 +26,11 @@ tests {
   test("sem token: 401 com o desafio que inicia o OAuth", function () {
     expect(res.status).to.equal(401);
     expect(res.headers["www-authenticate"]).to.contain("resource_metadata=");
+    expect(res.headers["www-authenticate"]).to.contain("scope=");
   });
 }
 
 docs {
-  Sem token o /mcp responde 401 com WWW-Authenticate (resource_metadata e scope): é o desafio que faz o ChatGPT abrir o login (R23). Com token, a resposta vem em SSE (event: message / data: {...}).
+  Sem token o /mcp responde 401 com `WWW-Authenticate: Bearer resource_metadata="…", scope="…"` (R23):
+  é o desafio que faz o ChatGPT descobrir o authorization server e abrir o login.
 }

@@ -1,5 +1,4 @@
 using Ambrosio.Application.HostedServices;
-using Ambrosio.Application.Imports;
 using Ambrosio.Application.Settings;
 using Ambrosio.Domain.Common;
 using Ambrosio.Domain.Exceptions;
@@ -71,14 +70,16 @@ public static class Startup
             opt.CleanupIntervalMinutes = settings.ObjectStorage.CleanupIntervalMinutes;
         });
 
-        // Importação do +Vendas (feature 006, research §13): a seção inteira vai adiante como IOptions,
-        // consumida pelo coletor, pelos serviços de importação, pelo worker e pelo validator de início.
+        // Importação do +Vendas (feature 006, research §13; feature 008, research R2/R6): a seção inteira
+        // vai adiante como IOptions, consumida pelo coletor, pelos serviços de importação, pelo worker,
+        // pelo validator de início, pela cifra de credenciais e pelo serviço de credenciais.
         services.Configure<MaisVendasSettings>(opt =>
         {
             opt.Collector = settings.MaisVendas.Collector;
             opt.BaseUrl = settings.MaisVendas.BaseUrl;
             opt.BlockDays = settings.MaisVendas.BlockDays;
-            opt.MaxRangeDays = settings.MaisVendas.MaxRangeDays;
+            opt.MaxRangeMonths = settings.MaisVendas.MaxRangeMonths;
+            opt.CredentialsKey = settings.MaisVendas.CredentialsKey;
             opt.MaxConcurrentRuns = settings.MaisVendas.MaxConcurrentRuns;
             opt.MaxFailedLogins = settings.MaisVendas.MaxFailedLogins;
             opt.LockoutMinutes = settings.MaisVendas.LockoutMinutes;
@@ -108,6 +109,11 @@ public static class Startup
         services.AddSingleton<IJwtTokenAppService, JwtTokenAppService>();
         services.AddSingleton<ICpfProtectionAppService, CpfProtectionAppService>();
         services.AddSingleton<IPasswordHashAppService, PasswordHashAppService>();
+
+        // Cifra das credenciais do +Vendas (feature 008, research R2): só deriva e verifica AES-GCM a
+        // partir da chave configurada, sem estado por requisição — singleton, como a do CPF. A chave é
+        // dedicada (emenda 3.4.1): um vazamento da chave do CPF não abre as credenciais.
+        services.AddSingleton<IMaisVendasCredentialCipherAppService, MaisVendasCredentialCipherAppService>();
 
         // Storage de imagens (feature 004): os dois clientes S3 não guardam estado por requisição — o AmazonS3Client é thread-safe e caro (conexões, cache de região),
         // então singleton. As URLs pré-assinadas são derivadas do relógio injetado, nunca de estado.
@@ -153,10 +159,14 @@ public static class Startup
             services.AddSingleton<IMaisVendasCollectorAppService, PlaywrightMaisVendasCollectorAppService>();
         }
 
-        // Fila em memória: singleton porque é o canal entre a requisição (que enfileira) e o worker
-        // (que consome). O ImportJob não é registrado como serviço — ele carrega a senha.
-        services.AddSingleton<IImportRunQueue, ImportRunQueue>();
+        // Credenciais do +Vendas (feature 008, FR-001 a FR-004): cadastrar, consultar, remover e
+        // decifrar no instante do uso. Scoped porque depende do repositório e da transação que grava a
+        // cifra — e é o único caminho entre a senha em claro e o resto do sistema.
+        services.AddScoped<IMaisVendasCredentialService, MaisVendasCredentialService>();
 
+        // A fila de importações é a tabela `import_runs` (research R9 da 008): não há canal em memória
+        // entre a requisição e o worker, então o host do MCP consegue iniciar uma importação sem
+        // navegador nem worker próprio, e o worker da API reivindica a linha `queued`.
         services.AddScoped<IImportRunService, ImportRunService>();
 
         // O executor é scoped: cada job roda em escopo próprio (research §7), com DbContext e

@@ -8,44 +8,30 @@ using Microsoft.Extensions.Options;
 namespace Ambrosio.Domain.Validators;
 
 /// <summary>
-/// Validação do início de uma importação (feature 006, FR-003/FR-004/FR-006, data-model §5,
-/// research §11). As regras que a tela também aplica — o servidor recusa a mesma requisição enviada
-/// por Swagger ou Bruno sem passar pela tela (spec US1-5).
+/// Validação do início de uma importação (feature 006 FR-003/FR-004, reescrita pela feature 008:
+/// research R6 e data-model §5). Só o período — as credenciais saíram daqui quando deixaram de vir no
+/// corpo (FR-001/FR-002 da 008); a checagem de "há credenciais cadastradas" é do
+/// <c>ImportRunService.StartAsync</c>, porque depende do banco.
 /// <para>
-/// <b>Nenhuma mensagem ecoa o valor enviado</b> (FR-006): nem o login, nem a senha, nem a data. Por
-/// isso nenhuma regra usa <c>{PropertyValue}</c> — o padrão do FluentValidation interpolaria o valor
-/// na mensagem, e a mensagem vai para o corpo da resposta <c>400</c>.
+/// As mesmas regras valem para o <c>POST /runs/update-base</c> e para o plugin (FR-015 da 008), e é por
+/// isso que a mensagem do limite cita o número configurado: tela, servidor e plugin têm de repetir a
+/// mesma frase (SC-005).
+/// </para>
+/// <para>
+/// <b>Nenhuma mensagem ecoa o valor enviado</b> (FR-006 da 006, mantido): nem a data. Nenhuma regra usa
+/// <c>{PropertyValue}</c> — o padrão do FluentValidation interpolaria o valor na mensagem, e a mensagem
+/// vai para o corpo da resposta <c>400</c>.
 /// </para>
 /// </summary>
 public class ImportRunStartInfoValidator : AbstractValidator<ImportRunStartInfo>
 {
-    /// <summary>Mesmo teto da coluna de login; acima disso é tentativa de despejar payload.</summary>
-    private const int LOGIN_MAX_LENGTH = 120;
-
-    /// <summary>Mesmo teto da coluna de senha; a senha nem é persistida, mas o limite protege o binding.</summary>
-    private const int PASSWORD_MAX_LENGTH = 200;
-
     public ImportRunStartInfoValidator(IClock clock, IOptions<MaisVendasSettings> settings)
     {
-        var maxRangeDays = settings.Value.MaxRangeDays;
+        var maxRangeMonths = settings.Value.MaxRangeMonths;
 
         // "hoje" é o de São Paulo, não o UTC: uma vendedora que importa às 20h está importando hoje
         // (research §11).
         var today = SaoPauloCalendar.Today(clock);
-
-        RuleFor(x => x.Login)
-            .Cascade(CascadeMode.Stop)
-            .NotEmpty()
-                .WithMessage("Informe o login do +Vendas.")
-            .MaximumLength(LOGIN_MAX_LENGTH)
-                .WithMessage("Informe o login do +Vendas.");
-
-        RuleFor(x => x.Password)
-            .Cascade(CascadeMode.Stop)
-            .NotEmpty()
-                .WithMessage("Informe a senha do +Vendas.")
-            .MaximumLength(PASSWORD_MAX_LENGTH)
-                .WithMessage("Informe a senha do +Vendas.");
 
         // DateOnly ausente no JSON chega como 0001-01-01 (default estrutural): é recusado como "não
         // informada", no campo que faltou, e as demais regras do campo não rodam (CascadeMode.Stop).
@@ -71,20 +57,13 @@ public class ImportRunStartInfoValidator : AbstractValidator<ImportRunStartInfo>
             .WithMessage("A data inicial deve ser anterior ou igual à data final.")
             .When(info => info.StartDate != default && info.EndDate != default);
 
-        // Limite do período, com o número da configuração na mensagem (FR-004).
+        // Limite do período em meses corridos (feature 008, research R6). A conta é por mês porque
+        // "3 meses" em dias variaria entre 89 e 92 e a vendedora pensa em meses: 26/07 a 25/10 entra,
+        // 26/07 a 26/10 não. O número na mensagem vem da configuração, como antes.
         RuleFor(x => x)
-            .Must(info => RangeDays(info) <= maxRangeDays)
-            .WithMessage($"O período não pode ultrapassar {maxRangeDays} dias.")
+            .Must(info => info.EndDate <= info.StartDate.AddMonths(maxRangeMonths).AddDays(-1))
+            .WithMessage($"O período não pode passar de {maxRangeMonths} meses.")
             .OverridePropertyName(nameof(ImportRunStartInfo.EndDate))
             .When(info => info.StartDate != default && info.EndDate != default && info.EndDate >= info.StartDate);
     }
-
-    /// <summary>
-    /// Dias inclusivos do período. Com <c>default(DateOnly)</c> no JSON a diferença de
-    /// <see cref="DateOnly.DayNumber"/> chega a um bilhão de dias, o que transformaria um simples
-    /// "falta a data" numa acusação de período acima do limite — por isso as regras de data rodam com
-    /// <c>CascadeMode.Stop</c> e esta conta só é feita quando as duas datas existem (cláusulas
-    /// <c>When</c> acima).
-    /// </summary>
-    private static int RangeDays(ImportRunStartInfo info) => info.EndDate.DayNumber - info.StartDate.DayNumber + 1;
 }

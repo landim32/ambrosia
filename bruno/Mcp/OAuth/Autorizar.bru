@@ -1,0 +1,42 @@
+meta {
+  name: Autorizar
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{mcpBaseUrl}}/auth/connect/authorize?response_type=code&client_id={{mcpClientId}}&redirect_uri={{mcpRedirectUri}}&scope={{mcpScopes}}&state={{mcpState}}&code_challenge={{mcpCodeChallenge}}&code_challenge_method=S256&resource={{mcpBaseUrl}}/mcp
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  // PKCE S256: verifier aleatório, challenge = base64url(sha256(verifier)).
+  const CryptoJS = require("crypto-js");
+  const base64url = (words) => CryptoJS.enc.Base64.stringify(words).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const verifier = base64url(CryptoJS.lib.WordArray.random(32));
+  bru.setEnvVar("mcpCodeVerifier", verifier);
+  bru.setEnvVar("mcpCodeChallenge", base64url(CryptoJS.SHA256(verifier)));
+  bru.setEnvVar("mcpState", base64url(CryptoJS.lib.WordArray.random(12)));
+  req.setMaxRedirects(0);
+}
+
+script:post-response {
+  const location = res.headers["location"] || "";
+  const absolute = location.startsWith("http") ? location : bru.getEnvVar("mcpBaseUrl") + location;
+  bru.setEnvVar("mcpAuthorizeUrl", req.getUrl());
+  if (location.includes("/auth/login")) {
+    bru.setEnvVar("mcpLoginUrl", absolute);
+  }
+}
+
+tests {
+  test("302 para o login (ou direto à redirect_uri com sessão ativa)", function () {
+    expect(res.status).to.equal(302);
+  });
+}
+
+docs {
+  Início do fluxo OAuth com PKCE e `resource` (RFC 8707). Sem sessão no AS, redireciona para
+  `/auth/login?returnUrl=…`, guardado em `mcpLoginUrl`.
+}

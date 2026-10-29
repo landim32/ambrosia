@@ -133,12 +133,23 @@ internal static class TestDataHelper
         $"v{Guid.NewGuid().ToString("N")[..10].ToLowerInvariant()}-01";
 
     // ---------------------------------------------------------------------------
-    // Importação do +Vendas (feature 006, T035)
+    // Importação do +Vendas (feature 006, T035; credenciais guardadas pela feature 008, T020)
     //
     // Nada aqui usa valor real de login/senha do +Vendas: os identificadores são os
     // cenários do coletor Fake da homologação (research §3) — `conta+cenario` e a senha
     // como versão do conteúdo. Um login real nunca entraria em teste, Bruno ou doc.
+    //
+    // Desde a feature 008 o `POST /runs` não transporta credencial nenhuma (FR-001/FR-002): o que
+    // escolhe o cenário do Fake é o cadastro gravado pelo `PUT /credentials`, que o worker decifra
+    // na execução (research R3). Por isso os inícios desta classe CADASTRAM antes e POSTAM só o
+    // período — o mesmo caminho da tela.
     // ---------------------------------------------------------------------------
+
+    /// <summary>Rota do início de importação (feature 006 FR-003; corpo reduzido pela 008).</summary>
+    public const string IMPORT_RUNS_PATH = "/imports/mais-vendas/runs";
+
+    /// <summary>Rota do "Atualizar base" (feature 008, FR-011/FR-013): período calculado no servidor.</summary>
+    public const string UPDATE_BASE_PATH = "/imports/mais-vendas/runs/update-base";
 
     /// <summary>Conta de referência do cenário bom (o identificador antes do `+` vira o vínculo).</summary>
     public const string FAKE_ACCOUNT = "s482";
@@ -172,32 +183,33 @@ internal static class TestDataHelper
     public const string TRACEABLE_PASSWORD = "SENHA-TESTE-XYZ123";
 
     /// <summary>
-    /// Enfileira uma importação e devolve o resumo do <c>202</c> (atalho de T035). O teste escolhe
+    /// Enfileira uma importação e devolve o resumo do <c>202</c> (atalho de T035/T020). O teste escolhe
     /// cenário, versão (senha), período e se é simulação.
+    /// <para>
+    /// <b>Passo 1 — cadastra; passo 2 — inicia</b>: <c>login</c>/<c>password</c> aqui são o que o teste
+    /// quer gravado como credencial do +Vendas (o cenário do Fake é lido da linha cifrada, FR-001 da
+    /// 008), nunca o corpo do <c>POST /runs</c>. Passar os dois nulos/vazios deixa a vendedora sem
+    /// cadastro, que é exatamente o caso "início recusado" (T020/US2-1).
+    /// </para>
     /// </summary>
     /// <exception cref="InvalidOperationException">Quando o servidor não respondeu 202 — com corpo.</exception>
     public static async Task<ImportRunInfo> StartImportAsync(
         this ApiTestFixture fixture,
         string token,
-        string login,
-        string password,
+        string? login,
+        string? password,
         DateOnly start,
         DateOnly end,
         bool dryRun = false)
     {
-        var response = await fixture.PostAsync("/imports/mais-vendas/runs", token, new
-        {
-            login,
-            password,
-            startDate = start.ToString("yyyy-MM-dd"),
-            endDate = end.ToString("yyyy-MM-dd"),
-            dryRun
-        });
+        await fixture.SaveScenarioCredentialsAsync(token, login, password);
+
+        var response = await fixture.PostAsync(IMPORT_RUNS_PATH, token, PeriodPayload(start, end, dryRun));
 
         if (response.StatusCode != 202)
         {
             throw new InvalidOperationException(
-                $"POST /imports/mais-vendas/runs respondeu {response.StatusCode} (esperado 202): {response.Body}");
+                $"POST {IMPORT_RUNS_PATH} respondeu {response.StatusCode} (esperado 202): {response.Body}");
         }
 
         return response.As<ImportRunInfo>();
@@ -210,21 +222,198 @@ internal static class TestDataHelper
     public static async Task<HttpCallResult> StartImportRawAsync(
         this ApiTestFixture fixture,
         string token,
+        string? login,
+        string? password,
+        DateOnly start,
+        DateOnly end,
+        bool dryRun = false)
+    {
+        await fixture.SaveScenarioCredentialsAsync(token, login, password);
+
+        return await fixture.PostAsync(IMPORT_RUNS_PATH, token, PeriodPayload(start, end, dryRun));
+    }
+
+    /// <summary>
+    /// POST <c>/runs</c> no <b>formato antigo</b> (feature 006), com <c>login</c> e <c>password</c> no
+    /// corpo, sem cadastrar nada antes (T020). Serve ao caso "cliente ainda manda credencial": o binder
+    /// descarta o que <see cref="ImportRunStartInfo"/> não tem, então a requisição não é recusada por
+    /// campo desconhecido — ela cai na checagem de credenciais, e o valor enviado nunca é gravado nem
+    /// ecoado. O helper manda o corpo cru de propósito: é a única forma de provar o ignorado.
+    /// </summary>
+    public static async Task<HttpCallResult> StartImportWithLegacyBodyRawAsync(
+        this ApiTestFixture fixture,
+        string token,
         string login,
         string password,
         DateOnly start,
         DateOnly end,
         bool dryRun = false)
     {
-        return await fixture.PostAsync("/imports/mais-vendas/runs", token, new
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        return await fixture.PostAsync(IMPORT_RUNS_PATH, token, new Dictionary<string, object?>
         {
-            login,
-            password,
-            startDate = start.ToString("yyyy-MM-dd"),
-            endDate = end.ToString("yyyy-MM-dd"),
-            dryRun
+            ["login"] = login,
+            ["password"] = password,
+            ["startDate"] = start.ToString("yyyy-MM-dd"),
+            ["endDate"] = end.ToString("yyyy-MM-dd"),
+            ["dryRun"] = dryRun
         });
     }
+
+    /// <summary>
+    /// <c>POST /runs/update-base</c> exigindo <c>202</c> (feature 008, FR-011/FR-013, T026). Sem datas no
+    /// corpo: o período é calculado pelo servidor, e é por isso que o helper não tem parâmetro de data.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Quando o servidor não respondeu 202 — com corpo.</exception>
+    public static async Task<ImportRunInfo> StartUpdateBaseAsync(
+        this ApiTestFixture fixture,
+        string token,
+        bool dryRun = false)
+    {
+        var response = await fixture.StartUpdateBaseRawAsync(token, dryRun);
+
+        if (response.StatusCode != 202)
+        {
+            throw new InvalidOperationException(
+                $"POST {UPDATE_BASE_PATH} respondeu {response.StatusCode} (esperado 202): {response.Body}");
+        }
+
+        return response.As<ImportRunInfo>();
+    }
+
+    /// <summary>
+    /// <c>POST /runs/update-base</c> com a resposta bruta: as recusas (sem credenciais, sem pedido
+    /// importado, intervalo acima do limite, execução ativa) precisam do corpo do <c>400</c>/<c>409</c>.
+    /// </summary>
+    public static async Task<HttpCallResult> StartUpdateBaseRawAsync(
+        this ApiTestFixture fixture,
+        string token,
+        bool dryRun = false)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        return await fixture.PostAsync(UPDATE_BASE_PATH, token, new { dryRun });
+    }
+
+    // ---------------------------------------------------------------------------
+    // credenciais do +Vendas na tela de configuração (feature 008, T012/T020/T026)
+    // ---------------------------------------------------------------------------
+
+    /// <summary>Rota das credenciais, usada por PUT e DELETE.</summary>
+    public const string CREDENTIALS_PATH = "/imports/mais-vendas/credentials";
+
+    /// <summary>
+    /// <c>PUT /imports/mais-vendas/credentials</c> devolvendo a resposta bruta — os testes de recusa
+    /// precisam do corpo do <c>400</c> e da prova de que a senha não está em lugar nenhum.
+    /// <para>
+    /// <b>Nulo omito, string vazia envio</b>: a distinção é justamente a que o contrato faz — "senha
+    /// ausente" (manutenção do cadastro) contra "senha vazia" (recusa). Enviar <c>null</c> no JSON
+    /// seria um terceiro caso que a API não especifica.
+    /// </para>
+    /// </summary>
+    public static async Task<HttpCallResult> SaveCredentialsRawAsync(
+        this ApiTestFixture fixture,
+        string token,
+        string? login,
+        string? password)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        var payload = new Dictionary<string, object?>();
+
+        if (login is not null)
+        {
+            payload["login"] = login;
+        }
+
+        if (password is not null)
+        {
+            payload["password"] = password;
+        }
+
+        return await fixture.PutAsync(CREDENTIALS_PATH, token, payload);
+    }
+
+    /// <summary>
+    /// <c>PUT /imports/mais-vendas/credentials</c> exigindo <c>200</c>: é o setup das histórias que só
+    /// precisam de "credenciais cadastradas" (US2 em diante).
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Quando o servidor não respondeu 200 — com corpo.</exception>
+    public static async Task<HttpCallResult> SaveCredentialsAsync(
+        this ApiTestFixture fixture,
+        string token,
+        string? login,
+        string? password)
+    {
+        var response = await fixture.SaveCredentialsRawAsync(token, login, password);
+
+        if (response.StatusCode != 200)
+        {
+            throw new InvalidOperationException(
+                $"PUT {CREDENTIALS_PATH} respondeu {response.StatusCode} (esperado 200): {response.Body}");
+        }
+
+        return response;
+    }
+
+    /// <summary>
+    /// <c>DELETE /imports/mais-vendas/credentials</c> (resposta bruta; é <c>200</c> idempotente).
+    /// </summary>
+    public static async Task<HttpCallResult> DeleteCredentialsAsync(this ApiTestFixture fixture, string token)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        return await fixture.DeleteAsync(CREDENTIALS_PATH, token);
+    }
+
+    /// <summary>
+    /// <c>GET /imports/mais-vendas/credentials</c> já desserializado (T020/T026): é a leitura que a
+    /// vendedora faz para conferir o próprio cadastro, e a única superfície onde o <c>login</c> volta.
+    /// </summary>
+    /// <exception cref="InvalidOperationException">Quando o servidor não respondeu 200 — com corpo.</exception>
+    public static async Task<MaisVendasCredentialsInfo> GetCredentialsAsync(this ApiTestFixture fixture, string token)
+    {
+        ArgumentNullException.ThrowIfNull(fixture);
+
+        var response = await fixture.GetAsync(CREDENTIALS_PATH, token);
+
+        if (response.StatusCode != 200)
+        {
+            throw new InvalidOperationException(
+                $"GET {CREDENTIALS_PATH} respondeu {response.StatusCode} (esperado 200): {response.Body}");
+        }
+
+        return response.As<MaisVendasCredentialsInfo>();
+    }
+
+    /// <summary>
+    /// Cadastra as credenciais do cenário Fake, se o teste passou um par login/senha (setup compartilhado
+    /// dos inícios). Os dois têm de vir preenchidos: com um só, o <c>PUT</c> recusaria (FR-002) e o erro
+    /// do cadastro ofuscaria o erro do início que o teste queria medir — nesse caso preferimos não chamar
+    /// nada e deixar o <c>POST /runs</c> responder pelo que é (sem credenciais cadastradas).
+    /// </summary>
+    private static async Task SaveScenarioCredentialsAsync(
+        this ApiTestFixture fixture,
+        string token,
+        string? login,
+        string? password)
+    {
+        if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password))
+        {
+            return;
+        }
+
+        await fixture.SaveCredentialsAsync(token, login, password);
+    }
+
+    /// <summary>Corpo do início: período e modo, nada além disso (contrato da 008).</summary>
+    private static object PeriodPayload(DateOnly start, DateOnly end, bool dryRun) => new
+    {
+        startDate = start.ToString("yyyy-MM-dd"),
+        endDate = end.ToString("yyyy-MM-dd"),
+        dryRun
+    };
 
     /// <summary>
     /// Vendedora nova por teste (T035). Cada importação da suíte precisa de uma base limpa — a

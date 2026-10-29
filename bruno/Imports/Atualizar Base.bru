@@ -1,0 +1,52 @@
+meta {
+  name: Atualizar Base
+  type: http
+  seq: 10
+}
+
+post {
+  url: {{baseUrl}}/imports/mais-vendas/runs/update-base
+  body: json
+  auth: inherit
+}
+
+docs {
+  "Atualizar base" (feature 008, FR-011 a FR-015): continua de onde a última importação
+  parou — do último pedido importado, inclusive, até hoje em São Paulo. As datas são
+  calculadas no servidor; o corpo só tem `dryRun`.
+
+  Responde 202 com a execução `queued` e `kind: updateBase`. Quando a base não dá para
+  atualizar de uma vez, 400 com o mesmo motivo que `Defaults` já mostrava em
+  `updateBase.reason` (sem pedidos importados, ou mais de `maxRangeMonths` meses para trás —
+  nesse caso a vendedora importa em partes escolhendo as datas).
+
+  Precisa de credenciais cadastradas (`Credenciais - Salvar`), e o mesmo `409` de execução
+  ativa e `429` de bloqueio do `Iniciar Importacao`.
+}
+
+body:json {
+  {
+    "dryRun": false
+  }
+}
+
+script:post-response {
+  if (res.status === 202) {
+    bru.setEnvVar("importRunId", res.body.id);
+  }
+}
+
+tests {
+  test("202 com o período calculado pelo servidor", function () {
+    expect(res.status).to.equal(202);
+    expect(res.body.status).to.equal("queued");
+    expect(res.body.kind).to.equal("updateBase");
+    expect(res.body.startDate).to.be.a('string');
+  });
+
+  test("a resposta não contém credencial", function () {
+    const body = JSON.stringify(res.body).toLowerCase();
+    expect(body).to.not.include("password");
+    expect(body).to.not.include("login");
+  });
+}

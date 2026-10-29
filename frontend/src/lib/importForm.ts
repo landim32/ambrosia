@@ -22,16 +22,18 @@ export const IMPORT_QUERY_END_KEY = 'fim'
 
 /** Erros por campo, com a chave i18n (nenhuma string montada aqui). */
 export interface ImportFieldErrors {
-  login?: string
-  password?: string
   startDate?: string
   endDate?: string
 }
 
-/** Valores brutos do formulário (nenhum corte antes da validação). */
+/**
+ * Valores brutos do formulário (nenhum corte antes da validação).
+ *
+ * Feature 008: saem `login` e `password`. A tela não tem mais campo de credencial
+ * — o início usa as credenciais GUARDADAS no servidor (FR-009) —, então nem
+ * existe valor de senha para passar por aqui.
+ */
 export interface ImportFormValues {
-  login: string
-  password: string
   startDate: string
   endDate: string
   dryRun: boolean
@@ -58,6 +60,60 @@ export const todayInSaoPaulo = (now: Date = new Date()): string =>
     day: '2-digit',
   }).format(now)
 
+/** Dias do mês em ano não bissexto (índice 0 = janeiro). */
+const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+const isLeapYear = (year: number): boolean => (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+
+/** `year`/`month` com `month` de 0 a 11, como `Date.getMonth()`. */
+const daysInMonth = (year: number, month: number): number =>
+  month === 1 && isLeapYear(year) ? 29 : MONTH_DAYS[month] ?? 31
+
+const pad2 = (value: number): string => String(value).padStart(2, '0')
+
+/**
+ * Soma meses a um dia-calendário SEM DEIXAR O DIA ESTOURAR o mês destino, que é
+ * exatamente o que `DateOnly.AddMonths` do .NET faz (`AddMonths` de 30/01 + 1 mês
+ * é 28/02 ou 29/02, nunca 02/03).
+ *
+ * `Date` puro não serve: `new Date(2026, 0, 31).setMonth(2)` rola para 03/03 e a
+ * tela aceitaria um período que o servidor recusa — e a regra tem de ser A MESMA
+ * nos dois (research R6, SC-005). Trabalha com componentes (`getFullYear` etc.) e
+ * nunca com instante UTC, porque o valor é dia-calendário (FR-020).
+ */
+const addMonthsClamped = (date: Date, months: number): Date => {
+  const index = date.getFullYear() * 12 + date.getMonth() + months
+  const year = Math.floor(index / 12)
+  const month = index % 12
+  const day = Math.min(date.getDate(), daysInMonth(year, month))
+
+  return new Date(year, month, day)
+}
+
+/**
+ * Última data final válida para a data inicial dada (FR-010): o dia anterior à
+ * mesma data do `maxRangeMonths`-ésimo mês seguinte — `startDate.AddMonths(n).AddDays(-1)`
+ * do validator da API, em JS. 26/07 com 3 meses devolve 25/10: 26/07–25/10 entra e
+ * 26/07–26/10 é recusado (spec, Edge Cases).
+ *
+ * `null` quando a data inicial não é um dia-calendário real: quem chama já tem a
+ * regra de "informe a data inicial" antes desta e não deve somar em cima de lixo.
+ */
+export const maxEndDateForStart = (startDate: string, maxRangeMonths: number): string | null => {
+  const from = parseDateOnly(startDate)
+  if (from === null) return null
+
+  const lastAllowed = addMonthsClamped(from, maxRangeMonths)
+
+  // `AddDays(-1)` em dia-calendário: `setDate(0)` cai no último dia do mês anterior,
+  // então um dia a menos é sempre possível sem conta de empréstimo entre meses.
+  lastAllowed.setDate(lastAllowed.getDate() - 1)
+
+  return `${String(lastAllowed.getFullYear())}-${pad2(lastAllowed.getMonth() + 1)}-${pad2(
+    lastAllowed.getDate(),
+  )}`
+}
+
 /** Dias inclusivos entre duas datas `AAAA-MM-DD` (negativo quando invertidas). */
 export const rangeDays = (start: string, end: string): number => {
   const from = parseDateOnly(start)
@@ -71,22 +127,24 @@ export const rangeDays = (start: string, end: string): number => {
 }
 
 /**
- * Validação do formulário (FR-003/FR-004). `today` é injetável para os testes
- * terem um "hoje" fixo; o padrão é o relógio de São Paulo.
+ * Validação do formulário (FR-003/FR-004/FR-010/FR-011). `today` é injetável para
+ * os testes terem um "hoje" fixo; o padrão é o relógio de São Paulo.
  *
  * Ordem deliberada: campo obrigatório antes de comparação entre campos — um
  * período sem data final não deve gerar, além de "informe a data final", um
  * "a data inicial deve ser anterior" sem sentido.
+ *
+ * Nenhuma regra de credencial existe aqui desde a feature 008: sem credenciais
+ * cadastradas o formulário nem é desenhado (contracts/ui.md), e a recusa do
+ * servidor ("Cadastre as credenciais do +Vendas na configuração.") é mensagem de
+ * tela, não de campo.
  */
 export const validateImportForm = (
   values: ImportFormValues,
-  defaults: Pick<ImportDefaults, 'maxRangeDays'>,
+  defaults: Pick<ImportDefaults, 'maxRangeMonths'>,
   today: string = todayInSaoPaulo(),
 ): ImportFieldErrors => {
   const errors: ImportFieldErrors = {}
-
-  if (values.login.trim() === '') errors.login = 'validation.importLoginRequired'
-  if (values.password === '') errors.password = 'validation.importPasswordRequired'
 
   const hasStart = isValidDateOnly(values.startDate)
   const hasEnd = isValidDateOnly(values.endDate)
@@ -94,16 +152,19 @@ export const validateImportForm = (
   if (!hasStart) errors.startDate = 'validation.importStartDateRequired'
   if (!hasEnd) errors.endDate = 'validation.importEndDateRequired'
 
-  // Data final no futuro (FR-004): só com as duas datas presentes e reais.
+  // Data final no futuro (FR-011): só com as duas datas presentes e reais.
   if (hasEnd && values.endDate > today) errors.endDate = 'validation.importEndDateInFuture'
 
   if (hasStart && hasEnd && errors.endDate === undefined) {
     if (values.startDate > values.endDate) {
       errors.startDate = 'validation.importStartDateAfterEndDate'
     } else {
-      const days = rangeDays(values.startDate, values.endDate)
+      // Limite em MESES corridos (FR-010), com a mesma conta do servidor: comparar
+      // `endDate` com o teto calculado a partir de `startDate` em vez de contar dias,
+      // porque "3 meses" são 89 a 92 dias conforme o mês.
+      const maxEnd = maxEndDateForStart(values.startDate, defaults.maxRangeMonths)
 
-      if (days > defaults.maxRangeDays) {
+      if (maxEnd !== null && values.endDate > maxEnd) {
         errors.endDate = 'validation.importRangeTooLong'
       }
     }

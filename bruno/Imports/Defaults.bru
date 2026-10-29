@@ -11,8 +11,14 @@ get {
 }
 
 docs {
-  Datas sugeridas da tela (FR-002): `suggestedStartDate` é a data do último pedido
-  importado (null sem histórico) e `suggestedEndDate` é hoje em America/Sao_Paulo.
+  Datas sugeridas da tela (FR-002) e o estado que decide os botões (feature 008).
+
+  `suggestedStartDate` é a data do último pedido importado (null sem histórico) e
+  `suggestedEndDate` é hoje em America/Sao_Paulo. `maxRangeMonths` é o limite do período em
+  meses corridos (saiu `maxRangeDays`: "3 meses" em dias variaria entre 89 e 92).
+  `hasCredentials`/`credentialsStatus` dizem se dá para iniciar e se a senha precisa ser
+  conferida (`needsUpdate` avisa, não bloqueia — FR-007). `updateBase` traz o período que o
+  "Atualizar base" usaria agora (`available`, `startDate`, `endDate`, `reason`).
   `lockedUntil` ≠ null quando novos inícios estão bloqueados por recusas (FR-008a).
 }
 
@@ -21,8 +27,16 @@ tests {
     expect(res.status).to.equal(200);
   });
 
-  test("traz os limites vigentes", function () {
+  test("traz os limites e o estado das credenciais", function () {
     expect(res.body.blockDays).to.be.a('number');
-    expect(res.body.maxRangeDays).to.be.a('number');
+    expect(res.body.maxRangeMonths).to.be.a('number');
+    expect(res.body.hasCredentials).to.be.a('boolean');
+    expect(res.body.updateBase.available).to.be.a('boolean');
+  });
+
+  test("nenhuma credencial no corpo", function () {
+    const body = JSON.stringify(res.body).toLowerCase();
+    expect(body).to.not.include('"password"');
+    expect(body).to.not.include('"login"');
   });
 }

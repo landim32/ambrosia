@@ -26,7 +26,16 @@ Host `Ambrosio.McpServer` (target `mcp` do `backend/Dockerfile`): servidor MCP e
 | `Auth__Issuer` | `http://localhost:8080/auth` (fixo no compose; `http` só é aceito em localhost) | `https://ambrosioai.site/auth` (fixo) |
 | `Mcp__ResourceUrl` | `http://localhost:8080/mcp` | `https://ambrosioai.site/mcp` |
 | `Auth__SigningKeyPem` | `AMBROSIO_AUTH_SIGNING_KEY_PEM` do `.env` (obrigatória: sem ela o host não sobe) | GitHub Secret `AMBROSIO_AUTH_SIGNING_KEY_PEM` |
-| `Mcp__FrontendBaseUrl` | `http://localhost:8080` | `https://ambrosioai.site` (link da tool `iniciar_importacao`) |
+| `Mcp__FrontendBaseUrl` | `http://localhost:8080` | `https://ambrosioai.site` (link das tools `iniciar_importacao` e `atualizar_base`) |
+| `MaisVendas__CredentialsKey` | `AMBROSIO_MAIS_VENDAS_CREDENTIALS_KEY` do `.env` | GitHub Secret `AMBROSIO_MAIS_VENDAS_CREDENTIALS_KEY` |
+
+`MaisVendas__CredentialsKey` é a cifra das credenciais do +Vendas (feature 008, constituição §VI emenda 3.4.1): base64 de exatamente 32 bytes, **dedicada** — não é a chave do CPF, para que um vazamento não abra as duas coisas juntas. API e host do MCP recusam o startup sem ela. Gerar uma vez:
+
+```bash
+openssl rand -base64 32
+```
+
+O formato gravado carrega o prefixo `v1:`, então trocar a chave não pede migração de esquema: as credenciais já guardadas simplesmente param de decifrar, o status passa a `needsUpdate` e cada vendedora cadastra a senha de novo em **Configurações › +Vendas**. Diferente de `AMBROSIO_CPF_ENCRYPTION_KEY`, aqui não há dado pessoal perdido — o que se perde é só o cadastro, e o vínculo da conta (`account_hash`) e o bloqueio por recusas continuam no lugar.
 
 A chave de assinatura é RSA 2048 em PEM PKCS#8, numa linha só com `\n` no lugar das quebras (é assim que o `.env` e o heredoc do pipeline a gravam):
 
@@ -164,7 +173,7 @@ cada execução, e eles vivem só em memória durante a coleta (FR-005/FR-006).
 ## Homolog (docker compose no WSL)
 
 ```powershell
-Copy-Item .env.example .env    # preencha os segredos (AMBROSIO_CPF_ENCRYPTION_KEY: openssl rand -base64 32)
+Copy-Item .env.example .env    # preencha os segredos (AMBROSIO_CPF_ENCRYPTION_KEY e AMBROSIO_MAIS_VENDAS_CREDENTIALS_KEY: openssl rand -base64 32)
 wsl --cd /mnt/c/repos/ambrosia -e docker compose up -d --build
 wsl --cd /mnt/c/repos/ambrosia -e docker compose ps
 wsl --cd /mnt/c/repos/ambrosia -e docker compose logs --tail=100 api
@@ -203,9 +212,10 @@ Produção **não** tem frontend nem gateway próprios: segue o layout dos outro
 | `AMBROSIO_GOOGLE_CLIENT_ID` | Client ID do Google OAuth |
 | `AMBROSIO_CPF_PEPPER` | Pepper do HMAC do CPF |
 | `AMBROSIO_CPF_ENCRYPTION_KEY` | Base64 de 32 bytes. **Nunca troque** depois do primeiro cadastro: CPFs gravados ficariam ilegíveis |
+| `AMBROSIO_MAIS_VENDAS_CREDENTIALS_KEY` | Base64 de 32 bytes (feature 008): cifra do login e da senha do +Vendas guardados. Chave **dedicada**, não é a do CPF. API e host do MCP não sobem sem ela; trocá-la só obriga cada vendedora a cadastrar a senha de novo |
 | `S3_ACCESS_KEY`, `S3_SECRET_KEY` | Par de chaves do Spaces (feature 004). A API não sobe sem as duas (FR-020) |
 
-Guarde `AMBROSIO_CPF_ENCRYPTION_KEY` e `AMBROSIO_CPF_PEPPER` também fora do GitHub (cofre de senhas): o GitHub não permite ler um secret depois de gravado.
+Guarde `AMBROSIO_CPF_ENCRYPTION_KEY`, `AMBROSIO_CPF_PEPPER` e `AMBROSIO_MAIS_VENDAS_CREDENTIALS_KEY` também fora do GitHub (cofre de senhas): o GitHub não permite ler um secret depois de gravado.
 
 5. **Spaces**: produção usa o bucket `emagine`, o mesmo de dev e homolog (todas as chaves sob `ambrosio/`).
    Ele precisa do bloqueio de acesso público e de uma regra CORS com `AllowedOrigin = https://ambrosioai.site`, `AllowedMethod = GET, PUT, HEAD` e

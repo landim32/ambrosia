@@ -29,4 +29,11 @@ docs {
      **Orders / Create Sale Order** (guarda `orderId` e `orderNumber`).
   
   Para rodar tudo em sequência: `bru run --env Homolog` dentro desta pasta.
+
+  ## Plugin do ChatGPT (pasta Mcp)
+
+  O servidor MCP (`{{mcpBaseUrl}}/mcp`) usa o token do authorization server do plugin, não o `token`
+  da API. Rode **Mcp / OAuth** em ordem (registro do cliente, login, consentimento e troca do código):
+  o token fica em `mcpToken` e as requisições de **Mcp / Tools** passam a funcionar. Detalhes na
+  documentação da pasta Mcp.
 }

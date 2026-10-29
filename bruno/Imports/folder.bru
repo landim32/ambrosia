@@ -4,18 +4,27 @@ meta {
 }
 
 docs {
-  Importação do +Vendas (feature 006). Fluxo:
+  Importação do +Vendas (feature 006, com as credenciais guardadas da feature 008). Fluxo:
 
-  1. `Defaults` traz a data inicial sugerida (último pedido importado), hoje em
-     São Paulo, o tamanho do bloco, o limite do período e `lockedUntil`.
-  2. `Iniciar Importacao` responde 202 com a execução `queued` e salva `importRunId`.
-  3. `Execucao Atual` acompanha o progresso (204 quando não há execução ativa).
-  4. `Relatorio` traz blocos, rastro pedido a pedido e o agrupamento.
-  5. `Historico` lista as execuções; `Cancelar` encerra ao fim do bloco em curso.
+  1. `Credenciais - Salvar` cadastra login e senha UMA VEZ. É o único ponto que recebe a
+     senha em claro; ela é cifrada e nunca volta — nem mascarada (FR-003).
+  2. `Credenciais - Consultar` mostra o login, `hasPassword` e o `status`
+     (`none` | `valid` | `needsUpdate`); `Credenciais - Remover` zera o cadastro (200
+     idempotente) sem mexer no vínculo da conta nem no bloqueio por recusas.
+  3. `Defaults` traz a data inicial sugerida (último pedido importado), hoje em São Paulo,
+     o tamanho do bloco, o limite em meses (`maxRangeMonths`), `hasCredentials`,
+     `credentialsStatus`, `updateBase` e `lockedUntil`.
+  4. `Iniciar Importacao` (só período e modo, sem credencial no corpo) responde 202 com a
+     execução `queued` e salva `importRunId`.
+  5. `Atualizar Base` continua de onde a última parou: o período é calculado no servidor.
+  6. `Execucao Atual` acompanha o progresso (204 quando não há execução ativa).
+  7. `Relatorio` traz blocos, rastro pedido a pedido e o agrupamento.
+  8. `Historico` lista as execuções; `Cancelar` encerra ao fim do bloco em curso.
 
-  CREDENCIAIS: `maisVendasLogin` e `maisVendasPassword` são variáveis de ambiente.
-  Em homologação o coletor é o Fake e os valores são cenários de teste — login
-  `conta+cenario` (ex.: `s482+ok`, `s482+falha-bloco3`, `s482+2fa`) e senha `v1`,
-  `v2`, `v3` ou `recusada`. NUNCA coloque login ou senha reais do +Vendas em arquivo
-  versionado: a senha é `vars:secret` e fica só no seu Bruno local.
+  CREDENCIAIS: `maisVendasLogin` e `maisVendasPassword` são variáveis de ambiente e só
+  aparecem no corpo do `PUT` de `Credenciais - Salvar`. Em homologação o coletor é o Fake e
+  os valores são cenários de teste — login `conta+cenario` (ex.: `s482+ok`,
+  `s482+falha-bloco3`, `s482+2fa`) e senha `v1`, `v2`, `v3` ou `recusada`. NUNCA coloque
+  login ou senha reais do +Vendas em arquivo versionado: a senha é `vars:secret` e fica só
+  no seu Bruno local.
 }

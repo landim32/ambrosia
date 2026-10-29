@@ -36,6 +36,27 @@ public static class SaoPauloCalendar
     /// <summary>Horário de liberação formatado (<c>HH:mm</c>) no fuso local, para a FR-008a.</summary>
     public static string FormatTime(DateTime utcNow) => ToSaoPaulo(utcNow).ToString("HH:mm");
 
+    /// <summary>
+    /// O dia de <paramref name="date"/> há <paramref name="months"/> meses (feature 008, research R6).
+    /// <para>
+    /// "Três meses atrás" não tem um número fixo de dias (89, 90 ou 92), e a vendedora pensa em meses:
+    /// o limite de período e o corte do "Atualizar base" usam este cálculo, que casa com a regra do
+    /// validator (<c>endDate &lt;= startDate.AddMonths(n).AddDays(-1)</c>).
+    /// </para>
+    /// <para>
+    /// Quando o mês de destino não tem aquele dia (31 voltando para fevereiro), o resultado é o
+    /// <b>último dia</b> do mês de destino — nunca o dia 1 do mês seguinte, que encurtaria o período
+    /// configurado. Testado com dias 29, 30 e 31 em mês de 28, 29 e 30 dias.
+    /// </para>
+    /// </summary>
+    public static DateOnly AddMonthsFloor(DateOnly date, int months)
+    {
+        var target = new DateOnly(date.Year, date.Month, 1).AddMonths(-months);
+        var lastDayOfMonth = System.DateTime.DaysInMonth(target.Year, target.Month);
+
+        return new DateOnly(target.Year, target.Month, Math.Min(date.Day, lastDayOfMonth));
+    }
+
     private static TimeZoneInfo Resolve()
     {
         try

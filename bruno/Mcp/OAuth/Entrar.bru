@@ -1,0 +1,34 @@
+meta {
+  name: Entrar
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{mcpLoginUrl}}
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  Email: {{userEmail}}
+  Password: {{userPassword}}
+  ReturnUrl: {{mcpReturnUrl}}
+  __RequestVerificationToken: {{mcpAntiforgery}}
+}
+
+script:pre-request {
+  req.setMaxRedirects(0);
+}
+
+tests {
+  test("302 de volta ao authorize", function () {
+    expect(res.status).to.equal(302);
+    expect(res.headers["location"]).to.contain("/auth/connect/authorize");
+  });
+}
+
+docs {
+  Login na tela do authorization server (mesmas regras do `POST /api/auth/login`). Cria o cookie
+  `ambrosio.auth.session` (Path=/auth) e volta ao authorize.
+}

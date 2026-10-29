@@ -21,6 +21,14 @@ public class ImportRunInfo
     [JsonPropertyName("mode")]
     public ImportRunMode Mode { get; set; }
 
+    /// <summary>Origem do pedido: <c>screen</c> ou <c>mcp</c> (feature 008, research R8).</summary>
+    [JsonPropertyName("startedVia")]
+    public ImportRunStartedVia StartedVia { get; set; }
+
+    /// <summary>O que foi pedido: <c>period</c> ou <c>updateBase</c> (feature 008, research R5).</summary>
+    [JsonPropertyName("kind")]
+    public ImportRunKind Kind { get; set; }
+
     /// <summary>Estado atual, conforme FR-047a (research §18).</summary>
     [JsonPropertyName("status")]
     public ImportRunStatus Status { get; set; }

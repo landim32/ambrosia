@@ -11,19 +11,22 @@ post {
 }
 
 docs {
-  Inicia uma execução (FR-001). Login e senha valem só para esta execução e não são
-  gravados em lugar nenhum: a resposta 202 não os contém (FR-006). Em homologação
-  (coletor Fake) o período 2026-09-26..2026-10-25 com `s482+ok`/`v1` importa 49
-  pedidos somando R$ 123.300,58.
+  Inicia uma execução (feature 006 FR-001, reescrita pela 008 FR-001/FR-002). O corpo é só
+  período e modo: `login` e `password` não existem mais aqui — a vendedora cadastra as
+  credenciais uma vez em `Credenciais - Salvar`, e o worker as decifra no instante do login
+  na origem. A resposta 202 não contém credencial nenhuma (FR-003).
 
-  400 = período ou credenciais inválidos; 409 = já existe execução ativa; 429 =
-  bloqueio por recusas (cabeçalho `Retry-After` em segundos).
+  Em homologação (coletor Fake) o cenário é escolhido pelo LOGIN SALVO: com
+  `s482+ok`/`v1` cadastrados, o período 2026-09-26..2026-10-25 importa 49 pedidos somando
+  R$ 123.300,58.
+
+  400 = período inválido ("O período não pode passar de 3 meses.") ou sem credenciais
+  cadastradas; 409 = já existe execução ativa; 429 = bloqueio por recusas (cabeçalho
+  `Retry-After` em segundos).
 }
 
 body:json {
   {
-    "login": "{{maisVendasLogin}}",
-    "password": "{{maisVendasPassword}}",
     "startDate": "2026-09-26",
     "endDate": "2026-10-25",
     "dryRun": false
@@ -40,11 +43,13 @@ tests {
   test("status 202 com execução na fila", function () {
     expect(res.status).to.equal(202);
     expect(res.body.status).to.equal("queued");
+    expect(res.body.startedVia).to.equal("screen");
+    expect(res.body.kind).to.equal("period");
   });
 
   test("a resposta não contém credencial", function () {
-    const body = JSON.stringify(res.body);
-    expect(body).to.not.include(bru.getEnvVar("maisVendasLogin"));
-    expect(body.toLowerCase()).to.not.include("password");
+    const body = JSON.stringify(res.body).toLowerCase();
+    expect(body).to.not.include("password");
+    expect(body).to.not.include("login");
   });
 }

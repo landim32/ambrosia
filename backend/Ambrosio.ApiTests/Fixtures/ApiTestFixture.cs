@@ -118,8 +118,8 @@ public class ApiTestFixture : IAsyncLifetime
     /// <summary>Tamanho de bloco esperado no ambiente sob teste (FR-009).</summary>
     public int MaisVendasBlockDays { get; private set; } = 7;
 
-    /// <summary>Limite de período esperado no ambiente (FR-004).</summary>
-    public int MaisVendasMaxRangeDays { get; private set; } = 366;
+    /// <summary>Limite de período esperado no ambiente, em meses corridos (feature 008, research R6).</summary>
+    public int MaisVendasMaxRangeMonths { get; private set; } = 3;
 
     /// <summary>Recusas seguidas antes do bloqueio de novos inícios (FR-008a).</summary>
     public int MaisVendasMaxFailedLogins { get; private set; } = 3;
@@ -165,7 +165,7 @@ public class ApiTestFixture : IAsyncLifetime
         // e de bloqueio precisam.
         ImportRunTimeoutSeconds = ReadInt("MaisVendas:RunTimeoutSeconds", ImportRunTimeoutSeconds);
         MaisVendasBlockDays = ReadInt("MaisVendas:BlockDays", MaisVendasBlockDays);
-        MaisVendasMaxRangeDays = ReadInt("MaisVendas:MaxRangeDays", MaisVendasMaxRangeDays);
+        MaisVendasMaxRangeMonths = ReadInt("MaisVendas:MaxRangeMonths", MaisVendasMaxRangeMonths);
         MaisVendasMaxFailedLogins = ReadInt("MaisVendas:MaxFailedLogins", MaisVendasMaxFailedLogins);
         MaisVendasLockoutMinutes = ReadInt("MaisVendas:LockoutMinutes", MaisVendasLockoutMinutes);
 

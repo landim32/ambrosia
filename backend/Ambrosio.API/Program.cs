@@ -69,12 +69,14 @@ builder.Services.ConfigureServices(opt =>
     opt.ObjectStorage.PendingTtlMinutes = settings.ObjectStorage.PendingTtlMinutes;
     opt.ObjectStorage.CleanupIntervalMinutes = settings.ObjectStorage.CleanupIntervalMinutes;
 
-    // Importação do +Vendas (feature 006): a seção inteira vai adiante como IOptions; o ValidateSettings
-    // abaixo já recusou startup com configuração fora das faixas.
+    // Importação do +Vendas (feature 006, research §13; feature 008, research R2/R6): a seção inteira vai
+    // adiante como IOptions; o ValidateSettings abaixo já recusou startup com configuração fora das
+    // faixas ou sem a chave de cifra das credenciais.
     opt.MaisVendas.Collector = settings.MaisVendas.Collector;
     opt.MaisVendas.BaseUrl = settings.MaisVendas.BaseUrl;
     opt.MaisVendas.BlockDays = settings.MaisVendas.BlockDays;
-    opt.MaisVendas.MaxRangeDays = settings.MaisVendas.MaxRangeDays;
+    opt.MaisVendas.MaxRangeMonths = settings.MaisVendas.MaxRangeMonths;
+    opt.MaisVendas.CredentialsKey = settings.MaisVendas.CredentialsKey;
     opt.MaisVendas.MaxConcurrentRuns = settings.MaisVendas.MaxConcurrentRuns;
     opt.MaisVendas.MaxFailedLogins = settings.MaisVendas.MaxFailedLogins;
     opt.MaisVendas.LockoutMinutes = settings.MaisVendas.LockoutMinutes;
@@ -398,7 +400,7 @@ static void ValidateMaisVendas(Ambrosio.DTO.Settings.MaisVendasSettings maisVend
     }
 
     AddIfOutOfRange(errors, "MaisVendas__BlockDays", maisVendas.BlockDays, 1, 31);
-    AddIfOutOfRange(errors, "MaisVendas__MaxRangeDays", maisVendas.MaxRangeDays, 1, 3660);
+    AddIfOutOfRange(errors, "MaisVendas__MaxRangeMonths", maisVendas.MaxRangeMonths, 1, 12);
     AddIfOutOfRange(errors, "MaisVendas__MaxConcurrentRuns", maisVendas.MaxConcurrentRuns, 1, 8);
     AddIfOutOfRange(errors, "MaisVendas__MaxFailedLogins", maisVendas.MaxFailedLogins, 1, 10);
     AddIfOutOfRange(errors, "MaisVendas__LockoutMinutes", maisVendas.LockoutMinutes, 1, 1440);
@@ -411,6 +413,26 @@ static void ValidateMaisVendas(Ambrosio.DTO.Settings.MaisVendasSettings maisVend
     if (maisVendas.MinDelayMs > maisVendas.MaxDelayMs)
     {
         errors.Add("MaisVendas__MinDelayMs não pode ser maior que MaisVendas__MaxDelayMs.");
+    }
+
+    // Cifra das credenciais do +Vendas (feature 008, research R2; constituição §VI emenda 3.4.1): sem a
+    // chave dedicada a API não sobe — guardaria senha de terceiro com o primeiro valor que aparecesse,
+    // e uma chave de tamanho errado abriria a cifra em execução, no meio de uma importação.
+    if (TryBase64Length(maisVendas.CredentialsKey) != 32)
+    {
+        errors.Add("MaisVendas__CredentialsKey deve ser base64 de exatamente 32 bytes.");
+    }
+
+    static int TryBase64Length(string? value)
+    {
+        try
+        {
+            return Convert.FromBase64String(value ?? string.Empty).Length;
+        }
+        catch (FormatException)
+        {
+            return -1;
+        }
     }
 }
 

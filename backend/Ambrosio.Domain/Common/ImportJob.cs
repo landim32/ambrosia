@@ -3,52 +3,52 @@ using Ambrosio.DTO.Enums;
 namespace Ambrosio.Domain.Common;
 
 /// <summary>
-/// O trabalho enfileirado para uma execução de importação (feature 006, research §4): é o único objeto
-/// do sistema que carrega login e senha do +Vendas, e ele nunca sai da memória do processo.
+/// Trabalho de importação enfileirado (feature 006, research §4; reescrito pela feature 008,
+/// research R7). Carrega só o que é preciso para <b>identificar</b> a execução: chave, dono, modo e
+/// período.
 /// <para>
-/// <b>Nunca</b> é registrado em DI, serializado para resposta, escrito em banco, usado como estado de
-/// log ou incluído em mensagem de exceção (FR-005/FR-006, SC-004). O <c>ImportRunWorker</c> o recebe
-/// da fila, entrega ao <c>IImportExecutionService</c> e chama <see cref="Clear"/> no <c>finally</c>,
-/// com sucesso, falha ou cancelamento — as referências somem e o coletor de lixo tem como reclaimá-las.
+/// Até a feature 006 este objeto transportava <c>Login</c> e <c>Password</c> em claro da requisição até
+/// o navegador, e foi por isso que a fila foi feita em memória (persistir o job seria persistir a
+/// senha). Com as credenciais cifradas no banco (FR-003 da 008), o job não tem mais segredo nenhum: o
+/// executor os decifra no instante do login na origem, por <c>UserId</c>
+/// (<see cref="Interfaces.IMaisVendasCredentialService.GetDecryptedAsync"/>).
 /// </para>
 /// <para>
-/// Limite honesto registrado no research §4: strings são imutáveis no .NET e a limpeza determinística
-/// da memória gerenciada não é garantida; aceita-se porque o processo que as contém é o mesmo que
-/// recebeu a requisição HTTPS, sem espelho em disco, log ou banco.
+/// Continuam aqui as datas e o modo porque a execução é planejada no <c>Create</c>, antes de o worker
+/// pegar o trabalho. <see cref="Clear"/> mantém o contrato de limpeza: zerar o estado de uma fila que
+/// hoje não tem credencial custa zero e protege contra alguém reintroduzir uma no futuro.
 /// </para>
 /// </summary>
 public sealed class ImportJob
 {
-    public required long RunId { get; init; }
+    // As cinco propriedades são `set` (não `init`) de propósito: `Clear` precisa zerar o conteúdo no
+    // finally do worker. Com `init` o compilador proíbe, e o contrato de limpeza viraria comentário.
+    /// <summary>Identificador da execução já persistida (o <c>import_run_id</c> da fila).</summary>
+    public long RunId { get; set; }
 
-    public required long UserId { get; init; }
+    /// <summary>Dono, do claim <c>sub</c>. É a chave com que o repositório lê a execução (FR-053).</summary>
+    public long UserId { get; set; }
 
-    public required ImportRunMode Mode { get; init; }
+    /// <summary>Simulação ou gravação — decide se <c>Apply</c> escreve em algum lugar (FR-032).</summary>
+    public ImportRunMode Mode { get; set; }
 
-    public required DateOnly StartDate { get; init; }
+    /// <summary>Início do período, inclusive.</summary>
+    public DateOnly StartDate { get; set; }
 
-    public required DateOnly EndDate { get; init; }
-
-    /// <summary>Login do +Vendas. Só em memória (com <c>set</c> justamente para o <see cref="Clear"/> poder zerá-lo).</summary>
-    public required string Login { get; set; }
-
-    /// <summary>Senha do +Vendas. Só em memória, e este é o motivo de <see cref="Clear"/> existir.</summary>
-    public required string Password { get; set; }
+    /// <summary>Fim do período, inclusive.</summary>
+    public DateOnly EndDate { get; set; }
 
     /// <summary>
-    /// Descarta as credenciais do objeto (FR-005). Chamado no <c>finally</c> do worker. Depois disto o
-    /// job é inutilizável — a execução já terminou, e reler a senha não tem caso de uso legítimo.
+    /// Zera o conteúdo. Chamado no <c>finally</c> do worker com sucesso, falha ou cancelamento.
     /// </summary>
     public void Clear()
     {
-        Login = string.Empty;
-        Password = string.Empty;
+        RunId = 0;
+        UserId = 0;
+        StartDate = default;
+        EndDate = default;
     }
 
-    /// <summary>
-    /// Nunca contém credencial alguma: um <c>ToString()</c> incidental em log, interpolação ou dump de
-    /// depuração não pode vazar a senha (research §14).
-    /// </summary>
-    public override string ToString() =>
-        $"ImportJob(RunId={RunId}, UserId={UserId}, Mode={Mode}, {StartDate:yyyy-MM-dd}–{EndDate:yyyy-MM-dd})";
+    /// <summary>Nunca mostra o conteúdo (padrão herdado da versão que carregava credencial).</summary>
+    public override string ToString() => $"ImportJob(RunId={RunId})";
 }

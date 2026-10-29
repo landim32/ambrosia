@@ -1,39 +1,48 @@
 <!--
 Sync Impact Report
 ==================
-Version change: 3.3.0 → 3.4.0 (MINOR)
+Version change: 3.4.0 → 3.4.1 (PATCH)
 
-Bump rationale: o plugin do ChatGPT (feature 007) exige OAuth 2.1 com authorization server
-próprio. O Princípio VI descrevia um único esquema — o JWT HS256 da API — e tinha duas regras que
-o desenho da feature não cumpre: "tokens NUNCA DEVEM ser armazenados em cookies" e
-"`[AllowAnonymous]` só é permitido em `/auth/*`". A emenda acrescenta um segundo esquema com
-escopo restrito ao MCP, esclarece as duas regras e torna obrigatória a chave de assinatura por
-variável de ambiente. A API REST e o frontend não mudam de esquema (impacto em código existente:
-nenhum).
+Bump rationale: a feature 008 (`specs/008-import-credentials`) passa a guardar o login e a senha do
++Vendas — credenciais de um serviço de terceiro — para importar sem a vendedora redigitá-los. O
+Princípio VI regulava as senhas **do Ambrosio** (hash lento, nunca recuperável) e os dados pessoais
+(hash + cifra), mas não as credenciais de terceiro, que precisam voltar a texto claro para serem
+usadas. A emenda acrescenta essa regra ao §VI: cifra autenticada, chave **dedicada** por variável de
+ambiente com recusa do startup, dados associados que amarram a cifra ao usuário e ao campo, proibição
+de devolver a senha em qualquer superfície (nem mascarada), decifração só no instante de uso e nenhuma
+tool do MCP recebendo, lendo ou alterando credenciais de terceiro. PATCH: não afrouxa nem remove regra
+alguma — esclarece um caso que o texto não cobria (proposta em
+`specs/008-import-credentials/constitution-amendment.md`).
 
 Modified principles:
-- VI. Autenticação e Segurança: nova linha "Esquema do MCP (plugin do ChatGPT)" (OAuth 2.1 com AS
-  próprio em `/auth`, PKCE S256, consentimento por escopos, refresh com rotação; access token JWT
-  RS256 com `aud` = URL do MCP e `sub` = `user_id`, aceito **só** no MCP — o HS256 da API não vale
-  nele e o token do AS não vale na API); regra de cookies substituída (exceção limitada ao cookie
-  de sessão `HttpOnly` das telas de login/consentimento do AS, que não carrega token de API);
-  regra de rotas anônimas substituída (documentos `/.well-known/oauth-*` e, no endpoint MCP,
-  `initialize`/`tools/list`/tools `noauth`, desde que não devolvam dado de usuário); nova regra da
-  chave de assinatura RSA/PEM via variável de ambiente em Homolog/Production com recusa do startup,
-  e de issuer/URL do MCP validados sem barra no final. Rationale ampliado: os dois esquemas
-  convivem por **escopo** (telas × plugin), não por ambiente.
-- VII. Ambientes e Testes de API: sem mudança de texto — o host novo segue a mesma regra de
-  homologação reconstruída e testes de API no fim do ciclo.
+- VI. Autenticação e Segurança: um novo item em "Regras de segurança" sobre credenciais de serviços
+  de terceiros. Nenhuma outra linha do princípio muda; o §VII não é tocado.
 
 Added sections: none
 Removed sections: none
-Quality gates: added "tools do MCP conferem escopo antes de executar, nunca recebem `userId` como
-argumento e não aceitam o JWT HS256 da API".
-Templates/skills afetados: nenhum obrigatoriamente — `dotnet-architecture`, `dotnet-env`,
-`wsl-docker` e `dotnet-test-api` continuam aplicáveis ao host novo (`Ambrosio.McpServer`).
-Follow-up: se a publicação no diretório do ChatGPT entrar no escopo, avaliar o mTLS do conector
-(SAN `mtls.prod.connectors.openai.com`) no nginx e as páginas de privacidade/terms — reforços
-futuros, não requisitos deste princípio (R18).
+Quality gates: sem mudança de texto — a regra nova é conferida na revisão como as demais do §VI.
+Templates/skills afetados: nenhum.
+Specs afetadas: 006 (FR-005/FR-006, "nenhuma credencial gravada", substituídos pela 008); 007 (R9,
+importação pelo plugin só por link, substituído pelo R9 da 008).
+Follow-up: o prefixo `v1:` do formato cifrado deixa espaço para rotação de chave sem migração de
+esquema; nenhum código a implementa hoje (trocar a chave invalida as credenciais gravadas).
+
+Previous amendment (3.3.0 → 3.4.0, MINOR): o plugin do ChatGPT (feature 007) exigiu OAuth 2.1 com
+authorization server próprio; o §VI descrevia um único esquema (o JWT HS256 da API) e tinha duas
+regras que o desenho da feature não cumpre ("tokens NUNCA DEVEM ser armazenados em cookies" e
+"`[AllowAnonymous]` só é permitido em `/auth/*`"). Acrescentou a linha "Esquema do MCP (plugin do
+ChatGPT)" (AS próprio em `/auth`, PKCE S256, consentimento por escopos, refresh com rotação; access
+token JWT RS256 com `aud` = URL do MCP e `sub` = `user_id`, aceito **só** no MCP — o HS256 da API não
+vale nele e o token do AS não vale na API); substituiu a regra de cookies (exceção limitada ao cookie
+de sessão `HttpOnly` das telas de login/consentimento do AS, que não carrega token de API) e a de
+rotas anônimas (documentos `/.well-known/oauth-*` e, no endpoint MCP, `initialize`/`tools/list`/tools
+`noauth`, desde que não devolvam dado de usuário); tornou obrigatória a chave de assinatura RSA/PEM
+por variável de ambiente em Homolog/Production com recusa do startup, e validou issuer e URL do MCP
+sem barra no final. Rationale ampliado: os dois esquemas convivem por **escopo** (telas × plugin), não
+por ambiente. Quality gate adicionada: "tools do MCP conferem escopo antes de executar, nunca recebem
+`userId` como argumento e não aceitam o JWT HS256 da API". §VII sem mudança de texto. Follow-up da
+época: se a publicação no diretório do ChatGPT entrar no escopo, avaliar o mTLS do conector
+(SAN `mtls.prod.connectors.openai.com`) no nginx e as páginas de privacidade/terms (R18).
 
 Previous amendment (3.2.0 → 3.3.0, MINOR): Princípio VI passou a descrever cadastro/login com
 e-mail e senha ao lado do Google e PROIBIU emissão de token sem credencial em qualquer ambiente
@@ -281,6 +290,13 @@ cascata.
   de derivação lenta (PBKDF2-HMAC-SHA256 ≥ 600.000 iterações ou mais forte), nunca em texto
   puro, em log ou em DTO. Falhas de login (e-mail inexistente, senha incorreta, conta sem
   senha) DEVEM responder a MESMA mensagem genérica e status, em tempo equivalente.
+- Credenciais de serviços de terceiros que o sistema precisa usar em nome do usuário (ex.: login e
+  senha do +Vendas) DEVEM ser gravadas apenas com cifra autenticada (AES-256-GCM ou mais forte), com
+  chave **dedicada** vinda de variável de ambiente (a API e os hosts que as usam DEVEM recusar o
+  startup sem ela) e dados associados que amarrem a cifra ao usuário e ao campo. A senha de terceiro
+  NUNCA DEVE ser devolvida por endpoint, tool, tela, log, relatório ou auditoria — nem mascarada — e
+  só DEVE ser decifrada no instante de uso. Nenhuma tool do MCP pode receber, ler ou alterar
+  credenciais de terceiros.
 
 **Rationale**: regras explícitas de armazenamento e proteção impedem vazamento de credenciais
 e endpoints desprotegidos, independentemente do esquema de autenticação adotado. O acesso sem
@@ -408,4 +424,4 @@ Code reviews DEVEM recusar alterações que não cumpram este checklist.
 - Para orientação detalhada de implementação, use as skills `dotnet-architecture`,
   `react-architecture`, `dotnet-graphql`, `wsl-docker`, `dotnet-env` e `dotnet-test-api`.
 
-**Version**: 3.4.0 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-27
+**Version**: 3.4.1 | **Ratified**: 2026-04-02 | **Last Amended**: 2026-10-28

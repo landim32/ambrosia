@@ -26,6 +26,10 @@ x-api-environment: &api-environment
   # Importação do +Vendas (feature 006, research §3/§13): homolog importa de verdade com o coletor
   # Playwright (Chromium na imagem). Fixo, sem configuração.
   MaisVendas__Collector: Playwright
+  # Cifra das credenciais do +Vendas (feature 008, research R2; constituição §VI emenda 3.4.1): chave
+  # dedicada, base64 de 32 bytes (openssl rand -base64 32), só no .env. API e host do MCP recusam o
+  # startup sem ela, e trocá-la invalida as credenciais já gravadas (a vendedora cadastra de novo).
+  MaisVendas__CredentialsKey: ${AMBROSIO_MAIS_VENDAS_CREDENTIALS_KEY}
 
 services:
   migrator:
@@ -61,8 +65,11 @@ services:
   # Plugin do ChatGPT (feature 007, R8): um único host para o servidor MCP (`/mcp`) e o
   # authorization server OAuth 2.1 (`/auth`). Herda o `x-api-environment` porque reaproveita banco,
   # proteção de CPF e storage da API; o que é só dele são os endereços canônicos e a chave RSA.
-  # Sem `shm_size`: o target `mcp` da imagem não carrega o Chromium — as tools de importação só
-  # leem/cancelam e o `iniciar_importacao` devolve o link da tela em vez de coletar (R9).
+  # Sem `shm_size`: o target `mcp` da imagem não carrega o Chromium porque este host não executa
+  # coleta nenhuma. Desde a feature 008 ele também INICIA importações (`iniciar_importacao`,
+  # `atualizar_base`), mas o que faz é gravar a execução como `queued` no banco — quem coleta é o
+  # worker da API, único processo com navegador, que reivindica as execuções na fila do banco.
+  # É o mesmo sentido do cancelamento, que já viaja pelo banco (R9 da 008).
   mcp:
     build:
       context: ./backend

@@ -1,10 +1,11 @@
 namespace Ambrosio.DTO.Settings;
 
 /// <summary>
-/// Configuração da importação do +Vendas (feature 006, research §13). Ligada à seção
-/// <c>MaisVendas</c> do appsettings e às variáveis <c>MaisVendas__*</c>; consumida via
+/// Configuração da importação do +Vendas (feature 006, research §13; feature 008, research R2/R6).
+/// Ligada à seção <c>MaisVendas</c> do appsettings e às variáveis <c>MaisVendas__*</c>; consumida via
 /// <c>IOptions&lt;MaisVendasSettings&gt;</c> pelo coletor (Infra), pelo <c>ImportRunService</c>
-/// (sugestão de datas, limites), pelo <c>ImportExecutionService</c> (ritmo, bloqueio) e pelo
+/// (sugestão de datas, limites), pelo <c>ImportExecutionService</c> (ritmo, bloqueio), pelo
+/// <c>MaisVendasCredentialService</c> e pela cifra de credenciais (feature 008) e pelo
 /// <c>ImportRunWorker</c> (concorrência).
 /// <para>
 /// As faixas abaixo são conferidas no startup (<c>Program.ValidateSettings</c>): a API não sobe com
@@ -35,8 +36,20 @@ public class MaisVendasSettings
     /// <summary>Dias por bloco de coleta (faixa 1-31, FR-009).</summary>
     public int BlockDays { get; set; } = 7;
 
-    /// <summary>Tamanho máximo do período em dias, inclusive (faixa 1-3660, FR-004).</summary>
-    public int MaxRangeDays { get; set; } = 366;
+    /// <summary>
+    /// Limite do período em <b>meses corridos</b>, inclusivo (faixa 1-12; feature 008, research R6).
+    /// Substitui <c>MaxRangeDays</c> da feature 006: "3 meses" em dias variaria entre 89 e 92, e a
+    /// conta por mês casa com a percepção da vendedora (26/07 a 25/10 entra, 26/07 a 26/10 não).
+    /// </summary>
+    public int MaxRangeMonths { get; set; } = 3;
+
+    /// <summary>
+    /// Chave de cifra das credenciais do +Vendas: base64 de exatamente 32 bytes (AES-256-GCM,
+    /// feature 008, research R2). Obrigatória — API e host do MCP recusam o startup sem ela
+    /// (constituição §VI, emenda 3.4.1). Dedicada: não é a chave do CPF, para que um vazamento
+    /// não abra as duas coisas juntas. Trocá-la invalida o que já está gravado.
+    /// </summary>
+    public string CredentialsKey { get; set; } = string.Empty;
 
     /// <summary>Execuções simultâneas por servidor (faixa 1-8, FR-017).</summary>
     public int MaxConcurrentRuns { get; set; } = 2;

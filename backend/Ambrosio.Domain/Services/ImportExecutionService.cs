@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using Ambrosio.Domain.Common;
 using Ambrosio.Domain.Exceptions;
 using Ambrosio.Domain.Interfaces;
@@ -9,6 +10,7 @@ using Ambrosio.DTO.Imports.Collector;
 using Ambrosio.DTO.Settings;
 using Ambrosio.Infra.Interfaces.AppServices;
 using Ambrosio.Infra.Interfaces.Repository;
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -23,13 +25,16 @@ namespace Ambrosio.Domain.Services;
 /// <b>validar contadores e totais antes de gravar</b> (FR-010/FR-011), gravar pedido a pedido em escopo
 /// de DI próprio (FR-012), copiar fotos, reportar não encontrados, atualizar o progresso; ao final
 /// aplicar a FR-047a (research §18) e fechar. A sessão é descartada no <c>finally</c> em todo caminho
-/// (FR-044) e o job tem as credenciais zeradas pelo worker.
+/// (FR-044) e o job, que não carrega segredo, é zerado no <c>finally</c> do worker.
 /// </para>
 /// <para>
-/// <b>Credenciais e CPF (FR-005/FR-052)</b>: login e senha só existem no <see cref="ImportJob"/> e na
-/// sessão; o CPF só existe em <see cref="CollectedOrder.CpfDigits"/> até virar hash/cifra/máscara.
-/// Nenhuma mensagem escrita aqui repete um dos três, porque um <c>Exception</c> não tratado do pipeline
-/// é devolvido como <c>500</c> com <c>ex.Message</c>.
+/// <b>Credenciais e CPF (FR-003/FR-005/FR-052)</b>: login e senha são decifrados por
+/// <see cref="IMaisVendasCredentialService"/>, <b>aqui e só aqui</b>, no instante de abrir a sessão de
+/// coleta (research R3 da 008). Eles não passam pelo job, pelo banco, pelo log nem pela resposta, e a
+/// referência morre quando o método sai — em sucesso, falha ou cancelamento. O CPF só existe em
+/// <see cref="CollectedOrder.CpfDigits"/> até virar hash/cifra/máscara. Nenhuma mensagem escrita aqui
+/// repete um dos três, porque um <c>Exception</c> não tratado do pipeline é devolvido como <c>500</c>
+/// com <c>ex.Message</c>.
 /// </para>
 /// </summary>
 public class ImportExecutionService : IImportExecutionService
@@ -39,6 +44,18 @@ public class ImportExecutionService : IImportExecutionService
     private const string DIFFERENT_ACCOUNT = "Conta do +Vendas diferente da vinculada.";
     private const string UNSUPPORTED_STEP = "O login do +Vendas exige uma etapa não suportada (código ou captcha).";
     private const string INVALID_CPF = "CPF ausente ou inválido na origem.";
+
+    /// <summary>
+    /// Execução <c>queued</c> que chegou ao worker sem credenciais para decifrar — removidas depois de
+    /// pedida, ou cadastradas em outra vendedora por engano (data-model §4, edge case da FR-006).
+    /// </summary>
+    private const string NO_CREDENTIALS = "Credenciais do +Vendas não cadastradas.";
+
+    /// <summary>
+    /// As credenciais existem na linha mas não voltam em claro: chave trocada ou payload corrompido
+    /// (data-model §4). Nunca se repete a mensagem da cifra — ela pode trazer nome de variável.
+    /// </summary>
+    private const string CREDENTIALS_UNREADABLE = "Credenciais cifradas não decifram (chave trocada).";
 
     /// <summary>Retentativas do bloco (FR-045): 2 s → 4 s → 8 s, e a 3ª falha aborta.</summary>
     private static readonly TimeSpan[] RetryDelays =
@@ -50,6 +67,7 @@ public class ImportExecutionService : IImportExecutionService
 
     private readonly IImportRunRepository<ImportRun, ImportRunBlock, ImportRunChange> _runs;
     private readonly IMaisVendasAccountRepository<MaisVendasAccount> _accounts;
+    private readonly IMaisVendasCredentialService _credentials;
     private readonly IMaisVendasCollectorAppService _collector;
     private readonly IAccountHashAppService _accountHash;
     private readonly ICpfProtectionAppService _cpfProtection;
@@ -63,6 +81,7 @@ public class ImportExecutionService : IImportExecutionService
     public ImportExecutionService(
         IImportRunRepository<ImportRun, ImportRunBlock, ImportRunChange> runs,
         IMaisVendasAccountRepository<MaisVendasAccount> accounts,
+        IMaisVendasCredentialService credentials,
         IMaisVendasCollectorAppService collector,
         IAccountHashAppService accountHash,
         ICpfProtectionAppService cpfProtection,
@@ -75,6 +94,7 @@ public class ImportExecutionService : IImportExecutionService
     {
         _runs = runs;
         _accounts = accounts;
+        _credentials = credentials;
         _collector = collector;
         _accountHash = accountHash;
         _cpfProtection = cpfProtection;
@@ -104,14 +124,49 @@ public class ImportExecutionService : IImportExecutionService
 
         var state = new RunState();
 
-        // A sessão vive exatamente o tempo da execução; `await using` é o finally da FR-044 — ela é
-        // descartada em sucesso, falha e cancelamento porque todo caminho sai deste bloco.
-        await using var session = await _collector.OpenSessionAsync(
-            new MaisVendasCredentials(job.Login, job.Password), cancellationToken);
+        // Cancelada entre a reivindicação na fila e aqui (a vendedora apertou "cancelar" na tela ou no
+        // plugin): nenhum navegador é aberto, e a execução fecha como cancelada (FR-019).
+        if (run.CancelRequested)
+        {
+            run.RequestCancel();
+            await FinishAsync(run);
+
+            return;
+        }
+
+        // Decifração no instante do uso (research R3 da 008): esta é a única linha do sistema que pede a
+        // senha em claro, e ela vive nesta variável até o método sair — não vai para o job, para o log,
+        // para a execução nem para resposta alguma.
+        MaisVendasCredentials credentials;
 
         try
         {
-            if (await LoginAndLinkAsync(run, job, session, state, cancellationToken))
+            credentials = await _credentials.GetDecryptedAsync(job.UserId);
+        }
+        catch (ValidationException)
+        {
+            // A vendedora removeu o cadastro depois de pedir a importação (edge case da FR-006): a
+            // execução morre antes de abrir sessão, com mensagem própria e sem coletar nada.
+            await FailBeforeBlocksAsync(run, NO_CREDENTIALS);
+
+            return;
+        }
+        catch (CryptographicException)
+        {
+            // Credenciais gravadas com outra chave (rotação, restauração de banco): a cifra falha, e o
+            // que a vendedora precisa ler é que precisa cadastrar de novo — nunca o erro da camada crypto.
+            await FailBeforeBlocksAsync(run, CREDENTIALS_UNREADABLE);
+
+            return;
+        }
+
+        // A sessão vive exatamente o tempo da execução; `await using` é o finally da FR-044 — ela é
+        // descartada em sucesso, falha e cancelamento porque todo caminho sai deste bloco.
+        await using var session = await _collector.OpenSessionAsync(credentials, cancellationToken);
+
+        try
+        {
+            if (await LoginAndLinkAsync(run, credentials, session, state, cancellationToken))
             {
                 await CollectBlocksAsync(run, session, state, cancellationToken);
             }
@@ -152,7 +207,7 @@ public class ImportExecutionService : IImportExecutionService
     /// <returns><c>false</c> quando a execução terminou antes dos blocos — status e mensagem já gravados.</returns>
     private async Task<bool> LoginAndLinkAsync(
         ImportRun run,
-        ImportJob job,
+        MaisVendasCredentials credentials,
         IMaisVendasCollectorSession session,
         RunState state,
         CancellationToken cancellationToken)
@@ -190,7 +245,9 @@ public class ImportExecutionService : IImportExecutionService
         // Login aceito: a sequência de recusas acaba aqui, mesmo que a conta seja outra (FR-008a).
         account.RegisterAcceptedLogin(now);
 
-        var identifier = string.IsNullOrWhiteSpace(result.AccountIdentifier) ? job.Login : result.AccountIdentifier!;
+        // O identificador que vira o vínculo: o que a origem devolve quando sabe dizer quem é; senão, o
+        // login que autenticou (feature 008: ele vem da cifra, não do pedido — a requisição não o traz).
+        var identifier = string.IsNullOrWhiteSpace(result.AccountIdentifier) ? credentials.Login : result.AccountIdentifier!;
         var hash = _accountHash.Hash(identifier);
 
         if (account.AccountHash is { Length: > 0 } && !account.Matches(hash))

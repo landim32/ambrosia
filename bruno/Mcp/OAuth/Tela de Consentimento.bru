@@ -1,0 +1,30 @@
+meta {
+  name: Tela de Consentimento
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{mcpConsentUrl}}
+  body: none
+  auth: none
+}
+
+script:post-response {
+  // Todos os campos ocultos (parâmetros OAuth + antiforgery) vão de volta ao authorize.
+  const html = typeof res.body === "string" ? res.body : "";
+  const fields = [];
+  for (const input of html.match(/<input[^>]*type="hidden"[^>]*>/g) || []) {
+    const name = (input.match(/name="([^"]*)"/) || [])[1];
+    const value = ((input.match(/value="([^"]*)"/) || [])[1] || "").replace(/&amp;/g, "&");
+    if (name) fields.push([name, value]);
+  }
+  bru.setEnvVar("mcpConsentForm", JSON.stringify(fields));
+}
+
+tests {
+  test("200 com os escopos", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body).to.contain("data-scope=");
+  });
+}

@@ -1,0 +1,38 @@
+meta {
+  name: Autorizar com Sessão
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{mcpAuthorizeUrl}}
+  body: none
+  auth: none
+}
+
+script:pre-request {
+  req.setMaxRedirects(0);
+}
+
+script:post-response {
+  const location = res.headers["location"] || "";
+  const absolute = location.startsWith("http") ? location : bru.getEnvVar("mcpBaseUrl") + location;
+  if (location.includes("/auth/consent")) {
+    bru.setEnvVar("mcpConsentUrl", absolute);
+  }
+  const code = (location.match(/[?&]code=([^&]+)/) || [])[1];
+  if (code) {
+    bru.setEnvVar("mcpCode", decodeURIComponent(code));
+  }
+}
+
+tests {
+  test("302 para o consentimento ou com o código", function () {
+    expect(res.status).to.equal(302);
+  });
+}
+
+docs {
+  Com a sessão do AS: vai para `/auth/consent` (primeira vez) ou já devolve o código, se os escopos
+  estiverem autorizados — nesse caso pule para **Trocar Código por Token**.
+}

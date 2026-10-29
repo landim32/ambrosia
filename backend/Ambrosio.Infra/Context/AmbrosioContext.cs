@@ -547,6 +547,23 @@ public class AmbrosioContext : DbContext
                 .HasConversion<int>()
                 .IsRequired();
 
+            // Origem e tipo do pedido (feature 008, data-model §2). Os padrões (1 = tela, 1 = período)
+            // são o que as execuções anteriores à 008 passam a ter: nenhuma tinha plugin nem
+            // "Atualizar base", e a migração não precisa preencher nada.
+            entity.Property(e => e.StartedVia)
+                .HasColumnName("started_via")
+                .HasConversion<int>()
+                .HasDefaultValue(ImportRunStartedVia.Screen)
+                .HasSentinel(ImportRunStartedVia.Screen)
+                .IsRequired();
+
+            entity.Property(e => e.Kind)
+                .HasColumnName("kind")
+                .HasConversion<int>()
+                .HasDefaultValue(ImportRunKind.Period)
+                .HasSentinel(ImportRunKind.Period)
+                .IsRequired();
+
             // DEFAULT 1 = queued: a linha nasce do POST /runs antes de o worker pegar a vaga (FR-016).
             entity.Property(e => e.Status)
                 .HasColumnName("status")
@@ -836,6 +853,35 @@ public class AmbrosioContext : DbContext
             entity.Property(e => e.LockedUntil)
                 .HasColumnName("locked_until")
                 .HasColumnType("timestamp without time zone");
+
+            // Credenciais do +Vendas cifradas (feature 008, data-model §1). `text` e não varchar com
+            // tamanho: o texto cifrado cresce com o valor em claro (login ≤ 120, senha ≤ 200) mais
+            // nonce/tag/base64, e um teto fixo truncaria a cifra — truncada, ela não decifra nunca.
+            // Quem escreve aqui é só o MaisVendasCredentialService, sempre com o par preenchido junto.
+            entity.Property(e => e.LoginEncrypted)
+                .HasColumnName("login_encrypted")
+                .HasColumnType("text");
+
+            entity.Property(e => e.PasswordEncrypted)
+                .HasColumnName("password_encrypted")
+                .HasColumnType("text");
+
+            entity.Property(e => e.CredentialsSavedAt)
+                .HasColumnName("credentials_saved_at")
+                .HasColumnType("timestamp without time zone");
+
+            entity.Property(e => e.PasswordChangedAt)
+                .HasColumnName("password_changed_at")
+                .HasColumnType("timestamp without time zone");
+
+            // DEFAULT 0 = nenhuma credencial guardada (Princípio V: status como integer com padrão). As
+            // transições 0/1/2 estão em data-model §1 e são do modelo, não do banco.
+            entity.Property(e => e.CredentialsStatus)
+                .HasColumnName("credentials_status")
+                .HasConversion<int>()
+                .HasDefaultValue(MaisVendasCredentialsStatus.None)
+                .HasSentinel(MaisVendasCredentialsStatus.None)
+                .IsRequired();
 
             entity.Property(e => e.CreatedAt)
                 .HasColumnName("created_at")

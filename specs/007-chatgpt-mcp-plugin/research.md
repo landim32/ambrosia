@@ -63,6 +63,16 @@ Cada item: **Decisão**, **Motivo**, **Alternativas consideradas**. Fontes consu
 
 ## R9. Credenciais do +Vendas em `iniciar_importacao`
 
+> **Substituído pela feature 008** (`specs/008-import-credentials/research.md` R9/R10). Desde lá a tool
+> **inicia** a execução de verdade: as credenciais ficam cifradas em `mais_vendas_accounts`, cadastradas
+> uma vez na tela `/configuracoes/mais-vendas`, e `iniciar_importacao` (com `confirmar`) chama o mesmo
+> `IImportRunService` da tela com `startedVia = mcp`, devolvendo o número da execução. Continua valendo o
+> que motivou esta decisão — **nenhuma credencial passa pela conversa**, e o schema da tool recusa
+> `login`/`senha`. O que caiu foi o link como único caminho para iniciar, e a leitura de
+> `inicio`/`fim` na URL da tela ficou sem produtor. A razão nova que tornou isso possível: a fila deixou
+> de ser um canal em memória do processo que recebe a senha e passou a ser a tabela `import_runs`, então
+> o host do MCP — sem Chromium e sem worker — pode criar a execução que o worker da API vai coletar.
+
 - **Decisão**: a tool **não** inicia a execução. Ela valida o período, pede confirmação e devolve um link `https://ambrosioai.site/importacao?inicio=AAAA-MM-DD&fim=AAAA-MM-DD`. A tela de importação passa a ler esses dois parâmetros da URL para preencher o período. A vendedora digita login e senha lá e inicia. As demais tools de importação acompanham a execução normalmente.
 - **Motivo**: FR-024/FR-025. Argumentos de tool ficam no histórico da conversa e nos logs do provedor da LLM. Com o modo *stateless*, a *elicitation* em modo URL não está disponível, e o link em texto entrega o mesmo resultado.
 - **Alternativas**: *elicitation* em modo URL (exige sessão, R2); senha como argumento (viola FR-025).

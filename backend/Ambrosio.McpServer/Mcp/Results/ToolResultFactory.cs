@@ -93,6 +93,10 @@ public static class ToolResultFactory
     /// <summary>A mensagem que a API devolveria para a mesma exceção, ou <c>null</c> se não for de domínio.</summary>
     public static string? DomainMessage(Exception exception) => exception switch
     {
+        // Sem credenciais cadastradas (feature 008, FR-004/FR-018): erro de domínio como qualquer
+        // recusa, com a frase do plugin — que difere da da API porque precisa levar o link da tela
+        // onde o cadastro acontece. Audita como "recusada por regra", nunca como erro inesperado.
+        McpCredentialsNotConfiguredException credentials => credentials.Message,
         ValidationException validation => string.Join(" ", validation.Errors
             .Select(e => e.ErrorMessage)
             .Where(m => !string.IsNullOrWhiteSpace(m))

@@ -1,0 +1,50 @@
+meta {
+  name: Credenciais - Salvar
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/imports/mais-vendas/credentials
+  body: json
+  auth: inherit
+}
+
+docs {
+  Cadastra ou troca o login e a senha do +Vendas (feature 008, FR-001/FR-002). É o único
+  ponto do sistema que recebe a senha em claro: ela é cifrada na transação e nenhum campo
+  dela volta em resposta — o `PUT` devolve o estado (`login`, `hasPassword`, `status`), não
+  o que você enviou.
+
+  Regras de presença (contratos/api.md):
+  - sem credenciais ainda: `login` e `password` vêm juntos (sem senha, 400);
+  - com credenciais: `password` sozinho troca só a senha; `login` diferente sem senha → 400;
+  - `null` (campo ausente) = "não mexi nisso"; string vazia ou só espaços é recusada;
+  - tetos: login 120, senha 200 caracteres.
+
+  Em homologação (coletor Fake) o login escolhe o cenário (`s482+ok`, `s482+recusada`,
+  `s482+falha-bloco3`, …) e a senha é `v1`/`v2`/`v3`/`recusada`. São valores de teste, nunca
+  credenciais reais.
+}
+
+body:json {
+  {
+    "login": "{{maisVendasLogin}}",
+    "password": "{{maisVendasPassword}}"
+  }
+}
+
+tests {
+  test("status 200 com credenciais válidas", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.hasPassword).to.equal(true);
+    expect(res.body.status).to.equal("valid");
+    expect(res.body.passwordChangedAt).to.be.a('string');
+  });
+
+  test("a resposta não devolve a senha, nem mascarada", function () {
+    const body = JSON.stringify(res.body);
+    expect(body).to.not.include(bru.getEnvVar("maisVendasPassword"));
+    expect(body.toLowerCase()).to.not.include('"password"');
+  });
+}

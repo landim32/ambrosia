@@ -1,7 +1,7 @@
 import { useTranslation } from 'react-i18next'
 
 import { Pagination } from '@/components/common/Pagination'
-import { ImportStatusBadge } from '@/components/imports/ImportStatusBadge'
+import { ImportRunOriginBadges, ImportStatusBadge } from '@/components/imports/ImportStatusBadge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { formatImportDate, formatImportInstant, ordersWrittenOf } from '@/lib/importForm'
@@ -60,6 +60,12 @@ export const ImportHistory = ({ history, selectedRunId, onOpen, onPageChange }: 
                       <span className="text-xs text-muted-foreground">
                         {t(run.mode === 'dryRun' ? 'import.mode.dryRun' : 'import.mode.apply')}
                       </span>
+                      {/*
+                        * Feature 008 (research R8): "Pelo plugin" e "Atualizar base"
+                        * só aparecem quando diferem do padrão — a linha de uma
+                        * importação normal fica como estava na feature 006.
+                       */}
+                      <ImportRunOriginBadges run={run} />
                     </span>
                     <span className="flex flex-wrap gap-2 text-xs font-normal text-muted-foreground">
                       <span>{formatImportInstant(run.requestedAt)}</span>

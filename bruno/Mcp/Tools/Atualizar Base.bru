@@ -1,0 +1,66 @@
+meta {
+  name: Atualizar Base
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{mcpBaseUrl}}/mcp
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{mcpToken}}
+}
+
+headers {
+  Accept: application/json, text/event-stream
+}
+
+body:json {
+  {
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "atualizar_base",
+      "arguments": { "simular": true, "confirmar": true }
+    }
+  }
+}
+
+tests {
+  // Resposta do /mcp em SSE ("event: message" / "data: {...}"): o JSON-RPC é o último "data:".
+  function rpc(body) {
+    const text = typeof body === "string" ? body : JSON.stringify(body);
+    const lines = text.split("\n").filter(l => l.startsWith("data:"));
+    return JSON.parse(lines.length ? lines[lines.length - 1].slice(5).trim() : text);
+  }
+
+  test("200 sem erro de tool", function () {
+    expect(res.status).to.equal(200);
+    const result = rpc(res.body).result;
+    expect(result.isError || false).to.equal(false);
+    expect(result.structuredContent.registro.importacao_id).to.be.a('number');
+  });
+
+  test("a resposta não traz credencial", function () {
+    const text = JSON.stringify(rpc(res.body).result).toLowerCase();
+    expect(text).to.not.include('"password"');
+  });
+}
+
+docs {
+  Tool nova da feature 008 (contracts/mcp-tools.md): continua de onde a última importação
+  parou — do último pedido importado, inclusive, até hoje em São Paulo. As datas são
+  calculadas no servidor: a entrada são só `simular` e `confirmar`.
+
+  Sem pedidos importados, ou quando o intervalo passa de `maxRangeMonths`, a resposta é
+  `isError` com o mesmo motivo que `Defaults` mostra em `updateBase.reason` — a vendedora
+  importa em partes escolhendo as datas (FR-015). Sem credenciais cadastradas, `isError` com
+  o link da tela de configuração.
+
+  Antes de rodar: `Credenciais - Salvar` (Fake) e uma importação já concluída, senão o
+  período não tem de onde continuar.
+}

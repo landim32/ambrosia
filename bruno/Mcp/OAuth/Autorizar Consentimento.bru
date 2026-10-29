@@ -1,0 +1,47 @@
+meta {
+  name: Autorizar Consentimento
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{mcpBaseUrl}}/auth/connect/authorize
+  body: text
+  auth: none
+}
+
+headers {
+  Content-Type: application/x-www-form-urlencoded
+}
+
+body:text {
+  (montado pelo script)
+}
+
+script:pre-request {
+  const fields = JSON.parse(bru.getEnvVar("mcpConsentForm") || "[]");
+  fields.push(["decision", "accept"]);
+  req.setBody(fields.map(([k, v]) => encodeURIComponent(k) + "=" + encodeURIComponent(v)).join("&"));
+  req.setMaxRedirects(0);
+}
+
+script:post-response {
+  const location = res.headers["location"] || "";
+  const code = (location.match(/[?&]code=([^&]+)/) || [])[1];
+  if (code) {
+    bru.setEnvVar("mcpCode", decodeURIComponent(code));
+  }
+}
+
+tests {
+  test("302 para a redirect_uri com código e iss", function () {
+    expect(res.status).to.equal(302);
+    expect(res.headers["location"]).to.contain("code=");
+    expect(res.headers["location"]).to.contain("iss=");
+  });
+}
+
+docs {
+  Clica em "Autorizar". Para testar a negação, troque `accept` por `deny` no script: a resposta vem com
+  `error=access_denied`.
+}

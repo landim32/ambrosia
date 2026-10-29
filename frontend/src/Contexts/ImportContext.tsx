@@ -20,22 +20,25 @@ import type {
   ImportRunDetail,
   ImportRunListQuery,
   ImportRunStartRequest,
+  ImportUpdateBaseRequest,
 } from '@/types/import'
 import type { PagedResult } from '@/types/common'
 
 /**
- * Estado da tela de importação (feature 006, research §5/§15).
+ * Estado da tela de importação (feature 006, research §5/§15; feature 008, US2/US3).
  *
- * **A senha nunca entra neste contexto** (FR-007, SC-004): ela vive no `useState`
- * local de `ImportPage` e é entregue a `startRun` como campo do corpo da
- * requisição. Nem `defaults`, nem `currentRun`, nem `lastRun`, nem `history` têm
- * credencial — os DTOs de saída da API também não têm — e este contexto não grava
- * nada em `localStorage`, `sessionStorage` ou cookie.
+ * **Nenhuma credencial passa por aqui** (FR-003/FR-009, SC-003): desde a feature
+ * 008 o `POST /runs` não tem campo de login nem senha — o worker lê as credenciais
+ * GUARDADAS no servidor —, então este contexto nem sequer veria uma senha. O que a
+ * tela precisa saber é SE elas existem, e isso vem nos `defaults`
+ * (`hasCredentials`/`credentialsStatus`). Cadastrar e trocar credencial é
+ * responsabilidade do `MaisVendasSettingsContext`, não daqui (research R4/R10).
  *
  * O progresso é polling (research §5), não SSE/WebSocket: `GET runs/current` a cada
  * `IMPORT_POLL_MS` enquanto a execução está `queued`/`running`, parado no status
  * final e no desmontar. É o que cumpre o atraso ≤ 5 s (FR-015) sem estado de
- * conexão no gateway nginx.
+ * conexão no gateway nginx — e é por ele que uma execução iniciada PELO PLUGIN
+ * (`startedVia: 'mcp'`, SC-002) aparece na tela sozinha.
  */
 
 /** Página inicial do histórico e tamanho padrão (o contrato aceita 1..50). */
@@ -49,12 +52,19 @@ export interface ImportContextType {
   lastRun: ImportRunDetail | null
   history: PagedResult<ImportRun> | null
   loading: boolean
-  /** `true` enquanto o `POST /runs` está em voo (desabilita o botão). */
+  /** `true` enquanto um `POST …/runs` ou `POST …/runs/update-base` está em voo (desabilita os botões). */
   starting: boolean
   error: string | null
   loadDefaults: () => Promise<void>
   /** Devolve o resumo criado, ou `null` quando o envio falhou (o erro está em `error`). */
   startRun: (request: ImportRunStartRequest) => Promise<ImportRun | null>
+  /**
+   * "Atualizar base" (FR-013): o período vem do servidor, o corpo é só o modo.
+   * Devolve a execução criada (`kind: 'updateBase'`) ou `null` na recusa — 400 sem
+   * credenciais / sem pedido importado / período acima do limite, 409 e 423 chegam
+   * como `ApiError` e a mensagem do servidor vai para `error`.
+   */
+  startUpdateBase: (request: ImportUpdateBaseRequest) => Promise<ImportRun | null>
   loadRun: (runId: number) => Promise<void>
   loadHistory: (query?: Partial<ImportRunListQuery>) => Promise<void>
   cancelRun: (runId: number) => Promise<void>
@@ -244,13 +254,20 @@ export const ImportProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [absorbError, refreshCurrent])
 
-  const startRun = useCallback(
-    async (request: ImportRunStartRequest): Promise<ImportRun | null> => {
+  /**
+   * Caminho único dos dois inícios (`POST …/runs` e `POST …/runs/update-base`,
+   * research R5): os dois criam uma execução e passam a acompanhá-la do mesmo
+   * jeito, e as recusas são as mesmas 400/409/423 — duplicar o tratamento do 429
+   * (que relê os defaults para a tela desabilitar com o horário certo) seria a
+   * regra do bloqueio em dois lugares.
+   */
+  const startCreatedRun = useCallback(
+    async (send: () => Promise<ImportRun>): Promise<ImportRun | null> => {
       setStarting(true)
       setError(null)
 
       try {
-        const created = await importService.startRun(request)
+        const created = await send()
 
         if (!mounted.current) return created
 
@@ -268,8 +285,10 @@ export const ImportProvider = ({ children }: { children: ReactNode }) => {
         if (!mounted.current) return null
 
         // 400/409/429: a mensagem do servidor é o que a tela mostra — o 429 traz o
-        // horário de liberação calculado no fuso certo (FR-008a) e o 409 a execução
-        // já em andamento (FR-016). Nenhuma dessas mensagens contém credencial.
+        // horário de liberação calculado no fuso certo (FR-008a), o 409 a execução
+        // já em andamento (FR-016) e o 400 as recusas novas da feature 008 ("Cadastre
+        // as credenciais do +Vendas na configuração." e o período acima do limite).
+        // Nenhuma dessas mensagens contém credencial.
         if (err instanceof ApiError && err.status === 429) {
           setError(err.mensagem)
 
@@ -290,6 +309,18 @@ export const ImportProvider = ({ children }: { children: ReactNode }) => {
       }
     },
     [absorbError, loadDefaults, refreshCurrent],
+  )
+
+  const startRun = useCallback(
+    async (request: ImportRunStartRequest): Promise<ImportRun | null> =>
+      startCreatedRun(() => importService.startRun(request)),
+    [startCreatedRun],
+  )
+
+  const startUpdateBase = useCallback(
+    async (request: ImportUpdateBaseRequest): Promise<ImportRun | null> =>
+      startCreatedRun(() => importService.startUpdateBase(request)),
+    [startCreatedRun],
   )
 
   const loadRun = useCallback(
@@ -401,6 +432,7 @@ export const ImportProvider = ({ children }: { children: ReactNode }) => {
       error,
       loadDefaults,
       startRun,
+      startUpdateBase,
       loadRun,
       loadHistory,
       cancelRun,
@@ -419,6 +451,7 @@ export const ImportProvider = ({ children }: { children: ReactNode }) => {
       error,
       loadDefaults,
       startRun,
+      startUpdateBase,
       loadRun,
       loadHistory,
       cancelRun,

@@ -26,6 +26,11 @@ x-api-environment: &api-environment
   # Importação do +Vendas (feature 006): produção usa o coletor Playwright real, fixo. O startup
   # recusa Collector=Fake em Production (research §3).
   MaisVendas__Collector: Playwright
+  # Cifra das credenciais do +Vendas (feature 008, research R2; constituição §VI emenda 3.4.1):
+  # base64 de 32 bytes no GitHub Secret AMBROSIO_MAIS_VENDAS_CREDENTIALS_KEY, que o pipeline grava
+  # no .env.prod. Sem ela a API e o host do MCP não sobem; trocá-la invalida as credenciais
+  # já gravadas e cada vendedora precisa cadastrar de novo.
+  MaisVendas__CredentialsKey: ${AMBROSIO_MAIS_VENDAS_CREDENTIALS_KEY}
 
 services:
   migrator:

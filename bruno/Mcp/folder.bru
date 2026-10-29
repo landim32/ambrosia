@@ -2,3 +2,25 @@ meta {
   name: Mcp
   seq: 7
 }
+
+docs {
+  # Plugin do ChatGPT (feature 007)
+
+  Servidor MCP em `{{mcpBaseUrl}}/mcp` e authorization server OAuth 2.1 em `{{mcpBaseUrl}}/auth`.
+  O `/mcp` exige o token do authorization server (não o `token` da API).
+
+  ## Obter o token do MCP (rode em ordem, uma vez)
+
+  1. **OAuth / Registrar Cliente (DCR)** — grava `mcpClientId`.
+  2. **OAuth / Autorizar** — gera o PKCE e cai na tela de login.
+  3. **OAuth / Tela de Login** e **OAuth / Entrar** — e-mail e senha da conta (`userEmail`,
+     `userPassword`); a sessão do AS fica no cookie.
+  4. **OAuth / Autorizar com Sessão** — vai para o consentimento (ou direto ao código, se já autorizado).
+  5. **OAuth / Tela de Consentimento** e **OAuth / Autorizar Consentimento** — grava `mcpCode`.
+  6. **OAuth / Trocar Código por Token** — grava `mcpToken` (30 min) e `mcpRefreshToken`.
+
+  Depois, as requisições de **Tools** usam `mcpToken`. Quando expirar, rode **OAuth / Renovar Token**.
+
+  Os passos com redirect desligam o "seguir redirect" no script para ler o `Location`; o Bruno guarda
+  os cookies da sessão do AS e do antiforgery entre as requisições.
+}
