@@ -105,8 +105,16 @@ const liveSession = () => {
 export interface RequestOptions {
   /** Parâmetros de query; vazios são omitidos e `pageSize` sempre vale 20. */
   query?: Record<string, string | number | undefined | null>
-  /** Corpo JSON enviado em POST. */
+  /** Corpo JSON enviado em POST. Ignorado quando `formData` vem. */
   body?: unknown
+  /**
+   * Corpo `multipart/form-data` (feature 009, T024): o `FormData` é enviado
+   * como está — **sem** `JSON.stringify` e **sem** `Content-Type` próprio,
+   * porque o `boundary` é calculado pelo navegador. Fixar o cabeçalho aqui é o
+   * bug clássico do `FormData`: o servidor recebe um multipart sem fronteira.
+   * Usado só por `POST /images` (bytes de foto e recorte do perfil).
+   */
+  formData?: FormData
   /** `false` força chamada anônima. Padrão: `/auth/*` é anônima, o resto não. */
   auth?: boolean
 }
@@ -137,13 +145,22 @@ export const apiRequest = async <T>(
 
   const isAbsolute = /^https?:\/\//.test(path)
   const query = options.query ? buildQuery({ ...options.query, pageSize: PAGE_SIZE }) : ''
+  const formData = options.formData
+  const jsonBody = formData === undefined && options.body !== undefined
 
   let response: Response
   try {
     response = await fetch(`${isAbsolute ? '' : apiBase()}${path}${query}`, {
       method,
-      headers: getHeaders(session, options.body !== undefined, withAuth),
-      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
+      // `getHeaders` só põe `Content-Type: application/json` com corpo JSON:
+      // com `FormData` a flag de corpo é `false` de propósito, e o navegador
+      // escreve o `multipart/form-data; boundary=…` sozinho.
+      headers: getHeaders(session, jsonBody, withAuth),
+      ...(formData !== undefined
+        ? { body: formData }
+        : jsonBody
+          ? { body: JSON.stringify(options.body) }
+          : {}),
     })
   } catch {
     throw new NetworkError()

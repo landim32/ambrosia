@@ -5,8 +5,9 @@ import { cn } from '@/lib/utils'
 export interface CustomerAvatarProps {
   name: string
   /**
-   * Reservado para a HU 010: enquanto a API da 001 não devolve o campo, chega
-   * `undefined` e o avatar usa as iniciais (research §20).
+   * Foto de perfil (feature 009, FR-016): o recorte quadrado guardado como
+   * imagem, exibido em círculo com recorte central só na exibição. `null` ou
+   * ausente = iniciais (US3-5).
    */
   photoUrl?: string | null
   /** `xl` é o avatar do perfil (96 px no mobile, 128 px no desktop). */

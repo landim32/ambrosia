@@ -3,17 +3,40 @@
 > Documento da história de usuário 010: a vendedora envia fotos no ChatGPT, o modelo associa cada foto à cliente certa e o MCP guarda as imagens no storage S3, com metadados, deduplicação e cuidados de LGPD.
 
 **Created:** 2026-10-25
-**Last Updated:** 2026-10-25
+**Last Updated:** 2026-10-29
 
 | Campo | Valor |
 |---|---|
 | ID | 010 |
-| Status | Planejada |
-| Spec | — |
+| Status | Implementada em parte pela [009](../../specs/009-customer-photos/spec.md) — ver "O que a 009 deixou de fora" |
+| Spec | [specs/009-customer-photos](../../specs/009-customer-photos/spec.md) (álbum, descrição, favorita, perfil, ferramentas MCP) |
 | Depende de | [003](003-armazenamento-imagens-s3.md) (storage), [005](005-plugin-chatgpt-mcp.md) (plugin no ChatGPT, MCP, OAuth e escopo `images:write`) |
 | Exibição | [002](002-frontend-web-perfil-cliente-pedidos.md) (perfil do cliente) |
 | Código previsto | `backend/` (entidades, serviço e endpoints REST de leitura) e `backend/Ambrosio.Mcp/` (tools) |
 | Referência | Documentação do Apps SDK da OpenAI (`_meta["openai/fileParams"]`), consultada em 25/10/2026 |
+
+### O que a 009 deixou de fora (decisão do usuário, 2026-10-29)
+
+A spec 009 implementou o álbum (tabela `customer_photos`, 8 operações REST, 8 ferramentas MCP, abas na
+tela da cliente, avatar redondo e recorte) **sem biblioteca de processamento de imagem no servidor**.
+Quatro itens deste documento, portanto, não foram feitos — e não por esquecimento:
+
+| Item deste doc | Situação na 009 | Motivo |
+|---|---|---|
+| Remoção de EXIF (principalmente GPS) | **Não feito.** O arquivo é guardado byte-idêntico ao recebido | Remover metadado exige decodificar e regravar. A linha do `ImageSharp` que faria isso tem advisories no codec TIFF e a 3.2+ exige licença paga no build Release. Registrado na FR-005 revogada de `specs/009-customer-photos/spec.md` |
+| Validação de mime por *magic bytes* | **Não feito.** Vale a validação da 004 (tipo declarado + tamanho + SHA-256) | Acrescentar sniffing teria mudado o comportamento de upload de imagem de produto e de item de pedido, que pertence à 004. Oferecido e recusado pelo usuário |
+| Miniatura para a grade | **Não feito.** A grade lê o original | Mesma razão. Consequência aceita: mais tráfego na grade (risco registrado no `plan.md` da 009) |
+| `tags` e `definir_foto_principal` | **Fora do escopo desde o início da 009** | A 009 chamou de *foto de perfil* (`profile_photo_id`) e não previu tags |
+
+Continua de pé e implementado: download da `download_url` pelo `SafeFileDownloader`, gravação por
+`StoreFromServerAsync` com `ImageSource.ChatGpt`, deduplicação por `(user_id, sha256)`,
+`_meta["openai/fileParams"]`, confirmação antes de gravar, `confirmar` nas ferramentas destrutivas,
+descrição, favorita, exclusão com limpeza de órfão, e o recorte do perfil — este produzido **no
+navegador** pela vendedora, e não no servidor.
+
+`excluir_todas_fotos_cliente` também não virou ferramenta: a 009 publicou `DeleteAllForCustomerAsync`
+no serviço (usado pela exclusão de conta), mas a spec definiu que "excluir todas" é a exclusão de cada
+foto uma a uma, e não há rota para o lote.
 
 ---
 

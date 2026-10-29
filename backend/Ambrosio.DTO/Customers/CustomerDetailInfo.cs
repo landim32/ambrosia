@@ -15,4 +15,12 @@ public class CustomerDetailInfo : CustomerInfo
     /// <summary>Resumo de compras calculado sobre os pedidos do cliente.</summary>
     [JsonPropertyName("summary")]
     public CustomerSummaryInfo Summary { get; set; } = new();
+
+    /// <summary>
+    /// Quantidade de fotos no álbum (feature 009). Contada no banco a cada detalhe, sem coluna
+    /// desnormalizada: o álbum muda por inclusão e por exclusão, e um contador gravado seria mais uma
+    /// oportunidade de divergir (data-model §6).
+    /// </summary>
+    [JsonPropertyName("photoCount")]
+    public int PhotoCount { get; set; }
 }

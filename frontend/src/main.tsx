@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 
 import App, { siteBasename } from '@/App'
 import { AuthProvider } from '@/Contexts/AuthContext'
+import { CustomerPhotoProvider } from '@/Contexts/CustomerPhotoContext'
 import { CustomerProvider } from '@/Contexts/CustomerContext'
 import { ImportProvider } from '@/Contexts/ImportContext'
 import { MaisVendasSettingsProvider } from '@/Contexts/MaisVendasSettingsContext'
@@ -23,7 +24,10 @@ if (!container) {
  * Ponto de entrada. Cadeia de providers da skill `react-architecture`
  * (research §15):
  *
- *   BrowserRouter → AuthProvider (US1) → CustomerProvider (US2) → OrderProvider (US3)
+ *   BrowserRouter → AuthProvider (US1) → CustomerProvider (US2) →
+ *   CustomerPhotoProvider (feature 009; dentro do de clientes: o álbum é sempre o
+ *   da cliente aberta no perfil, e nada aqui carrega sozinho — é a `CustomerProfilePage`
+ *   que chama `loadPhotos`) → OrderProvider (US3)
  *     → ImportProvider (feature 006; não carrega nada sozinho — a `ImportPage` busca)
  *     → MaisVendasSettingsProvider (feature 008; idem: é a tela de configuração que
  *        lê as credenciais, e a senha nunca passa por aqui)
@@ -39,13 +43,15 @@ createRoot(container).render(
     <BrowserRouter basename={siteBasename()}>
       <AuthProvider>
         <CustomerProvider>
-          <OrderProvider>
-            <ImportProvider>
-              <MaisVendasSettingsProvider>
-                <App />
-              </MaisVendasSettingsProvider>
-            </ImportProvider>
-          </OrderProvider>
+          <CustomerPhotoProvider>
+            <OrderProvider>
+              <ImportProvider>
+                <MaisVendasSettingsProvider>
+                  <App />
+                </MaisVendasSettingsProvider>
+              </ImportProvider>
+            </OrderProvider>
+          </CustomerPhotoProvider>
         </CustomerProvider>
         <Toaster richColors position="top-center" />
       </AuthProvider>

@@ -1,0 +1,29 @@
+meta {
+  name: Favoritar Foto
+  type: http
+  seq: 4
+}
+
+put {
+  url: {{baseUrl}}/customers/{{customerId}}/photos/{{photoId}}/favorite
+  body: none
+  auth: inherit
+}
+
+vars:pre-request {
+  customerId: 32
+  photoId: 1204
+}
+
+docs {
+  FR-008: marca como favorita. Idempotente — favoritar o que já é favorito não muda `updatedAt`
+  (o modelo do Domain ignora a repetição), então a conversa pode repetir o pedido sem embaralhar a
+  ordem de "última alteração".
+}
+
+tests {
+  test("status 200 com isFavorite true", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.isFavorite).to.equal(true);
+  });
+}

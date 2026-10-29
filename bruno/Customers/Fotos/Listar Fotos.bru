@@ -1,0 +1,54 @@
+meta {
+  name: Listar Fotos
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/customers/{{customerId}}/photos?pageSize=24
+  body: none
+  auth: inherit
+}
+
+vars:pre-request {
+  customerId: 32
+}
+
+docs {
+  Grade do álbum, da mais recente para a mais antiga, com paginação por cursor (research R8).
+  Query: `cursor` (foto_id da última linha da página anterior), `pageSize` (1-60, padrão 24) e
+  `favorites=true` para só as favoritas.
+
+  Cada item traz `url` do **arquivo original** — não existe `thumbnailUrl`, porque o servidor não
+  gera miniatura (research R3). Cliente de outra vendedora responde 404 com a mesma mensagem de
+  "não existe".
+}
+
+tests {
+  test("status 200", function () {
+    expect(res.status).to.equal(200);
+  });
+
+  test("ordem da mais recente e cursor coerente", function () {
+    expect(res.body.items).to.be.an('array');
+
+    if (res.body.items.length > 1) {
+      const dates = res.body.items.map((i) => i.createdAt);
+      expect(dates).to.eql([...dates].sort().reverse());
+    }
+  });
+
+  test("nenhuma miniatura e nenhuma chave de objeto", function () {
+    const body = JSON.stringify(res.body);
+    expect(body).to.not.include("thumbnailUrl");
+    expect(body).to.not.include("storageKey");
+  });
+
+  test("url só vem com urlExpiresAt", function () {
+    for (const item of res.body.items) {
+      if (item.url) {
+        expect(item.urlExpiresAt).to.be.a('string');
+      }
+    }
+  });
+}

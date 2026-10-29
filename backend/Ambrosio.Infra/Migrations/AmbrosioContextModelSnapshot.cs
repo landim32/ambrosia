@@ -59,6 +59,14 @@ namespace Ambrosio.Infra.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("name");
 
+                    b.Property<long?>("ProfileImageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("profile_image_id");
+
+                    b.Property<long?>("ProfilePhotoId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("profile_photo_id");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp without time zone")
                         .HasColumnName("updated_at");
@@ -69,6 +77,12 @@ namespace Ambrosio.Infra.Migrations
 
                     b.HasKey("Id")
                         .HasName("customers_pkey");
+
+                    b.HasIndex("ProfileImageId")
+                        .HasDatabaseName("ix_customers_profile_image");
+
+                    b.HasIndex("ProfilePhotoId")
+                        .HasDatabaseName("ix_customers_profile_photo");
 
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_customers_user");
@@ -81,6 +95,74 @@ namespace Ambrosio.Infra.Migrations
                         .HasDatabaseName("ix_customers_user_name");
 
                     b.ToTable("customers", (string)null);
+                });
+
+            modelBuilder.Entity("Ambrosio.Domain.Models.CustomerPhoto", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("customer_photo_id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityAlwaysColumn(b.Property<long>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<long>("CustomerId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("customer_id");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("description");
+
+                    b.Property<long>("ImageId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("image_id");
+
+                    b.Property<bool>("IsFavorite")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("is_favorite");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("integer")
+                        .HasColumnName("source");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("customer_photos_pkey");
+
+                    b.HasIndex("CustomerId")
+                        .HasDatabaseName("ix_customer_photos_customer");
+
+                    b.HasIndex("ImageId")
+                        .HasDatabaseName("ix_customer_photos_image");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_customer_photos_user");
+
+                    b.HasIndex("CustomerId", "ImageId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_customer_photos_customer_image");
+
+                    b.HasIndex("UserId", "CustomerId", "CreatedAt", "Id")
+                        .IsDescending(false, false, true, true)
+                        .HasDatabaseName("ix_customer_photos_favorites")
+                        .HasFilter("is_favorite");
+
+                    b.ToTable("customer_photos", (string)null);
                 });
 
             modelBuilder.Entity("Ambrosio.Domain.Models.ImportRun", b =>
@@ -1175,11 +1257,52 @@ namespace Ambrosio.Infra.Migrations
 
             modelBuilder.Entity("Ambrosio.Domain.Models.Customer", b =>
                 {
+                    b.HasOne("Ambrosio.Domain.Models.StoredImage", "ProfileImage")
+                        .WithMany()
+                        .HasForeignKey("ProfileImageId")
+                        .HasConstraintName("fk_profile_image_customer");
+
+                    b.HasOne("Ambrosio.Domain.Models.CustomerPhoto", "ProfilePhoto")
+                        .WithMany()
+                        .HasForeignKey("ProfilePhotoId")
+                        .HasConstraintName("fk_customer_photo_customer");
+
                     b.HasOne("Ambrosio.Domain.Models.User", "User")
                         .WithMany("Customers")
                         .HasForeignKey("UserId")
                         .IsRequired()
                         .HasConstraintName("fk_user_customer");
+
+                    b.Navigation("ProfileImage");
+
+                    b.Navigation("ProfilePhoto");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Ambrosio.Domain.Models.CustomerPhoto", b =>
+                {
+                    b.HasOne("Ambrosio.Domain.Models.Customer", "Customer")
+                        .WithMany()
+                        .HasForeignKey("CustomerId")
+                        .IsRequired()
+                        .HasConstraintName("fk_customer_customer_photo");
+
+                    b.HasOne("Ambrosio.Domain.Models.StoredImage", "StoredImage")
+                        .WithMany()
+                        .HasForeignKey("ImageId")
+                        .IsRequired()
+                        .HasConstraintName("fk_stored_image_customer_photo");
+
+                    b.HasOne("Ambrosio.Domain.Models.User", "User")
+                        .WithMany("CustomerPhotos")
+                        .HasForeignKey("UserId")
+                        .IsRequired()
+                        .HasConstraintName("fk_user_customer_photo");
+
+                    b.Navigation("Customer");
+
+                    b.Navigation("StoredImage");
 
                     b.Navigation("User");
                 });
@@ -1346,6 +1469,8 @@ namespace Ambrosio.Infra.Migrations
 
             modelBuilder.Entity("Ambrosio.Domain.Models.User", b =>
                 {
+                    b.Navigation("CustomerPhotos");
+
                     b.Navigation("Customers");
 
                     b.Navigation("StoredImages");

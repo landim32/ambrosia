@@ -4,6 +4,7 @@ using Ambrosio.Domain.Models;
 using Ambrosio.Domain.Services;
 using Ambrosio.Domain.Validators;
 using Ambrosio.DTO.Common;
+using Ambrosio.DTO.CustomerPhotos;
 using Ambrosio.DTO.Customers;
 using Ambrosio.DTO.Enums;
 using Ambrosio.DTO.Orders;
@@ -29,6 +30,7 @@ public class OrderServiceTest
 
     private readonly Mock<IOrderRepository<Order>> _orders = new();
     private readonly Mock<ICustomerRepository<Customer>> _customers = new();
+    private readonly Mock<ICustomerPhotoService> _photos = new();
     private readonly FakeClock _clock = new(NOW);
     private readonly OrderService _sut;
 
@@ -42,11 +44,16 @@ public class OrderServiceTest
         _orders.Setup(r => r.InsertAsync(It.IsAny<Order>())).ReturnsAsync((Order o) => o);
         _orders.Setup(r => r.UpdateAsync(It.IsAny<Order>())).ReturnsAsync((Order o) => o);
 
+        // Fotos (009): nenhuma cliente destes testes tem perfil nem álbum.
+        _photos.Setup(p => p.GetProfilesAsync(It.IsAny<long>(), It.IsAny<IReadOnlyCollection<long>>(), It.IsAny<bool>()))
+            .ReturnsAsync(new Dictionary<long, CustomerProfilePhotoInfo>());
+
         // Validators reais: as regras de formato (sinal do total, itens, data) são da própria
         // história; os mocks ficam nas fronteiras (repositórios, relógio).
         _sut = new OrderService(
             _orders.Object,
             _customers.Object,
+            _photos.Object,
             new OrderInsertInfoValidator(_clock),
             new OrderUpdateInfoValidator(),
             new OrderListQueryValidator(),

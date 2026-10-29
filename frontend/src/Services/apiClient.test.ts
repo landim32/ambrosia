@@ -169,6 +169,57 @@ describe('apiClient', () => {
     expect(lastCall().init.body).toBeUndefined()
   })
 
+  // Feature 009 · T024 — `POST /images` é o único multipart da tela. Serializar
+  // o `FormData` (ou fixar `Content-Type`) é o bug clássico: o servidor recebe
+  // um multipart sem a fronteira calculada pelo navegador e recusa o arquivo.
+  it('formData: envia o corpo como FormData e NÃO define Content-Type', async () => {
+    writeSession(SESSION)
+
+    const form = new FormData()
+    form.append('file', new Blob(['bytes'], { type: 'image/jpeg' }), 'foto.jpg')
+
+    mockFetch(() => jsonResponse(201, { ok: true }))
+
+    await apiRequest<Ping>('POST', '/images', { formData: form })
+
+    expect(lastCall().init.body).toBe(form)
+    expect(lastHeaders().get('content-type')).toBeNull()
+    expect(lastHeaders().get('authorization')).toBe('Bearer jwt-de-teste')
+    expect(lastHeaders().get('accept')).toBe('application/json')
+  })
+
+  it('formData: tem precedência sobre `body` e não passa por JSON', async () => {
+    const form = new FormData()
+    form.append('file', new Blob(['x'], { type: 'image/png' }), 'x.png')
+
+    mockFetch(() => jsonResponse(201, { ok: true }))
+
+    await apiRequest<Ping>('POST', '/images', { auth: false, body: { imageId: 1 }, formData: form })
+
+    expect(lastCall().init.body).toBe(form)
+    expect(lastHeaders().get('content-type')).toBeNull()
+  })
+
+  it('formData: mantém o tratamento de 400 e 404 do transporte', async () => {
+    const form = new FormData()
+    form.append('file', new Blob(['x'], { type: 'image/gif' }), 'x.gif')
+
+    mockFetch(() =>
+      jsonResponse(400, {
+        sucesso: false,
+        mensagem: 'Dados inválidos.',
+        erros: [{ campo: 'mimeType', mensagem: 'Tipo não aceito.' }],
+      }),
+    )
+
+    const err = (await capture(
+      apiRequest<Ping>('POST', '/images', { auth: false, formData: form }),
+    )) as ApiError
+
+    expect(err).toBeInstanceOf(ApiError)
+    expect(err.erros[0]?.campo).toBe('mimeType')
+  })
+
   it('monta a query omitindo undefined e vazios', async () => {
     mockFetch(() => jsonResponse(200, { ok: true }))
 

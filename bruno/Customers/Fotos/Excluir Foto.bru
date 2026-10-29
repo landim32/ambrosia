@@ -1,0 +1,37 @@
+meta {
+  name: Excluir Foto
+  type: http
+  seq: 6
+}
+
+delete {
+  url: {{baseUrl}}/customers/{{customerId}}/photos/{{photoId}}
+  body: none
+  auth: inherit
+}
+
+vars:pre-request {
+  customerId: 32
+  photoId: 1204
+}
+
+docs {
+  FR-009 e FR-015: remove a foto do álbum. O arquivo sai do storage **só se ficou órfão** — nenhuma
+  outra `customer_photos`, nenhum `customers.profile_image_id` e nenhum `order_items.image_id`
+  apontando para ele (research R6). Foto repetida em outra cliente, portanto, continua intacta.
+
+  Se a foto era a origem da foto de perfil, o perfil é removido junto e a cliente volta às iniciais.
+  Nada disso é cascata de banco: é o serviço, numa única transação.
+}
+
+tests {
+  test("status 204", function () {
+    expect(res.status).to.equal(204);
+  });
+
+  test("a foto sumiu do álbum", function () {
+    if (res.status === 204) {
+      expect(res.body).to.be.empty;
+    }
+  });
+}

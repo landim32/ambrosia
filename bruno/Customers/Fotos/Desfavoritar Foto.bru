@@ -1,0 +1,28 @@
+meta {
+  name: Desfavoritar Foto
+  type: http
+  seq: 5
+}
+
+delete {
+  url: {{baseUrl}}/customers/{{customerId}}/photos/{{photoId}}/favorite
+  body: none
+  auth: inherit
+}
+
+vars:pre-request {
+  customerId: 32
+  photoId: 1204
+}
+
+docs {
+  Desmarca a favorita. Um verbo por operação porque a paridade ferramenta ↔ rota é 1:1
+  (research R11), e a conversa tem `desfavoritar_foto_cliente` separada.
+}
+
+tests {
+  test("status 200 com isFavorite false", function () {
+    expect(res.status).to.equal(200);
+    expect(res.body.isFavorite).to.equal(false);
+  });
+}

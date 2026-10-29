@@ -379,6 +379,32 @@ describe('AuthContext', () => {
     }
   })
 
+  it('token de 90 dias não expira quando o setTimeout atinge o limite de ~24,8 dias', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+    try {
+      const DAY = 24 * 60 * 60 * 1000
+      vi.setSystemTime(new Date('2026-03-01T10:00:00Z'))
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('{}'))
+      localStorage.setItem(
+        AUTH_STORAGE_KEY,
+        JSON.stringify({ token: 'jwt', expiresAt: '2026-05-30T10:00:00.000Z', user: USER }),
+      )
+      renderAuth('/clientes')
+
+      await vi.advanceTimersByTimeAsync(30 * DAY)
+
+      expect(screen.getByTestId('status')).toHaveTextContent('auth=true')
+      expect(localStorage.getItem(AUTH_STORAGE_KEY)).not.toBeNull()
+
+      await vi.advanceTimersByTimeAsync(60 * DAY + 1_000)
+
+      expect(locationText()).toBe('LOC:/login?motivo=expirada:{"returnTo":"/clientes"}')
+      expect(localStorage.getItem(AUTH_STORAGE_KEY)).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('401 vindo do apiClient encerra a sessão com o motivo expirada', async () => {
     const events = userEvent.setup()
     vi.spyOn(globalThis, 'fetch').mockImplementation(() =>

@@ -30,6 +30,31 @@ O Ambrosio guarda as clientes, os pedidos (vendas, devoluções e cancelamentos)
 | Importar vendas do +Vendas num período | `sugestao_periodo_importacao`, depois `iniciar_importacao` (prévia e `confirmar: true`) |
 | Continuar a importação de onde parou | `sugestao_periodo_importacao`, depois `atualizar_base` (prévia e `confirmar: true`) |
 | Acompanhar uma importação | `importacao_atual`, `obter_importacao` |
+| Ver as fotos de uma cliente | `listar_fotos_cliente` |
+| Guardar foto(s) que a vendedora enviou na conversa | `anexar_fotos_cliente` (prévia e `confirmar: true`) |
+| "Marca a da saia verde como favorita" | `favoritar_foto_cliente` / `desfavoritar_foto_cliente` |
+| Escrever ou tirar a legenda de uma foto | `descrever_foto_cliente` |
+| "Usa essa como foto de perfil" | `definir_foto_perfil` (e `remover_foto_perfil` para tirar) |
+| Apagar uma foto | `excluir_foto_cliente` (prévia e `confirmar: true`) |
+
+## Fotos das clientes
+
+- **Primeiro descubra a cliente.** As ferramentas de foto pedem `cliente_id`, nunca nome. Se houver mais
+  de uma com o nome dito, use `listar_clientes`/`buscar_cliente` e pergunte qual é antes de anexar —
+  anexar na cliente errada é o pior erro possível aqui, porque a foto fica no álbum de outra pessoa.
+- `obter_cliente` responde `temFotoPerfil` e `totalFotos`; é por aí que você sabe se já há álbum.
+- **`anexar_fotos_cliente` recebe até 10 arquivos por chamada** e mostra na prévia o nome, o tipo e o
+  tamanho de cada um, **sem gravar nada**. Mostre essa prévia e grave só depois do "sim".
+- A resposta da gravação é **por arquivo**: `guardada`, `ja_existia` (a mesma foto já estava no álbum
+  desta cliente), `guardada_tambem_em_outra_cliente` (avise: é a mesma imagem em outro álbum) ou
+  `recusada` com o motivo. Um arquivo recusado **não** cancela os demais — conte quantos entraram e
+  repita o motivo dos que não entraram, com as palavras da resposta.
+- **O enquadramento do perfil se faz na tela.** Na conversa não há como recortar o quadrado, então
+  `definir_foto_perfil` usa a própria foto e a resposta vem com um `aviso` dizendo isso: entregue o aviso
+  em vez de prometer um recorte que você não fez.
+- Se a vendedora mandar a mesma foto sem dizer de quem é, e o contexto não deixar certeza, pergunte. Não
+  anexe "na última cliente mencionada" por suposição.
+- Nada devolve link de arquivo: as fotos só têm link temporário, e ele não circula pela conversa.
 
 ## Gravação
 

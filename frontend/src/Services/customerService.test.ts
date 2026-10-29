@@ -104,6 +104,7 @@ const detailOf = (overrides: Partial<CustomerDetailInfo> = {}): CustomerDetailIn
     lastPurchase: '2026-03-01',
     daysSinceLastPurchase: 12,
   },
+  photoCount: 0,
   ...overrides,
 })
 

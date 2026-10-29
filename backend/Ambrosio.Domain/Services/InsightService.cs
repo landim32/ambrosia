@@ -31,17 +31,28 @@ public class InsightService : IInsightService
     private readonly ICustomerRepository<Customer> _customers;
     private readonly IOrderRepository<Order> _orders;
     private readonly ICpfProtectionAppService _cpfProtection;
+
+    /// <summary>
+    /// Avatar da cliente nas respostas do plugin (feature 009). Esta classe monta <c>CustomerInfo</c>
+    /// por conta própria em dois pontos — <c>buscar_cliente</c> por CPF e o bloco <c>cliente</c> de
+    /// <c>historico_cliente</c> —, e sem esta dependência os dois diriam <c>temFotoPerfil: false</c>
+    /// para uma cliente que tem perfil, discordando de <c>obter_cliente</c> (T059).
+    /// </summary>
+    private readonly ICustomerPhotoService _photos;
+
     private readonly IClock _clock;
 
     public InsightService(
         ICustomerRepository<Customer> customers,
         IOrderRepository<Order> orders,
         ICpfProtectionAppService cpfProtection,
+        ICustomerPhotoService photos,
         IClock clock)
     {
         _customers = customers;
         _orders = orders;
         _cpfProtection = cpfProtection;
+        _photos = photos;
         _clock = clock;
     }
 
@@ -117,16 +128,7 @@ public class InsightService : IInsightService
 
         var customer = await _customers.GetByCpfHashAsync(userId, _cpfProtection.Hash(parsed.Digits));
 
-        return customer is null
-            ? null
-            : new CustomerInfo
-            {
-                Id = customer.Id,
-                Name = customer.Name,
-                CpfMasked = customer.CpfMasked,
-                CreatedAt = customer.CreatedAt,
-                UpdatedAt = customer.UpdatedAt
-            };
+        return customer is null ? null : await MapCustomerAsync(customer, userId);
     }
 
     public async Task<CustomerHistoryInfo> GetCustomerHistoryAsync(long userId, long customerId, int limit)
@@ -144,18 +146,31 @@ public class InsightService : IInsightService
 
         return new CustomerHistoryInfo
         {
-            Customer = new CustomerInfo
-            {
-                Id = customer.Id,
-                Name = customer.Name,
-                CpfMasked = customer.CpfMasked,
-                CreatedAt = customer.CreatedAt,
-                UpdatedAt = customer.UpdatedAt
-            },
+            Customer = await MapCustomerAsync(customer, userId),
             Summary = summary,
             AverageTicket = summary.Purchases > 0 ? Math.Round(summary.NetTotal / summary.Purchases, 2) : null,
             Orders = orders.Select(OrderService.MapToDetail).ToList(),
             TotalOrders = totalOrders
+        };
+    }
+
+    /// <summary>
+    /// <c>CustomerInfo</c> com o avatar preenchido (feature 009, T059). A assinatura da URL é local
+    /// (nenhuma ida ao storage), e o plugin não a emite: <c>ToolMapping</c> só lê a presença do
+    /// perfil, porque link temporário não circula pela conversa (contracts/mcp-tools.md).
+    /// </summary>
+    private async Task<CustomerInfo> MapCustomerAsync(Customer customer, long userId)
+    {
+        var profiles = await _photos.GetProfilesAsync(userId, [customer.Id], includeOriginalUrl: false);
+
+        return new CustomerInfo
+        {
+            Id = customer.Id,
+            Name = customer.Name,
+            CpfMasked = customer.CpfMasked,
+            CreatedAt = customer.CreatedAt,
+            UpdatedAt = customer.UpdatedAt,
+            ProfilePhoto = profiles.GetValueOrDefault(customer.Id)
         };
     }
 

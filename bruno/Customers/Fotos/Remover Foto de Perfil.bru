@@ -1,0 +1,26 @@
+meta {
+  name: Remover Foto de Perfil
+  type: http
+  seq: 8
+}
+
+delete {
+  url: {{baseUrl}}/customers/{{customerId}}/profile-photo
+  body: none
+  auth: inherit
+}
+
+vars:pre-request {
+  customerId: 32
+}
+
+docs {
+  FR-015: tira a foto de perfil **sem** excluir a foto do álbum. A cliente volta a mostrar as
+  iniciais no avatar (cenário US3-5). O recorte dedicado, se havia, vira candidato a órfão.
+}
+
+tests {
+  test("status 204", function () {
+    expect(res.status).to.equal(204);
+  });
+}
